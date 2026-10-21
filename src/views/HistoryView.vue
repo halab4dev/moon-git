@@ -1,13 +1,14 @@
 <script setup lang="ts">
-import { onMounted, ref, shallowRef, watch } from "vue";
+import { computed, onMounted, onUnmounted, ref, shallowRef, watch } from "vue";
 import CommitList from "../components/CommitList.vue";
+import HistoryFilter from "../components/HistoryFilter.vue";
 import RefFilter from "../components/RefFilter.vue";
 import { currentBranchRefs } from "../components/refSelection";
 import { LaneLayout, type GraphRow } from "../graph/laneLayout";
-import { getLog, listRefs } from "../api/log";
+import { findCommits, getLog, listRefs } from "../api/log";
 import { toAppError } from "../api/errors";
 import type { AppError } from "../types/error";
-import type { CommitSummary, RefInfo } from "../types/log";
+import type { CommitSummary, FilterMode, RefInfo } from "../types/log";
 
 // "History" tab: all branches, remote branches and tags, newest first,
 // loaded page by page while scrolling.
@@ -71,6 +72,7 @@ watch(refSelection, (current) => {
     // Not remembered; fine.
   }
   reload();
+  search();
 });
 
 async function loadRefs() {
@@ -78,6 +80,108 @@ async function loadRefs() {
     refs.value = await listRefs(props.repoId);
   } catch (err) {
     error.value = toAppError(err);
+  }
+}
+
+// ---- filter by message / commit id (step 17) ----
+
+const MODE_KEY = "moongit.history.filterMode";
+const filterText = ref("");
+const filterMode = ref<FilterMode>(readMode());
+// The text in use: follows filterText after a short pause in typing, so not
+// every key press walks the whole history.
+const appliedFilter = ref("");
+let typingTimer: ReturnType<typeof setTimeout> | undefined;
+
+watch(filterText, (text) => {
+  clearTimeout(typingTimer);
+  typingTimer = setTimeout(() => (appliedFilter.value = text.trim()), 300);
+});
+onUnmounted(() => clearTimeout(typingTimer));
+
+function readMode(): FilterMode {
+  try {
+    return localStorage.getItem(MODE_KEY) === "hide" ? "hide" : "highlight";
+  } catch {
+    return "highlight";
+  }
+}
+
+watch(filterMode, (mode) => {
+  try {
+    localStorage.setItem(MODE_KEY, mode);
+  } catch {
+    // Not remembered; fine.
+  }
+});
+
+// Hide mode: Rust returns matching commits only. Highlight mode: the full
+// history, plus the ids of all matches (below) to dim the others.
+const logFilter = computed(() =>
+  filterMode.value === "hide" && appliedFilter.value !== "" ? appliedFilter.value : null,
+);
+watch(logFilter, () => reload());
+
+const matchIds = shallowRef<string[] | null>(null);
+const matchSet = computed(() => (matchIds.value === null ? null : new Set(matchIds.value)));
+const searching = ref(false);
+let searchGeneration = 0;
+
+// Highlight mode: finds the matches in the whole history, loaded or not.
+async function search() {
+  const current = ++searchGeneration;
+  const text = appliedFilter.value;
+  if (text === "" || filterMode.value !== "highlight") {
+    matchIds.value = null;
+    searching.value = false;
+    return;
+  }
+  searching.value = true;
+  try {
+    const ids = await findCommits(props.repoId, refSelection.value, text);
+    if (current === searchGeneration) {
+      matchIds.value = ids;
+    }
+  } catch (err) {
+    if (current === searchGeneration) {
+      error.value = toAppError(err);
+    }
+  } finally {
+    if (current === searchGeneration) {
+      searching.value = false;
+    }
+  }
+}
+
+watch([appliedFilter, filterMode], () => search());
+
+// Enter / ↓: the next match below the selected commit; Shift+Enter / ↑: above.
+// Both wrap around. A match that is not loaded yet is loaded page by page.
+async function jump(step: 1 | -1) {
+  const ids = matchIds.value;
+  if (ids === null || ids.length === 0) {
+    return;
+  }
+  const position = new Map(commits.value.map((commit, index) => [commit.id, index]));
+  const here = selected.value === null ? -1 : (position.get(selected.value) ?? -1);
+  let target: string | undefined;
+  if (step === 1) {
+    // Not loaded = further down than everything loaded.
+    target = ids.find((id) => (position.get(id) ?? Infinity) > here) ?? ids[0];
+  } else {
+    target = [...ids].reverse().find((id) => (position.get(id) ?? Infinity) < here) ?? ids[ids.length - 1];
+  }
+
+  const isLoaded = () => commits.value.some((commit) => commit.id === target);
+  while (!isLoaded() && hasMore.value) {
+    const before = generation;
+    await loadMore();
+    if (before !== generation) {
+      return; // the list was reloaded meanwhile; start again with a fresh list
+    }
+  }
+  if (isLoaded()) {
+    selected.value = target; // CommitList scrolls it into view
   }
 }
 
@@ -96,14 +200,42 @@ function showGraph() {
 // Bumped by every reload; an answer for an older generation is dropped
 // (e.g. a page requested just before the list was reloaded).
 let generation = 0;
+// The load in progress, if any. loadMore() hands it out instead of starting a
+// second one, so callers that wait in a loop (jump) really wait.
+let pending: Promise<void> | null = null;
 
-async function reload() {
+function track(work: Promise<void>): Promise<void> {
+  pending = work;
+  work.finally(() => {
+    if (pending === work) {
+      pending = null;
+    }
+  });
+  return work;
+}
+
+function reload(): Promise<void> {
+  return track(loadFirstPage());
+}
+
+function loadMore(): Promise<void> {
+  if (pending !== null) {
+    return pending;
+  }
+  if (!hasMore.value) {
+    return Promise.resolve();
+  }
+  return track(loadNextPage());
+}
+
+// Never rejects: errors go to `error`.
+async function loadFirstPage() {
   const current = ++generation;
   loading.value = true;
   // Keep about as many commits as are loaded now, so the scroll position survives.
   const count = Math.min(MAX_PAGE, Math.max(PAGE_SIZE, commits.value.length));
   try {
-    const page = await getLog(props.repoId, 0, count, refSelection.value);
+    const page = await getLog(props.repoId, 0, count, refSelection.value, logFilter.value);
     if (current !== generation) {
       return;
     }
@@ -124,14 +256,12 @@ async function reload() {
   }
 }
 
-async function loadMore() {
-  if (loading.value || !hasMore.value) {
-    return;
-  }
+// Never rejects: errors go to `error`.
+async function loadNextPage() {
   const current = generation;
   loading.value = true;
   try {
-    const page = await getLog(props.repoId, commits.value.length, PAGE_SIZE, refSelection.value);
+    const page = await getLog(props.repoId, commits.value.length, PAGE_SIZE, refSelection.value, logFilter.value);
     if (current !== generation) {
       return;
     }
@@ -163,6 +293,7 @@ async function reloadAll() {
     // No commits yet: nothing to choose from; decide on a later visit.
   }
   reload();
+  search();
 }
 
 onMounted(reloadAll);
@@ -173,6 +304,13 @@ watch(() => props.version, reloadAll);
   <div class="history">
     <div class="history-toolbar">
       <RefFilter v-model:selection="refSelection" :refs="refs" />
+      <HistoryFilter
+        v-model:text="filterText"
+        v-model:mode="filterMode"
+        :match-count="matchIds?.length ?? null"
+        :searching="searching"
+        @jump="jump"
+      />
     </div>
     <p v-if="error" class="err message">{{ error.message }}</p>
     <p v-if="refSelection !== null && refSelection.length === 0" class="muted">
@@ -183,12 +321,13 @@ watch(() => props.version, reloadAll);
       :commits="commits"
       :graph="graphRows"
       :graph-lanes="graphLanes"
+      :matches="matchSet"
       :has-more="hasMore"
       :loading="loading"
       @load-more="loadMore"
     />
     <p class="muted footer">
-      {{ commits.length }} commit(s) loaded{{ hasMore ? ", more below" : "" }}{{ loading ? " · loading…" : "" }}
+      {{ commits.length }} {{ logFilter !== null ? "matching " : "" }}commit(s) loaded{{ hasMore ? ", more below" : "" }}{{ loading ? " · loading…" : "" }}
     </p>
   </div>
 </template>

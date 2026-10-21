@@ -41,23 +41,41 @@ pub fn read_log(
     // One extra commit tells us whether another page exists.
     let max_count = format!("--max-count={}", limit + 1);
     let skip_arg = format!("--skip={skip}");
+    let Some(output) = run_log(repo, FORMAT, refs, &[&max_count, &skip_arg])? else {
+        // Nothing (still existing) is selected: nothing to show.
+        return Ok(LogPage {
+            commits: Vec::new(),
+            has_more: false,
+        });
+    };
+    let mut commits = parse_log(&output)?;
+    let has_more = commits.len() > limit;
+    commits.truncate(limit);
+    Ok(LogPage { commits, has_more })
+}
+
+/// Runs `git log` with the options every history view needs, `format`, and
+/// `extra` options, over `refs` (see `read_log`). Shared with search.rs.
+/// None when a selection was given but none of its refs exists any more.
+pub(crate) fn run_log(
+    repo: &Path,
+    format: &str,
+    refs: Option<&[String]>,
+    extra: &[&str],
+) -> Result<Option<String>, AppError> {
     // Declared out here because `args` borrows from it below.
     let selected: Vec<String> = match refs {
         Some(wanted) => existing_refs(repo, wanted)?,
         None => Vec::new(),
     };
     if refs.is_some() && selected.is_empty() {
-        // Nothing (still existing) is selected: nothing to show.
-        return Ok(LogPage {
-            commits: Vec::new(),
-            has_more: false,
-        });
+        return Ok(None);
     }
 
     let mut args = vec![
         "log",
         "-z",
-        FORMAT,
+        format,
         // Full ref names ("refs/heads/main") say what kind of ref each one is.
         "--decorate=full",
         // A commit is listed only after all of its children, newest first:
@@ -66,9 +84,8 @@ pub fn read_log(
         // Neutralise user settings that would add text to the output.
         "--no-show-signature",
         "--no-color",
-        &max_count,
-        &skip_arg,
     ];
+    args.extend_from_slice(extra);
     if refs.is_none() {
         // Not --all: that would also list stash commits.
         args.extend(["--branches", "--remotes", "--tags"]);
@@ -84,11 +101,7 @@ pub fn read_log(
     // End of revisions: nothing after this may be taken for a file name.
     args.push("--");
 
-    let output = run_git(repo, &args)?;
-    let mut commits = parse_log(&output)?;
-    let has_more = commits.len() > limit;
-    commits.truncate(limit);
-    Ok(LogPage { commits, has_more })
+    Ok(Some(run_git(repo, &args)?))
 }
 
 pub fn parse_log(output: &str) -> Result<Vec<CommitSummary>, AppError> {

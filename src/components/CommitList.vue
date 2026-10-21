@@ -14,6 +14,8 @@ const props = defineProps<{
   graph: GraphRow[];
   /** Widest graph row, in lanes. */
   graphLanes: number;
+  /** Highlight filter: commits not in the set are dimmed. null = no filter. */
+  matches: Set<string> | null;
   hasMore: boolean;
   loading: boolean;
 }>();
@@ -80,17 +82,25 @@ function move(step: number) {
   const current = props.commits.findIndex((c) => c.id === selected.value);
   const next = current === -1 ? 0 : Math.min(props.commits.length - 1, Math.max(0, current + step));
   selected.value = props.commits[next].id;
-
-  const box = viewport.value;
-  if (box) {
-    const top = next * ROW_HEIGHT;
-    if (top < box.scrollTop) {
-      box.scrollTop = top;
-    } else if (top + ROW_HEIGHT > box.scrollTop + box.clientHeight) {
-      box.scrollTop = top + ROW_HEIGHT - box.clientHeight;
-    }
-  }
 }
+
+// Keep the selected commit visible, also when it was chosen from outside
+// (e.g. "next match" in the filter). Already visible: nothing moves.
+watch(selected, (id) => {
+  const index = props.commits.findIndex((c) => c.id === id);
+  const box = viewport.value;
+  if (index === -1 || !box) {
+    return;
+  }
+  const top = index * ROW_HEIGHT;
+  if (top < box.scrollTop) {
+    box.scrollTop = top;
+  } else if (top + ROW_HEIGHT > box.scrollTop + box.clientHeight) {
+    // Jumps from far away land in the middle; steps of one row just at the edge.
+    const far = top > box.scrollTop + box.clientHeight + ROW_HEIGHT;
+    box.scrollTop = far ? top - box.clientHeight / 2 : top + ROW_HEIGHT - box.clientHeight;
+  }
+});
 
 // ---- formatting ----
 
@@ -134,7 +144,7 @@ function refClass(ref: CommitRef): string[] {
           v-for="(commit, i) in visible"
           :key="commit.id"
           class="row commit"
-          :class="{ selected: commit.id === selected }"
+          :class="{ selected: commit.id === selected, dim: matches !== null && !matches.has(commit.id) }"
           :style="{ top: `${(first + i) * ROW_HEIGHT}px` }"
           @click="selected = commit.id"
         >
@@ -212,6 +222,11 @@ function refClass(ref: CommitRef): string[] {
   right: 0;
   cursor: default;
   user-select: none;
+}
+
+/* Highlight filter: commits that don't match fade out, the graph stays. */
+.commit.dim {
+  opacity: 0.35;
 }
 
 .commit:hover {

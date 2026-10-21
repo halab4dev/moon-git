@@ -53,6 +53,7 @@ pub fn run() {
             commands::push::list_remotes,
             commands::log::get_log,
             commands::log::list_refs,
+            commands::log::find_commits,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

@@ -38,3 +38,6 @@ export interface RefInfo {
   /** Local branches only: full name of the tracked branch, e.g. "refs/remotes/origin/main". */
   upstream: string | null;
 }
+
+/** highlight: keep every commit, dim the others; hide: show matching commits only. */
+export type FilterMode = "highlight" | "hide";
