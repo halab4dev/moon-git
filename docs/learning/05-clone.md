@@ -2,7 +2,7 @@
 
 ## Trạng thái
 - `cargo test`: 36/36 pass (thêm 13 test: đọc dòng tiến trình, parse %, clone từ repo local, dọn thư mục, kiểm tra đầu vào, **hủy dừng được cả tiến trình con**). `cargo clippy`: sạch. `pnpm build`: OK.
-- Giao diện: cần bạn tự thử (bảng cuối file), nhất là clone qua mạng thật — test tự động chỉ clone từ repo trên máy.
+- Giao diện: đã xác nhận (2026-10-21).
 
 ## Mục tiêu
 - Menu **+** / chuột phải nhóm → **Clone Repository…** → nhập URL, chọn thư mục cha, tên thư mục (tự gợi ý từ URL).

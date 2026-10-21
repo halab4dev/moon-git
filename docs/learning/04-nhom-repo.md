@@ -2,7 +2,7 @@
 
 ## Trạng thái
 - `cargo test`: 23/23 pass (thêm 10 test cho logic nhóm, 1 test đọc file version 1). `cargo clippy`: sạch. `pnpm build`: OK.
-- Giao diện: cần bạn tự thử (bảng cuối file).
+- Giao diện: đã xác nhận (2026-10-21).
 
 ## Mục tiêu
 - Sidebar thành **cây**: nhóm → nhóm con → repo, bấm vào nhóm để thu gọn/mở rộng.
@@ -191,6 +191,13 @@ cd src-tauri && cargo test     # 23 test
 | Đóng app, mở lại | Cây giữ nguyên (nhưng các nhóm đều mở rộng) |
 
 Xem file: `cat ~/Library/Application\ Support/com.github.halab4dev.moongit/repos.json` — giờ là `"version": 2`.
+
+## Bổ sung: icon folder cho nhóm
+- `GroupItem.vue` vẽ icon bằng **SVG nhúng thẳng** (`<svg><path d="..."/></svg>`), đổi giữa folder **đóng** và **mở** theo trạng thái thu gọn (`v-if` / `v-else` trên hai `<path>`).
+- Vì sao không dùng emoji 📁: emoji vẽ bằng font của hệ điều hành → màu và kích thước khác nhau giữa macOS và Ubuntu. Vì sao không thêm thư viện icon: chỉ cần 2 hình.
+- Màu lấy từ biến CSS `--folder` (khai trong `styles.css`, có giá trị riêng cho dark mode) qua `fill: var(--folder)` — đổi màu folder chỉ cần sửa một chỗ.
+- `aria-hidden="true"`: icon chỉ để trang trí, trình đọc màn hình bỏ qua nó (tên nhóm đã đủ nghĩa).
+- `d="M1.5 3.5 ..."`: chuỗi lệnh vẽ của SVG (M = di chuyển bút, a = cung tròn, h/v = đường ngang/dọc, z = đóng hình). Không cần hiểu chi tiết — thường copy từ bộ icon hoặc vẽ bằng công cụ.
 
 ## Ghi chú cho sau này
 - Chưa di chuyển được **nhóm** sang nhóm khác (CLAUDE.md chỉ yêu cầu di chuyển repo). Khi thêm cần kiểm tra không cho chuyển nhóm vào chính con của nó (vòng lặp).

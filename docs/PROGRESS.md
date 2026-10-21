@@ -2,7 +2,7 @@
 
 Cập nhật lần cuối: 2026-10-21
 
-**Đang ở:** Bước 4 và 5 đã code và commit, chờ bạn thử giao diện → tiếp theo là Bước 6.
+**Đang ở:** Bước 6 (danh sách file thay đổi) đang làm.
 
 Ký hiệu: ✅ xong · 🟡 đang làm / chờ xác nhận · ⬜ chưa làm
 
@@ -18,8 +18,8 @@ Giải thích chi tiết từng bước: [docs/learning/](learning/README.md)
 | 1 | Khung Tauri v2 + Vue 3 + TS, layout sidebar \| nội dung, command `greet` | ✅ | Đã xác nhận giao diện (2026-10-21) |
 | 2 | Lớp chạy git + kiểu lỗi chung | ✅ | `git/runner.rs`, `error.rs`, command `check_repo`. 7 test pass, clippy sạch. Đã xác nhận 4 trường hợp trên giao diện (2026-10-21) |
 | 3 | Danh sách repo + thêm repo local | ✅ | `storage/repos.rs` (`repos.json`, ghi qua file tạm + rename), plugin dialog, Pinia store. 13 test pass, clippy sạch. Đã xác nhận trên giao diện (2026-10-21) |
-| 4 | Nhóm / nhóm con repo | 🟡 | `storage/repo_list.rs`, `repos.json` v2, menu chuột phải native, `NameDialog`. 23 test pass. Code đã commit, chờ bạn thử giao diện. Chưa có: kéo-thả, di chuyển nhóm |
-| 5 | Clone có tiến trình + hủy | 🟡 | `git/operations.rs` (thread worker + Tauri event + hủy cả process group), `git/clone.rs`, `CloneDialog`. 36 test pass. Code đã commit, chờ bạn thử giao diện. Fetch/pull/push sẽ dùng lại `operations.rs` |
+| 4 | Nhóm / nhóm con repo | ✅ | `storage/repo_list.rs`, `repos.json` v2, menu chuột phải native, `NameDialog`. 23 test pass. Đã xác nhận (2026-10-21), thêm icon folder SVG. Chưa có: kéo-thả, di chuyển nhóm |
+| 5 | Clone có tiến trình + hủy | ✅ | `git/operations.rs` (thread worker + Tauri event + hủy cả process group), `git/clone.rs`, `CloneDialog`. 36 test pass. Đã xác nhận (2026-10-21). Fetch/pull/push sẽ dùng lại `operations.rs` |
 | 6 | Danh sách file thay đổi | ⬜ | Parser `status --porcelain=v2 -z` có test; staged / unstaged / untracked |
 | 7 | Stage / unstage | ⬜ | |
 | 8 | Diff side-by-side | ⬜ | Monaco diff editor (sẽ trình bày các lựa chọn trước khi cài) |
@@ -73,5 +73,4 @@ Giải thích chi tiết từng bước: [docs/learning/](learning/README.md)
 - [ ] Bạn chạy `sudo xcode-select --switch /Library/Developer/CommandLineTools`.
 - [x] Commit đầu tiên `dd92830` (bước 1–2).
 - [x] Bước 3 đã xác nhận và commit.
-- [ ] Bạn thử bước 4 (bảng kiểm tra trong `learning/04-nhom-repo.md`).
-- [ ] Bạn thử bước 5 (bảng kiểm tra trong `learning/05-clone.md`), nhất là clone qua mạng và Cancel.
+- [x] Bước 4, 5 đã xác nhận.
