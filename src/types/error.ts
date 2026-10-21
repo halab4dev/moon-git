@@ -6,6 +6,8 @@ export type ErrorKind =
   | "notARepository"
   | "gitFailed"
   | "io"
+  | "repoAlreadyAdded"
+  | "storage"
   | "unknown";
 
 export interface AppError {

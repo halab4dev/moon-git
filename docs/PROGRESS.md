@@ -2,7 +2,7 @@
 
 Cập nhật lần cuối: 2026-10-21
 
-**Đang ở:** Bước 2 xong và đã xác nhận → chờ đồng ý để bắt đầu Bước 3.
+**Đang ở:** Bước 4 (nhóm repo) đang làm, sau đó Bước 5 (clone).
 
 Ký hiệu: ✅ xong · 🟡 đang làm / chờ xác nhận · ⬜ chưa làm
 
@@ -17,7 +17,7 @@ Giải thích chi tiết từng bước: [docs/learning/](learning/README.md)
 | 0 | Chuẩn bị môi trường | ✅ | Rust 1.99.1, Node 24, pnpm 10, git 2.33, CLT (SDK 13.1). Còn cần `sudo xcode-select --switch /Library/Developer/CommandLineTools` |
 | 1 | Khung Tauri v2 + Vue 3 + TS, layout sidebar \| nội dung, command `greet` | ✅ | Đã xác nhận giao diện (2026-10-21) |
 | 2 | Lớp chạy git + kiểu lỗi chung | ✅ | `git/runner.rs`, `error.rs`, command `check_repo`. 7 test pass, clippy sạch. Đã xác nhận 4 trường hợp trên giao diện (2026-10-21) |
-| 3 | Danh sách repo + thêm repo local | ⬜ | `storage/` lưu JSON trong app data, chọn thư mục, thêm Pinia |
+| 3 | Danh sách repo + thêm repo local | ✅ | `storage/repos.rs` (`repos.json`, ghi qua file tạm + rename), plugin dialog, Pinia store. 13 test pass, clippy sạch. Đã xác nhận trên giao diện (2026-10-21) |
 | 4 | Nhóm / nhóm con repo | ⬜ | Cây sidebar, tạo/đổi tên/xóa nhóm, di chuyển repo (kéo-thả làm sau) |
 | 5 | Clone có tiến trình + hủy | ⬜ | `tokio::process`, Tauri event, nút Cancel. Fetch/pull/push dùng lại phần này |
 | 6 | Danh sách file thay đổi | ⬜ | Parser `status --porcelain=v2 -z` có test; staged / unstaged / untracked |
@@ -56,11 +56,15 @@ Giải thích chi tiết từng bước: [docs/learning/](learning/README.md)
 - Tên app **MoonGit**, identifier `com.github.halab4dev.moongit`.
 - Package manager: **pnpm**.
 - Bỏ plugin `opener` của template (chưa cần).
-- Pinia thêm ở bước 3.
+- Pinia v4, dùng kiểu "setup store" (`ref`/`computed`/hàm).
+- Danh sách repo lưu ở `<app data>/repos.json` (`{ version, repos }`); file hỏng được đổi tên thành `repos.json.broken`.
+- Id repo sinh từ thời gian (hex), không dùng crate `uuid`.
+- Bỏ repo khỏi danh sách không đụng tới thư mục trên ổ đĩa.
 - Bỏ ví dụ `greet` ở bước 2, thay bằng form thử `check_repo` (form này sẽ được thay bằng "Add repository" ở bước 3).
 - `AppError` là struct `{ kind, message }`; git chạy với `GIT_TERMINAL_PROMPT=0` và `LC_ALL=C`.
 - Test dùng crate `tempfile` (chỉ dev-dependency).
 
 ## Việc còn treo
 - [ ] Bạn chạy `sudo xcode-select --switch /Library/Developer/CommandLineTools`.
-- [ ] Commit đầu tiên (repo đã `git init`, chưa commit). Commit khi bạn yêu cầu.
+- [x] Commit đầu tiên `dd92830` (bước 1–2).
+- [x] Bước 3 đã xác nhận và commit.

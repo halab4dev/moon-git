@@ -1,13 +1,24 @@
 <script setup lang="ts">
+import { onMounted } from "vue";
 import AppSidebar from "./components/AppSidebar.vue";
+import RepoView from "./views/RepoView.vue";
 import WelcomeView from "./views/WelcomeView.vue";
+import { useRepoStore } from "./stores/repos";
+
+const store = useRepoStore();
+
+onMounted(() => {
+  store.load();
+});
 </script>
 
 <template>
   <div class="layout">
     <AppSidebar />
     <main class="content">
-      <WelcomeView />
+      <!-- :key makes Vue build a fresh RepoView when switching repos. -->
+      <RepoView v-if="store.selected" :key="store.selected.id" :repo="store.selected" />
+      <WelcomeView v-else />
     </main>
   </div>
 </template>

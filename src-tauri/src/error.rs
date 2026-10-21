@@ -12,6 +12,8 @@ pub enum ErrorKind {
     NotARepository,
     GitFailed,
     Io,
+    RepoAlreadyAdded,
+    Storage,
 }
 
 #[derive(Debug, Serialize)]
