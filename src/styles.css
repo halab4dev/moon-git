@@ -1,0 +1,45 @@
+:root {
+  --bg: #ffffff;
+  --bg-sidebar: #f4f5f7;
+  --border: #dcdfe4;
+  --text: #1f2328;
+  --text-muted: #656d76;
+  --accent: #3b6fd8;
+  --success: #1a7f37;
+  --danger: #cf222e;
+
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Ubuntu, Roboto, sans-serif;
+  font-size: 13px;
+  color: var(--text);
+  background: var(--bg);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #1e1f22;
+    --bg-sidebar: #2b2d30;
+    --border: #3c3f44;
+    --text: #dfe1e5;
+    --text-muted: #8c9199;
+    --accent: #5b8def;
+    --success: #3fb950;
+    --danger: #f85149;
+  }
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#app {
+  height: 100%;
+  margin: 0;
+}
+
+button,
+input {
+  font: inherit;
+  color: inherit;
+}
