@@ -2,7 +2,8 @@ use std::path::Path;
 
 use tauri::{AppHandle, Emitter, Manager, State};
 
-use crate::error::{AppError, ErrorKind};
+use super::run_blocking;
+use crate::error::AppError;
 use crate::git;
 use crate::git::operations::{Operations, parse_percent};
 use crate::models::{GitProgress, RepoEntry};
@@ -23,9 +24,8 @@ pub async fn clone_repo(
     folder_name: String,
     group_id: Option<String>,
 ) -> Result<RepoEntry, AppError> {
-    // Cloning can take minutes and blocks while reading git's output, so run it
-    // on a worker thread; the UI thread stays free (and can call cancel).
-    let task = tauri::async_runtime::spawn_blocking(move || {
+    // Cloning can take minutes; the UI thread stays free (and can call cancel).
+    run_blocking(move || {
         let ops = app.state::<Operations>();
         let send_progress = |line: &str| {
             let (phase, percent) = match parse_percent(line) {
@@ -53,15 +53,8 @@ pub async fn clone_repo(
         )?;
         let info = git::repo::check_repo(&target)?;
         app.state::<RepoStore>().add_repo(info, group_id)
-    });
-
-    match task.await {
-        Ok(result) => result,
-        Err(err) => Err(AppError::new(
-            ErrorKind::Io,
-            format!("The clone task stopped unexpectedly: {err}"),
-        )),
-    }
+    })
+    .await
 }
 
 #[tauri::command]

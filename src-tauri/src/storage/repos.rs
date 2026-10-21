@@ -54,6 +54,18 @@ impl RepoStore {
         Ok(data.clone())
     }
 
+    /// Folder of a saved repository, looked up by id.
+    pub fn repo_path(&self, id: &str) -> Result<PathBuf, AppError> {
+        let data = self.lock()?;
+        match data.repos.iter().find(|r| r.id == id) {
+            Some(repo) => Ok(PathBuf::from(&repo.path)),
+            None => Err(AppError::new(
+                ErrorKind::NotFound,
+                "Repository not found. It may have been removed from the list.".to_string(),
+            )),
+        }
+    }
+
     pub fn add_repo(
         &self,
         info: RepoInfo,

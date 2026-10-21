@@ -53,3 +53,37 @@ pub struct GitProgress {
     pub phase: Option<String>,
     pub percent: Option<u8>,
 }
+
+/// What happened to a file, from one side of `git status` (index or working tree).
+#[derive(Debug, Clone, Copy, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub enum ChangeKind {
+    Added,
+    Modified,
+    Deleted,
+    Renamed,
+    Copied,
+    TypeChanged,
+    Unmerged,
+    Untracked,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct FileChange {
+    /// Path relative to the repository root, always with "/" separators.
+    pub path: String,
+    /// Previous path, for renamed and copied files.
+    pub orig_path: Option<String>,
+    pub kind: ChangeKind,
+}
+
+/// Result of `git status`. A file changed both in the index and in the
+/// working tree appears in both `staged` and `unstaged`.
+#[derive(Debug, Default, PartialEq, Serialize)]
+pub struct RepoStatus {
+    pub staged: Vec<FileChange>,
+    pub unstaged: Vec<FileChange>,
+    pub untracked: Vec<FileChange>,
+    pub conflicted: Vec<FileChange>,
+}

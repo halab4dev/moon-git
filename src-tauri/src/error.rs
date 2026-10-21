@@ -20,6 +20,8 @@ pub enum ErrorKind {
     Cancelled,
     /// The server wants a login and none could be provided.
     AuthRequired,
+    /// git printed something our parser does not understand.
+    UnexpectedOutput,
 }
 
 #[derive(Debug, Serialize)]

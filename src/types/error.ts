@@ -12,6 +12,7 @@ export type ErrorKind =
   | "notFound"
   | "cancelled"
   | "authRequired"
+  | "unexpectedOutput"
   | "unknown";
 
 export interface AppError {

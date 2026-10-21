@@ -33,6 +33,7 @@ pub fn run() {
             commands::clone::clone_repo,
             commands::clone::cancel_operation,
             commands::clone::suggest_folder_name,
+            commands::status::get_status,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

@@ -1,0 +1,324 @@
+// Reads `git status --porcelain=v2 -z`.
+//
+// Each record is separated by NUL ("\0"), so paths may contain spaces or
+// newlines safely. Record types (first character):
+//   1 <XY> <sub> <mH> <mI> <mW> <hH> <hI> <path>                 changed file
+//   2 <XY> <sub> <mH> <mI> <mW> <hH> <hI> <Xscore> <path>\0<orig>  renamed/copied
+//   u <XY> <sub> <m1> <m2> <m3> <mW> <h1> <h2> <h3> <path>         merge conflict
+//   ? <path>                                                       untracked
+// XY: X = change in the index (staged), Y = change in the working tree; "." = none.
+// Docs: `git help status`, section "Porcelain Format Version 2".
+
+use std::path::Path;
+
+use crate::error::{AppError, ErrorKind};
+use crate::git::runner::run_git;
+use crate::models::{ChangeKind, FileChange, RepoStatus};
+
+pub fn read_status(repo: &Path) -> Result<RepoStatus, AppError> {
+    let output = run_git(
+        repo,
+        &[
+            // status may refresh the index and take .git/index.lock to do it; a GUI
+            // polling in the background must not block git commands run in a terminal.
+            "--no-optional-locks",
+            "status",
+            "--porcelain=v2",
+            "-z",
+            // List every file inside new folders, not just "folder/".
+            "--untracked-files=all",
+        ],
+    )?;
+    parse_status(&output)
+}
+
+pub fn parse_status(output: &str) -> Result<RepoStatus, AppError> {
+    let mut status = RepoStatus::default();
+    let mut records = output.split('\0');
+
+    while let Some(record) = records.next() {
+        if record.is_empty() {
+            continue; // the output ends with a NUL, leaving one empty piece
+        }
+        let (tag, rest) = record.split_once(' ').ok_or_else(|| unexpected(record))?;
+        match tag {
+            "1" => {
+                let fields = split_fields(rest, 8, record)?;
+                push_changes(&mut status, fields[0], fields[7], None, record)?;
+            }
+            "2" => {
+                let fields = split_fields(rest, 9, record)?;
+                // The original path is the next NUL-separated record.
+                let orig_path = match records.next() {
+                    Some(orig) if !orig.is_empty() => orig,
+                    _ => return Err(unexpected(record)),
+                };
+                push_changes(&mut status, fields[0], fields[8], Some(orig_path), record)?;
+            }
+            "u" => {
+                let fields = split_fields(rest, 10, record)?;
+                status
+                    .conflicted
+                    .push(change(fields[9], None, ChangeKind::Unmerged));
+            }
+            "?" => status
+                .untracked
+                .push(change(rest, None, ChangeKind::Untracked)),
+            // Ignored files and "# branch" headers: not requested, skip if present.
+            "!" | "#" => {}
+            _ => return Err(unexpected(record)),
+        }
+    }
+    Ok(status)
+}
+
+/// Splits `rest` into exactly `count` space-separated fields. The last field
+/// is the path and keeps its spaces.
+fn split_fields<'a>(rest: &'a str, count: usize, record: &str) -> Result<Vec<&'a str>, AppError> {
+    let fields: Vec<&str> = rest.splitn(count, ' ').collect();
+    if fields.len() != count {
+        return Err(unexpected(record));
+    }
+    Ok(fields)
+}
+
+/// Adds the index side (X) to `staged` and the working-tree side (Y) to `unstaged`.
+fn push_changes(
+    status: &mut RepoStatus,
+    xy: &str,
+    path: &str,
+    orig_path: Option<&str>,
+    record: &str,
+) -> Result<(), AppError> {
+    let mut chars = xy.chars();
+    let (Some(x), Some(y), None) = (chars.next(), chars.next(), chars.next()) else {
+        return Err(unexpected(record));
+    };
+
+    if x != '.' {
+        let kind = kind_from_letter(x).ok_or_else(|| unexpected(record))?;
+        status.staged.push(change(path, orig_path, kind));
+    }
+    if y != '.' {
+        let kind = kind_from_letter(y).ok_or_else(|| unexpected(record))?;
+        status.unstaged.push(change(path, orig_path, kind));
+    }
+    Ok(())
+}
+
+fn kind_from_letter(letter: char) -> Option<ChangeKind> {
+    match letter {
+        'A' => Some(ChangeKind::Added),
+        'M' => Some(ChangeKind::Modified),
+        'D' => Some(ChangeKind::Deleted),
+        'R' => Some(ChangeKind::Renamed),
+        'C' => Some(ChangeKind::Copied),
+        'T' => Some(ChangeKind::TypeChanged),
+        _ => None,
+    }
+}
+
+fn change(path: &str, orig_path: Option<&str>, kind: ChangeKind) -> FileChange {
+    // Only renames and copies have a meaningful original path.
+    let orig_path = match kind {
+        ChangeKind::Renamed | ChangeKind::Copied => orig_path.map(|p| p.to_string()),
+        _ => None,
+    };
+    FileChange {
+        path: path.to_string(),
+        orig_path,
+        kind,
+    }
+}
+
+fn unexpected(record: &str) -> AppError {
+    AppError::new(
+        ErrorKind::UnexpectedOutput,
+        format!("Could not read git status output: {record:?}"),
+    )
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::fs;
+    use tempfile::TempDir;
+
+    fn file(path: &str, kind: ChangeKind) -> FileChange {
+        FileChange {
+            path: path.to_string(),
+            orig_path: None,
+            kind,
+        }
+    }
+
+    // ---- parser, with hand-written output ----
+
+    #[test]
+    fn empty_output_means_clean() {
+        assert_eq!(parse_status("").unwrap(), RepoStatus::default());
+    }
+
+    #[test]
+    fn splits_index_and_worktree_sides() {
+        let out = "1 MM N... 100644 100644 100644 aaa bbb src/a b.txt\0\
+                   1 A. N... 000000 100644 100644 000 ccc new.txt\0\
+                   1 .D N... 100644 100644 000000 ddd ddd gone.txt\0";
+        let status = parse_status(out).unwrap();
+
+        assert_eq!(
+            status.staged,
+            vec![
+                file("src/a b.txt", ChangeKind::Modified),
+                file("new.txt", ChangeKind::Added)
+            ]
+        );
+        assert_eq!(
+            status.unstaged,
+            vec![
+                file("src/a b.txt", ChangeKind::Modified),
+                file("gone.txt", ChangeKind::Deleted)
+            ]
+        );
+    }
+
+    #[test]
+    fn reads_rename_with_original_path() {
+        let out = "2 R. N... 100644 100644 100644 aaa aaa R100 new name.txt\0old name.txt\0";
+        let status = parse_status(out).unwrap();
+
+        assert_eq!(
+            status.staged,
+            vec![FileChange {
+                path: "new name.txt".to_string(),
+                orig_path: Some("old name.txt".to_string()),
+                kind: ChangeKind::Renamed,
+            }]
+        );
+        assert!(status.unstaged.is_empty());
+    }
+
+    #[test]
+    fn reads_conflicts_and_untracked() {
+        let out = "u UU N... 100644 100644 100644 100644 h1 h2 h3 both.txt\0? dir/new file.txt\0";
+        let status = parse_status(out).unwrap();
+
+        assert_eq!(
+            status.conflicted,
+            vec![file("both.txt", ChangeKind::Unmerged)]
+        );
+        assert_eq!(
+            status.untracked,
+            vec![file("dir/new file.txt", ChangeKind::Untracked)]
+        );
+    }
+
+    #[test]
+    fn skips_headers_and_ignored_files() {
+        let out = "# branch.oid abc\0! target/\0";
+        assert_eq!(parse_status(out).unwrap(), RepoStatus::default());
+    }
+
+    #[test]
+    fn rejects_malformed_records() {
+        for bad in [
+            "x what\0",
+            "1 M. too few fields\0",
+            "1 MMM N... a b c d e path\0",
+            "2 R. N... a b c d e R100 path\0",
+        ] {
+            let err = parse_status(bad).unwrap_err();
+            assert_eq!(err.kind, ErrorKind::UnexpectedOutput, "input: {bad:?}");
+        }
+    }
+
+    // ---- against a real repository ----
+
+    // Runs git with a fixed identity, so commits work on any machine.
+    fn git(dir: &Path, args: &[&str]) -> String {
+        let mut all = vec!["-c", "user.name=Test", "-c", "user.email=test@example.com"];
+        all.extend_from_slice(args);
+        run_git(dir, &all).unwrap()
+    }
+
+    fn repo_with_commit() -> TempDir {
+        let dir = TempDir::new().unwrap();
+        git(dir.path(), &["init", "--quiet"]);
+        fs::write(dir.path().join("keep.txt"), "keep\n").unwrap();
+        fs::write(dir.path().join("edit.txt"), "one\n").unwrap();
+        fs::write(dir.path().join("old.txt"), "rename me\n").unwrap();
+        fs::write(dir.path().join("remove.txt"), "bye\n").unwrap();
+        git(dir.path(), &["add", "."]);
+        git(dir.path(), &["commit", "--quiet", "-m", "init"]);
+        dir
+    }
+
+    #[test]
+    fn clean_repository_has_no_changes() {
+        let dir = repo_with_commit();
+        assert_eq!(read_status(dir.path()).unwrap(), RepoStatus::default());
+    }
+
+    #[test]
+    fn reports_real_changes() {
+        let dir = repo_with_commit();
+        let root = dir.path();
+        fs::write(root.join("staged new.txt"), "new\n").unwrap();
+        git(root, &["add", "staged new.txt"]);
+        git(root, &["mv", "old.txt", "renamed.txt"]);
+        fs::write(root.join("edit.txt"), "two\n").unwrap();
+        fs::remove_file(root.join("remove.txt")).unwrap();
+        fs::create_dir(root.join("fresh dir")).unwrap();
+        fs::write(root.join("fresh dir").join("a.txt"), "a\n").unwrap();
+
+        let status = read_status(root).unwrap();
+
+        assert_eq!(
+            status.staged,
+            vec![
+                FileChange {
+                    path: "renamed.txt".to_string(),
+                    orig_path: Some("old.txt".to_string()),
+                    kind: ChangeKind::Renamed,
+                },
+                file("staged new.txt", ChangeKind::Added),
+            ]
+        );
+        assert_eq!(
+            status.unstaged,
+            vec![
+                file("edit.txt", ChangeKind::Modified),
+                file("remove.txt", ChangeKind::Deleted)
+            ]
+        );
+        // --untracked-files=all lists the file, not just the folder.
+        assert_eq!(
+            status.untracked,
+            vec![file("fresh dir/a.txt", ChangeKind::Untracked)]
+        );
+        assert!(status.conflicted.is_empty());
+    }
+
+    #[test]
+    fn reports_merge_conflict() {
+        let dir = repo_with_commit();
+        let root = dir.path();
+        git(root, &["checkout", "--quiet", "-b", "other"]);
+        fs::write(root.join("edit.txt"), "from other\n").unwrap();
+        git(root, &["commit", "--quiet", "-am", "other"]);
+        git(root, &["checkout", "--quiet", "-"]);
+        fs::write(root.join("edit.txt"), "from main\n").unwrap();
+        git(root, &["commit", "--quiet", "-am", "main"]);
+
+        // The merge fails because of the conflict; that's the state we want.
+        let mut args = vec!["-c", "user.name=Test", "-c", "user.email=test@example.com"];
+        args.extend_from_slice(&["merge", "other"]);
+        assert!(run_git(root, &args).is_err());
+
+        let status = read_status(root).unwrap();
+        assert_eq!(
+            status.conflicted,
+            vec![file("edit.txt", ChangeKind::Unmerged)]
+        );
+    }
+}
