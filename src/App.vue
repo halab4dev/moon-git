@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { onMounted } from "vue";
 import AppSidebar from "./components/AppSidebar.vue";
+import CloneDialog from "./components/CloneDialog.vue";
 import NameDialog from "./components/NameDialog.vue";
 import RepoView from "./views/RepoView.vue";
 import WelcomeView from "./views/WelcomeView.vue";
@@ -23,6 +24,7 @@ onMounted(() => {
     </main>
   </div>
   <NameDialog />
+  <CloneDialog />
 </template>
 
 <style scoped>

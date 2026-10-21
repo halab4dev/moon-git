@@ -16,6 +16,10 @@ pub enum ErrorKind {
     Storage,
     InvalidInput,
     NotFound,
+    /// The user cancelled a long-running operation.
+    Cancelled,
+    /// The server wants a login and none could be provided.
+    AuthRequired,
 }
 
 #[derive(Debug, Serialize)]

@@ -42,3 +42,14 @@ pub struct RepoList {
     pub groups: Vec<RepoGroup>,
     pub repos: Vec<RepoEntry>,
 }
+
+/// Payload of the "git-progress" event, sent for every line a long git command prints.
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct GitProgress {
+    pub op_id: String,
+    pub line: String,
+    /// e.g. "Receiving objects"; None when the line has no percentage.
+    pub phase: Option<String>,
+    pub percent: Option<u8>,
+}

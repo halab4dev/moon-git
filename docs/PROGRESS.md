@@ -2,7 +2,7 @@
 
 Cập nhật lần cuối: 2026-10-21
 
-**Đang ở:** Bước 4 (nhóm repo) đang làm, sau đó Bước 5 (clone).
+**Đang ở:** Bước 4 và 5 đã code và commit, chờ bạn thử giao diện → tiếp theo là Bước 6.
 
 Ký hiệu: ✅ xong · 🟡 đang làm / chờ xác nhận · ⬜ chưa làm
 
@@ -19,7 +19,7 @@ Giải thích chi tiết từng bước: [docs/learning/](learning/README.md)
 | 2 | Lớp chạy git + kiểu lỗi chung | ✅ | `git/runner.rs`, `error.rs`, command `check_repo`. 7 test pass, clippy sạch. Đã xác nhận 4 trường hợp trên giao diện (2026-10-21) |
 | 3 | Danh sách repo + thêm repo local | ✅ | `storage/repos.rs` (`repos.json`, ghi qua file tạm + rename), plugin dialog, Pinia store. 13 test pass, clippy sạch. Đã xác nhận trên giao diện (2026-10-21) |
 | 4 | Nhóm / nhóm con repo | 🟡 | `storage/repo_list.rs`, `repos.json` v2, menu chuột phải native, `NameDialog`. 23 test pass. Code đã commit, chờ bạn thử giao diện. Chưa có: kéo-thả, di chuyển nhóm |
-| 5 | Clone có tiến trình + hủy | ⬜ | `tokio::process`, Tauri event, nút Cancel. Fetch/pull/push dùng lại phần này |
+| 5 | Clone có tiến trình + hủy | 🟡 | `git/operations.rs` (thread worker + Tauri event + hủy cả process group), `git/clone.rs`, `CloneDialog`. 36 test pass. Code đã commit, chờ bạn thử giao diện. Fetch/pull/push sẽ dùng lại `operations.rs` |
 | 6 | Danh sách file thay đổi | ⬜ | Parser `status --porcelain=v2 -z` có test; staged / unstaged / untracked |
 | 7 | Stage / unstage | ⬜ | |
 | 8 | Diff side-by-side | ⬜ | Monaco diff editor (sẽ trình bày các lựa chọn trước khi cài) |
@@ -62,6 +62,9 @@ Giải thích chi tiết từng bước: [docs/learning/](learning/README.md)
 - Bỏ repo khỏi danh sách không đụng tới thư mục trên ổ đĩa.
 - Nhóm lưu phẳng (`parentId`); xóa nhóm → nội dung lên một cấp. Tên nhóm cùng cha không trùng (không phân biệt hoa thường).
 - Thao tác trên sidebar dùng menu native của Tauri; nút × ở bước 3 được thay bằng "Remove from List".
+- Thao tác dài: thread worker (`spawn_blocking`) + đọc stderr, thay vì `tokio::process` (dễ đọc hơn, không thêm thư viện). Mỗi thao tác có `opId`; tiến trình qua event `git-progress`.
+- Hủy = SIGTERM cho cả process group (crate `rustix`, chỉ unix). Windows tạm chỉ dừng `git`.
+- Clone lỗi/hủy → xóa thư mục đích chỉ khi nó không tồn tại trước khi clone.
 - Bỏ ví dụ `greet` ở bước 2, thay bằng form thử `check_repo` (form này sẽ được thay bằng "Add repository" ở bước 3).
 - `AppError` là struct `{ kind, message }`; git chạy với `GIT_TERMINAL_PROMPT=0` và `LC_ALL=C`.
 - Test dùng crate `tempfile` (chỉ dev-dependency).
@@ -71,3 +74,4 @@ Giải thích chi tiết từng bước: [docs/learning/](learning/README.md)
 - [x] Commit đầu tiên `dd92830` (bước 1–2).
 - [x] Bước 3 đã xác nhận và commit.
 - [ ] Bạn thử bước 4 (bảng kiểm tra trong `learning/04-nhom-repo.md`).
+- [ ] Bạn thử bước 5 (bảng kiểm tra trong `learning/05-clone.md`), nhất là clone qua mạng và Cancel.

@@ -15,6 +15,7 @@ export async function showAddMenu(groupId: string | null) {
   const menu = await Menu.new({
     items: [
       { text: "Add Local Repository…", action: () => void addLocalRepo(groupId) },
+      { text: "Clone Repository…", action: () => useDialogStore().openClone(groupId) },
       separator,
       { text: groupId ? "New Subgroup…" : "New Group…", action: () => newGroup(groupId) },
     ],
@@ -26,6 +27,7 @@ export async function showGroupMenu(group: RepoGroup) {
   const menu = await Menu.new({
     items: [
       { text: "Add Local Repository Here…", action: () => void addLocalRepo(group.id) },
+      { text: "Clone Repository Here…", action: () => useDialogStore().openClone(group.id) },
       { text: "New Subgroup…", action: () => newGroup(group.id) },
       separator,
       { text: "Rename…", action: () => renameGroup(group) },

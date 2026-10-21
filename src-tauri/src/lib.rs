@@ -6,12 +6,14 @@ mod storage;
 
 use tauri::Manager;
 
+use git::operations::Operations;
 use storage::repos::RepoStore;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
+        .manage(Operations::new())
         .setup(|app| {
             // Per-user app data folder, e.g. on macOS:
             // ~/Library/Application Support/com.github.halab4dev.moongit
@@ -28,6 +30,9 @@ pub fn run() {
             commands::group::create_group,
             commands::group::rename_group,
             commands::group::delete_group,
+            commands::clone::clone_repo,
+            commands::clone::cancel_operation,
+            commands::clone::suggest_folder_name,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

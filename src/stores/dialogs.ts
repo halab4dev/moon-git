@@ -13,8 +13,14 @@ export interface NameRequest {
   submit: (name: string) => Promise<string | null>;
 }
 
+export interface CloneRequest {
+  /** Group the cloned repo goes into; null = top level. */
+  groupId: string | null;
+}
+
 export const useDialogStore = defineStore("dialogs", () => {
   const nameRequest = ref<NameRequest | null>(null);
+  const cloneRequest = ref<CloneRequest | null>(null);
 
   function askName(request: NameRequest) {
     nameRequest.value = request;
@@ -24,5 +30,13 @@ export const useDialogStore = defineStore("dialogs", () => {
     nameRequest.value = null;
   }
 
-  return { nameRequest, askName, closeName };
+  function openClone(groupId: string | null) {
+    cloneRequest.value = { groupId };
+  }
+
+  function closeClone() {
+    cloneRequest.value = null;
+  }
+
+  return { nameRequest, cloneRequest, askName, closeName, openClone, closeClone };
 });

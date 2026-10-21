@@ -9,24 +9,7 @@ use crate::error::{AppError, ErrorKind};
 /// Arguments are passed as a list, never through a shell, so paths with
 /// spaces or special characters are safe.
 pub fn run_git(cwd: &Path, args: &[&str]) -> Result<String, AppError> {
-    // A missing working directory makes spawn fail with NotFound, which would
-    // otherwise be reported as "git not installed".
-    if !cwd.is_dir() {
-        return Err(AppError::new(
-            ErrorKind::PathNotFound,
-            format!("Folder does not exist: {}", cwd.display()),
-        ));
-    }
-
-    let output = Command::new("git")
-        .args(args)
-        .current_dir(cwd)
-        // Fail instead of hanging when git wants a username/password.
-        .env("GIT_TERMINAL_PROMPT", "0")
-        // Keep git messages in English so we can recognise them in stderr.
-        .env("LC_ALL", "C")
-        .output()
-        .map_err(spawn_error)?;
+    let output = git_command(cwd, args)?.output().map_err(spawn_error)?;
 
     if !output.status.success() {
         let stderr = String::from_utf8_lossy(&output.stderr).trim().to_string();
@@ -42,7 +25,30 @@ pub fn run_git(cwd: &Path, args: &[&str]) -> Result<String, AppError> {
     Ok(String::from_utf8_lossy(&output.stdout).to_string())
 }
 
-fn spawn_error(err: io::Error) -> AppError {
+/// Builds the `git` process with the settings every git call needs.
+/// Shared by `run_git` and the long-running commands in operations.rs.
+pub(crate) fn git_command(cwd: &Path, args: &[&str]) -> Result<Command, AppError> {
+    // A missing working directory makes spawn fail with NotFound, which would
+    // otherwise be reported as "git not installed".
+    if !cwd.is_dir() {
+        return Err(AppError::new(
+            ErrorKind::PathNotFound,
+            format!("Folder does not exist: {}", cwd.display()),
+        ));
+    }
+
+    let mut command = Command::new("git");
+    command
+        .args(args)
+        .current_dir(cwd)
+        // Fail instead of hanging when git wants a username/password.
+        .env("GIT_TERMINAL_PROMPT", "0")
+        // Keep git messages in English so we can recognise them in stderr.
+        .env("LC_ALL", "C");
+    Ok(command)
+}
+
+pub(crate) fn spawn_error(err: io::Error) -> AppError {
     if err.kind() == io::ErrorKind::NotFound {
         AppError::new(
             ErrorKind::GitNotFound,

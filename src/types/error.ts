@@ -10,6 +10,8 @@ export type ErrorKind =
   | "storage"
   | "invalidInput"
   | "notFound"
+  | "cancelled"
+  | "authRequired"
   | "unknown";
 
 export interface AppError {

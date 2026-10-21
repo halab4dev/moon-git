@@ -2,6 +2,7 @@ import { defineStore } from "pinia";
 import { computed, ref } from "vue";
 import * as repoApi from "../api/repo";
 import * as groupApi from "../api/group";
+import * as cloneApi from "../api/clone";
 import { toAppError } from "../api/errors";
 import { buildTree, listGroupOptions } from "./repoTree";
 import type { RepoEntry, RepoGroup, RepoList } from "../types/repo";
@@ -38,10 +39,24 @@ export const useRepoStore = defineStore("repos", () => {
   }
 
   async function addRepo(path: string, groupId: string | null) {
-    const entry = await call(repoApi.addRepo(path, groupId));
+    insertRepo(await call(repoApi.addRepo(path, groupId)));
+  }
+
+  async function cloneRepo(
+    opId: string,
+    url: string,
+    parentDir: string,
+    folderName: string,
+    groupId: string | null,
+  ) {
+    insertRepo(await call(cloneApi.cloneRepo(opId, url, parentDir, folderName, groupId)));
+  }
+
+  // Show a just-added repo: put it in the list, select it, expand its group.
+  function insertRepo(entry: RepoEntry) {
     repos.value.push(entry);
     selectedId.value = entry.id;
-    revealGroup(groupId);
+    revealGroup(entry.groupId);
   }
 
   async function removeRepo(id: string) {
@@ -117,6 +132,7 @@ export const useRepoStore = defineStore("repos", () => {
     isEmpty,
     load,
     addRepo,
+    cloneRepo,
     removeRepo,
     moveRepo,
     createGroup,
