@@ -14,6 +14,8 @@ pub enum ErrorKind {
     Io,
     RepoAlreadyAdded,
     Storage,
+    InvalidInput,
+    NotFound,
 }
 
 #[derive(Debug, Serialize)]

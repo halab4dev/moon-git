@@ -9,7 +9,9 @@ use crate::models::RepoInfo;
 pub fn check_repo(path: &Path) -> Result<RepoInfo, AppError> {
     let stdout = match run_git(path, &["rev-parse", "--show-toplevel"]) {
         Ok(out) => out,
-        Err(err) if err.kind == ErrorKind::GitFailed && err.message.contains("not a git repository") => {
+        Err(err)
+            if err.kind == ErrorKind::GitFailed && err.message.contains("not a git repository") =>
+        {
             return Err(AppError::new(
                 ErrorKind::NotARepository,
                 format!("{} is not a git repository.", path.display()),
@@ -50,7 +52,11 @@ mod tests {
     fn returns_root_of_repo() {
         let dir = init_repo();
         let info = check_repo(dir.path()).unwrap();
-        assert!(same_path(Path::new(&info.root), dir.path()), "root: {}", info.root);
+        assert!(
+            same_path(Path::new(&info.root), dir.path()),
+            "root: {}",
+            info.root
+        );
         assert_eq!(info.name, dir.path().file_name().unwrap().to_string_lossy());
     }
 
@@ -60,7 +66,11 @@ mod tests {
         let sub = dir.path().join("a folder with spaces");
         fs::create_dir(&sub).unwrap();
         let info = check_repo(&sub).unwrap();
-        assert!(same_path(Path::new(&info.root), dir.path()), "root: {}", info.root);
+        assert!(
+            same_path(Path::new(&info.root), dir.path()),
+            "root: {}",
+            info.root
+        );
     }
 
     #[test]

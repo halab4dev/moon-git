@@ -21,4 +21,24 @@ pub struct RepoEntry {
     pub id: String,
     pub name: String,
     pub path: String,
+    /// None = top level. Missing in version 1 files, which serde reads as None.
+    #[serde(default)]
+    pub group_id: Option<String>,
+}
+
+/// A folder in the sidebar tree. Groups nest through `parent_id`.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RepoGroup {
+    pub id: String,
+    pub name: String,
+    /// None = top level.
+    pub parent_id: Option<String>,
+}
+
+/// Everything shown in the sidebar. Stored flat; the frontend builds the tree.
+#[derive(Debug, Clone, Default, PartialEq, Serialize)]
+pub struct RepoList {
+    pub groups: Vec<RepoGroup>,
+    pub repos: Vec<RepoEntry>,
 }

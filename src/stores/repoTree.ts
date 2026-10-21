@@ -1,0 +1,68 @@
+import type { RepoEntry, RepoGroup } from "../types/repo";
+
+// Rust stores groups and repos as flat lists with parent ids.
+// These helpers turn them into the nested shape the sidebar draws.
+
+export interface GroupNode {
+  group: RepoGroup;
+  children: GroupNode[];
+  repos: RepoEntry[];
+}
+
+export interface RepoTree {
+  groups: GroupNode[];
+  repos: RepoEntry[];
+}
+
+/** A group as a menu choice, e.g. { label: "Work / Client A" }. */
+export interface GroupOption {
+  id: string;
+  label: string;
+}
+
+function byName(a: { name: string }, b: { name: string }): number {
+  return a.name.localeCompare(b.name, undefined, { sensitivity: "base" });
+}
+
+export function buildTree(groups: RepoGroup[], repos: RepoEntry[]): RepoTree {
+  const nodes = new Map<string, GroupNode>();
+  for (const group of groups) {
+    nodes.set(group.id, { group, children: [], repos: [] });
+  }
+
+  // Anything whose parent is missing goes to the top level instead of disappearing.
+  const tree: RepoTree = { groups: [], repos: [] };
+  for (const node of nodes.values()) {
+    const parent = node.group.parentId ? nodes.get(node.group.parentId) : undefined;
+    (parent ? parent.children : tree.groups).push(node);
+  }
+  for (const repo of repos) {
+    const parent = repo.groupId ? nodes.get(repo.groupId) : undefined;
+    (parent ? parent.repos : tree.repos).push(repo);
+  }
+
+  sortLevel(tree.groups, tree.repos);
+  return tree;
+}
+
+function sortLevel(groups: GroupNode[], repos: RepoEntry[]) {
+  groups.sort((a, b) => byName(a.group, b.group));
+  repos.sort(byName);
+  for (const node of groups) {
+    sortLevel(node.children, node.repos);
+  }
+}
+
+/** Every group in tree order, labelled with its full path. */
+export function listGroupOptions(tree: RepoTree): GroupOption[] {
+  const result: GroupOption[] = [];
+  const visit = (nodes: GroupNode[], prefix: string) => {
+    for (const node of nodes) {
+      const label = prefix + node.group.name;
+      result.push({ id: node.group.id, label });
+      visit(node.children, `${label} / `);
+    }
+  };
+  visit(tree.groups, "");
+  return result;
+}

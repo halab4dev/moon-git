@@ -8,6 +8,8 @@ export type ErrorKind =
   | "io"
   | "repoAlreadyAdded"
   | "storage"
+  | "invalidInput"
+  | "notFound"
   | "unknown";
 
 export interface AppError {

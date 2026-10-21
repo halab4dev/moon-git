@@ -2,19 +2,22 @@ use std::fs;
 use std::io;
 use std::path::{Path, PathBuf};
 use std::sync::{Mutex, MutexGuard};
-use std::time::{SystemTime, UNIX_EPOCH};
 
 use serde::{Deserialize, Serialize};
 
 use crate::error::{AppError, ErrorKind};
-use crate::models::{RepoEntry, RepoInfo};
+use crate::models::{RepoEntry, RepoGroup, RepoInfo, RepoList};
 
-const FILE_VERSION: u32 = 1;
+/// 1: repos only. 2: adds groups and RepoEntry.group_id.
+const FILE_VERSION: u32 = 2;
 
-/// Shape of repos.json. `version` lets later steps change the format safely.
+/// Shape of repos.json.
 #[derive(Serialize, Deserialize)]
 struct RepoFile {
     version: u32,
+    // Version 1 files have no "groups" key: default to an empty list.
+    #[serde(default)]
+    groups: Vec<RepoGroup>,
     repos: Vec<RepoEntry>,
 }
 
@@ -22,14 +25,14 @@ struct RepoFile {
 /// Tauri shares one instance between all commands, so the list sits behind a Mutex.
 pub struct RepoStore {
     file: PathBuf,
-    repos: Mutex<Vec<RepoEntry>>,
+    data: Mutex<RepoList>,
 }
 
 impl RepoStore {
     /// Loads the list from `file`. A missing file just means "no repos yet".
     pub fn open(file: PathBuf) -> RepoStore {
-        let repos = match read_file(&file) {
-            Ok(repos) => repos,
+        let data = match read_file(&file) {
+            Ok(data) => data,
             Err(err) => {
                 // Don't refuse to start over a broken file; set it aside so nothing is lost.
                 let backup = file.with_extension("json.broken");
@@ -37,57 +40,84 @@ impl RepoStore {
                 if let Err(rename_err) = fs::rename(&file, &backup) {
                     eprintln!("Could not move {}: {rename_err}", file.display());
                 }
-                Vec::new()
+                RepoList::default()
             }
         };
         RepoStore {
             file,
-            repos: Mutex::new(repos),
+            data: Mutex::new(data),
         }
     }
 
-    pub fn list(&self) -> Result<Vec<RepoEntry>, AppError> {
-        let repos = self.lock()?;
-        Ok(repos.clone())
+    pub fn list(&self) -> Result<RepoList, AppError> {
+        let data = self.lock()?;
+        Ok(data.clone())
     }
 
-    pub fn add(&self, info: RepoInfo) -> Result<RepoEntry, AppError> {
-        let mut repos = self.lock()?;
-
-        if let Some(existing) = repos.iter().find(|r| r.path == info.root) {
-            return Err(AppError::new(
-                ErrorKind::RepoAlreadyAdded,
-                format!("{} is already in the list.", existing.name),
-            ));
-        }
-
-        let entry = RepoEntry {
-            id: new_id(),
-            name: info.name,
-            path: info.root,
-        };
-        let mut updated = repos.clone();
-        updated.push(entry.clone());
-
-        // Save before touching memory, so a failed write leaves both unchanged.
-        write_file(&self.file, &updated)?;
-        *repos = updated;
-        Ok(entry)
+    pub fn add_repo(
+        &self,
+        info: RepoInfo,
+        group_id: Option<String>,
+    ) -> Result<RepoEntry, AppError> {
+        self.update(|list| list.add_repo(info, group_id))
     }
 
-    /// Removes the entry from the list only; the folder on disk is not touched.
-    pub fn remove(&self, id: &str) -> Result<(), AppError> {
-        let mut repos = self.lock()?;
-        let updated: Vec<RepoEntry> = repos.iter().filter(|r| r.id != id).cloned().collect();
+    pub fn remove_repo(&self, id: &str) -> Result<RepoList, AppError> {
+        self.update(|list| {
+            list.remove_repo(id);
+            Ok(list.clone())
+        })
+    }
 
+    pub fn move_repo(&self, repo_id: &str, group_id: Option<String>) -> Result<RepoList, AppError> {
+        self.update(|list| {
+            list.move_repo(repo_id, group_id)?;
+            Ok(list.clone())
+        })
+    }
+
+    pub fn create_group(
+        &self,
+        name: &str,
+        parent_id: Option<String>,
+    ) -> Result<RepoList, AppError> {
+        self.update(|list| {
+            list.create_group(name, parent_id)?;
+            Ok(list.clone())
+        })
+    }
+
+    pub fn rename_group(&self, id: &str, name: &str) -> Result<RepoList, AppError> {
+        self.update(|list| {
+            list.rename_group(id, name)?;
+            Ok(list.clone())
+        })
+    }
+
+    pub fn delete_group(&self, id: &str) -> Result<RepoList, AppError> {
+        self.update(|list| {
+            list.delete_group(id)?;
+            Ok(list.clone())
+        })
+    }
+
+    /// Applies `change` to a copy of the list, saves the copy, then swaps it in.
+    /// If `change` or the save fails, neither memory nor disk is modified.
+    fn update<T>(
+        &self,
+        change: impl FnOnce(&mut RepoList) -> Result<T, AppError>,
+    ) -> Result<T, AppError> {
+        let mut data = self.lock()?;
+        let mut updated = data.clone();
+        let result = change(&mut updated)?;
         write_file(&self.file, &updated)?;
-        *repos = updated;
-        Ok(())
+        *data = updated;
+        Ok(result)
     }
 
     // A "poisoned" lock means a command panicked mid-update. Report it instead of panicking too.
-    fn lock(&self) -> Result<MutexGuard<'_, Vec<RepoEntry>>, AppError> {
-        self.repos.lock().map_err(|_| {
+    fn lock(&self) -> Result<MutexGuard<'_, RepoList>, AppError> {
+        self.data.lock().map_err(|_| {
             AppError::new(
                 ErrorKind::Storage,
                 "The repository list is in a bad state. Please restart the app.".to_string(),
@@ -96,10 +126,10 @@ impl RepoStore {
     }
 }
 
-fn read_file(file: &Path) -> Result<Vec<RepoEntry>, AppError> {
+fn read_file(file: &Path) -> Result<RepoList, AppError> {
     let text = match fs::read_to_string(file) {
         Ok(text) => text,
-        Err(err) if err.kind() == io::ErrorKind::NotFound => return Ok(Vec::new()),
+        Err(err) if err.kind() == io::ErrorKind::NotFound => return Ok(RepoList::default()),
         Err(err) => return Err(storage_error("read", file, err)),
     };
 
@@ -109,20 +139,27 @@ fn read_file(file: &Path) -> Result<Vec<RepoEntry>, AppError> {
             format!("{} is not valid: {err}.", file.display()),
         )
     })?;
-    Ok(parsed.repos)
+    Ok(RepoList {
+        groups: parsed.groups,
+        repos: parsed.repos,
+    })
 }
 
-fn write_file(file: &Path, repos: &[RepoEntry]) -> Result<(), AppError> {
+fn write_file(file: &Path, list: &RepoList) -> Result<(), AppError> {
     if let Some(dir) = file.parent() {
         fs::create_dir_all(dir).map_err(|err| storage_error("create the folder for", file, err))?;
     }
 
     let data = RepoFile {
         version: FILE_VERSION,
-        repos: repos.to_vec(),
+        groups: list.groups.clone(),
+        repos: list.repos.clone(),
     };
     let text = serde_json::to_string_pretty(&data).map_err(|err| {
-        AppError::new(ErrorKind::Storage, format!("Could not encode the repository list: {err}"))
+        AppError::new(
+            ErrorKind::Storage,
+            format!("Could not encode the repository list: {err}"),
+        )
     })?;
 
     // Write a temp file, then rename over the real one: a crash mid-write
@@ -140,16 +177,6 @@ fn storage_error(action: &str, file: &Path, err: io::Error) -> AppError {
     )
 }
 
-// Nanoseconds since 1970, in hex. Ids are created one at a time under the lock
-// by user clicks, so this is unique enough without pulling in a UUID crate.
-fn new_id() -> String {
-    let nanos = SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .map(|d| d.as_nanos())
-        .unwrap_or(0);
-    format!("{nanos:x}")
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -158,7 +185,11 @@ mod tests {
     fn info(root: &str) -> RepoInfo {
         RepoInfo {
             root: root.to_string(),
-            name: Path::new(root).file_name().unwrap().to_string_lossy().to_string(),
+            name: Path::new(root)
+                .file_name()
+                .unwrap()
+                .to_string_lossy()
+                .to_string(),
         }
     }
 
@@ -166,50 +197,57 @@ mod tests {
     fn missing_file_gives_empty_list() {
         let dir = TempDir::new().unwrap();
         let store = RepoStore::open(dir.path().join("repos.json"));
-        assert!(store.list().unwrap().is_empty());
+        assert_eq!(store.list().unwrap(), RepoList::default());
     }
 
     #[test]
-    fn added_repo_survives_reopen() {
+    fn changes_survive_reopen() {
         let dir = TempDir::new().unwrap();
         let file = dir.path().join("repos.json");
 
-        let added = RepoStore::open(file.clone()).add(info("/work/my app")).unwrap();
+        let store = RepoStore::open(file.clone());
+        let added = store.add_repo(info("/work/my app"), None).unwrap();
+        let saved = store.create_group("Work", None).unwrap();
         assert_eq!(added.name, "my app");
 
-        let reopened = RepoStore::open(file).list().unwrap();
-        assert_eq!(reopened, vec![added]);
+        assert_eq!(RepoStore::open(file).list().unwrap(), saved);
     }
 
     #[test]
-    fn rejects_duplicate_path() {
+    fn failed_change_leaves_list_untouched() {
         let dir = TempDir::new().unwrap();
         let store = RepoStore::open(dir.path().join("repos.json"));
-        store.add(info("/work/a")).unwrap();
+        store.add_repo(info("/work/a"), None).unwrap();
+        let before = store.list().unwrap();
 
-        let err = store.add(info("/work/a")).unwrap_err();
-        assert_eq!(err.kind, ErrorKind::RepoAlreadyAdded);
-        assert_eq!(store.list().unwrap().len(), 1);
+        assert!(store.add_repo(info("/work/a"), None).is_err());
+        assert_eq!(store.list().unwrap(), before);
     }
 
     #[test]
-    fn remove_deletes_only_that_entry() {
+    fn reads_version_1_file() {
         let dir = TempDir::new().unwrap();
         let file = dir.path().join("repos.json");
-        let store = RepoStore::open(file.clone());
-        let a = store.add(info("/work/a")).unwrap();
-        let b = store.add(info("/work/b")).unwrap();
+        fs::write(
+            &file,
+            r#"{ "version": 1, "repos": [ { "id": "1", "name": "a", "path": "/work/a" } ] }"#,
+        )
+        .unwrap();
 
-        store.remove(&a.id).unwrap();
+        let list = RepoStore::open(file).list().unwrap();
 
-        assert_eq!(RepoStore::open(file).list().unwrap(), vec![b]);
+        assert!(list.groups.is_empty());
+        assert_eq!(list.repos.len(), 1);
+        assert_eq!(list.repos[0].group_id, None);
     }
 
     #[test]
     fn creates_missing_data_folder() {
         let dir = TempDir::new().unwrap();
         let file = dir.path().join("not").join("yet").join("repos.json");
-        RepoStore::open(file.clone()).add(info("/work/a")).unwrap();
+        RepoStore::open(file.clone())
+            .add_repo(info("/work/a"), None)
+            .unwrap();
         assert!(file.is_file());
     }
 
@@ -221,7 +259,7 @@ mod tests {
 
         let store = RepoStore::open(file.clone());
 
-        assert!(store.list().unwrap().is_empty());
+        assert_eq!(store.list().unwrap(), RepoList::default());
         assert!(dir.path().join("repos.json.broken").is_file());
         assert!(!file.exists());
     }

@@ -24,6 +24,10 @@ pub fn run() {
             commands::repo::list_repos,
             commands::repo::add_repo,
             commands::repo::remove_repo,
+            commands::repo::move_repo,
+            commands::group::create_group,
+            commands::group::rename_group,
+            commands::group::delete_group,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

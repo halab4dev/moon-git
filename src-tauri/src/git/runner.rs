@@ -70,7 +70,11 @@ mod tests {
         let dir = TempDir::new().unwrap();
         let err = run_git(dir.path(), &["no-such-command"]).unwrap_err();
         assert_eq!(err.kind, ErrorKind::GitFailed);
-        assert!(err.message.contains("no-such-command"), "message: {}", err.message);
+        assert!(
+            err.message.contains("no-such-command"),
+            "message: {}",
+            err.message
+        );
     }
 
     #[test]

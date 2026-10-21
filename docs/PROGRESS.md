@@ -18,7 +18,7 @@ Giải thích chi tiết từng bước: [docs/learning/](learning/README.md)
 | 1 | Khung Tauri v2 + Vue 3 + TS, layout sidebar \| nội dung, command `greet` | ✅ | Đã xác nhận giao diện (2026-10-21) |
 | 2 | Lớp chạy git + kiểu lỗi chung | ✅ | `git/runner.rs`, `error.rs`, command `check_repo`. 7 test pass, clippy sạch. Đã xác nhận 4 trường hợp trên giao diện (2026-10-21) |
 | 3 | Danh sách repo + thêm repo local | ✅ | `storage/repos.rs` (`repos.json`, ghi qua file tạm + rename), plugin dialog, Pinia store. 13 test pass, clippy sạch. Đã xác nhận trên giao diện (2026-10-21) |
-| 4 | Nhóm / nhóm con repo | ⬜ | Cây sidebar, tạo/đổi tên/xóa nhóm, di chuyển repo (kéo-thả làm sau) |
+| 4 | Nhóm / nhóm con repo | 🟡 | `storage/repo_list.rs`, `repos.json` v2, menu chuột phải native, `NameDialog`. 23 test pass. Code đã commit, chờ bạn thử giao diện. Chưa có: kéo-thả, di chuyển nhóm |
 | 5 | Clone có tiến trình + hủy | ⬜ | `tokio::process`, Tauri event, nút Cancel. Fetch/pull/push dùng lại phần này |
 | 6 | Danh sách file thay đổi | ⬜ | Parser `status --porcelain=v2 -z` có test; staged / unstaged / untracked |
 | 7 | Stage / unstage | ⬜ | |
@@ -60,6 +60,8 @@ Giải thích chi tiết từng bước: [docs/learning/](learning/README.md)
 - Danh sách repo lưu ở `<app data>/repos.json` (`{ version, repos }`); file hỏng được đổi tên thành `repos.json.broken`.
 - Id repo sinh từ thời gian (hex), không dùng crate `uuid`.
 - Bỏ repo khỏi danh sách không đụng tới thư mục trên ổ đĩa.
+- Nhóm lưu phẳng (`parentId`); xóa nhóm → nội dung lên một cấp. Tên nhóm cùng cha không trùng (không phân biệt hoa thường).
+- Thao tác trên sidebar dùng menu native của Tauri; nút × ở bước 3 được thay bằng "Remove from List".
 - Bỏ ví dụ `greet` ở bước 2, thay bằng form thử `check_repo` (form này sẽ được thay bằng "Add repository" ở bước 3).
 - `AppError` là struct `{ kind, message }`; git chạy với `GIT_TERMINAL_PROMPT=0` và `LC_ALL=C`.
 - Test dùng crate `tempfile` (chỉ dev-dependency).
@@ -68,3 +70,4 @@ Giải thích chi tiết từng bước: [docs/learning/](learning/README.md)
 - [ ] Bạn chạy `sudo xcode-select --switch /Library/Developer/CommandLineTools`.
 - [x] Commit đầu tiên `dd92830` (bước 1–2).
 - [x] Bước 3 đã xác nhận và commit.
+- [ ] Bạn thử bước 4 (bảng kiểm tra trong `learning/04-nhom-repo.md`).

@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { onMounted } from "vue";
 import AppSidebar from "./components/AppSidebar.vue";
+import NameDialog from "./components/NameDialog.vue";
 import RepoView from "./views/RepoView.vue";
 import WelcomeView from "./views/WelcomeView.vue";
 import { useRepoStore } from "./stores/repos";
@@ -8,7 +9,7 @@ import { useRepoStore } from "./stores/repos";
 const store = useRepoStore();
 
 onMounted(() => {
-  store.load();
+  store.attempt(() => store.load());
 });
 </script>
 
@@ -21,6 +22,7 @@ onMounted(() => {
       <WelcomeView v-else />
     </main>
   </div>
+  <NameDialog />
 </template>
 
 <style scoped>
