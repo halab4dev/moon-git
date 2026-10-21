@@ -43,12 +43,14 @@ body,
 }
 
 button,
-input {
+input,
+textarea {
   font: inherit;
   color: inherit;
 }
 
-input {
+input,
+textarea {
   padding: 4px 8px;
   border: 1px solid var(--border);
   border-radius: 4px;

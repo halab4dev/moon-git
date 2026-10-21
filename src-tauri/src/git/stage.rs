@@ -4,6 +4,7 @@
 use std::path::Path;
 
 use crate::error::{AppError, ErrorKind};
+use crate::git::repo::has_commits;
 use crate::git::runner::run_git;
 
 // Paths per git call. Thousands of paths in one command line could exceed the
@@ -25,7 +26,7 @@ pub fn stage(repo: &Path, paths: &[String]) -> Result<(), AppError> {
 pub fn unstage(repo: &Path, paths: &[String]) -> Result<(), AppError> {
     check_paths(paths)?;
     // A repository without commits has no HEAD to restore the index from.
-    let has_commits = run_git(repo, &["rev-parse", "--verify", "--quiet", "HEAD"]).is_ok();
+    let has_commits = has_commits(repo);
 
     for batch in paths.chunks(BATCH_SIZE) {
         let command: &[&str] = if has_commits {

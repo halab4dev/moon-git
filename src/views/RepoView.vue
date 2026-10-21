@@ -1,12 +1,14 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, ref } from "vue";
 import { Menu } from "@tauri-apps/api/menu";
+import CommitBox from "../components/CommitBox.vue";
 import DiffPanel from "../components/DiffPanel.vue";
 import FileTable from "../components/FileTable.vue";
 import { buildRows, type FileRow } from "../components/fileRows";
 import { openDiffWindow } from "../windows";
 import { getStatus } from "../api/status";
 import { stageFiles, unstageFiles } from "../api/stage";
+import { commitChanges } from "../api/commit";
 import { toAppError } from "../api/errors";
 import type { AppError } from "../types/error";
 import type { RepoEntry } from "../types/repo";
@@ -24,12 +26,15 @@ const statusVersion = ref(0);
 const busy = ref(false);
 const error = ref<AppError | null>(null);
 const selectedPaths = ref<string[]>([]);
+const commitMessage = ref("");
+const amend = ref(false);
 
 const rows = computed(() => (status.value === null ? [] : buildRows(status.value)));
 const selectedRows = computed(() => {
   const selected = new Set(selectedPaths.value);
   return rows.value.filter((row) => selected.has(row.path));
 });
+const stagedCount = computed(() => status.value?.staged.length ?? 0);
 const diffRow = computed(() => (selectedRows.value.length === 1 ? selectedRows.value[0] : null));
 
 // Conflicted files are left out on purpose: `git add` on them means
@@ -47,17 +52,20 @@ const pathsToUnstage = computed(() =>
 
 // Every git action here returns the new status. One at a time: while one
 // runs, the others (and focus refreshes) are ignored.
-async function run(action: () => Promise<RepoStatus>) {
+// Resolves with true when the action succeeded.
+async function run(action: () => Promise<RepoStatus>): Promise<boolean> {
   if (busy.value) {
-    return;
+    return false;
   }
   busy.value = true;
   try {
     status.value = await action();
     statusVersion.value++;
     error.value = null;
+    return true;
   } catch (err) {
     error.value = toAppError(err);
+    return false;
   } finally {
     busy.value = false;
   }
@@ -75,6 +83,13 @@ function stageSelected() {
 function unstageSelected() {
   const paths = pathsToUnstage.value;
   return paths.length === 0 ? Promise.resolve() : run(() => unstageFiles(props.repo.id, paths));
+}
+
+async function commitStaged() {
+  if (await run(() => commitChanges(props.repo.id, commitMessage.value, amend.value))) {
+    commitMessage.value = "";
+    amend.value = false;
+  }
 }
 
 async function showRowMenu() {
@@ -187,6 +202,15 @@ onUnmounted(() => {
         <DiffPanel :repo-id="repo.id" :row="diffRow" :selected-count="selectedRows.length" :version="statusVersion" />
       </div>
     </div>
+
+    <CommitBox
+      v-model:message="commitMessage"
+      v-model:amend="amend"
+      :repo-id="repo.id"
+      :staged-count="stagedCount"
+      :busy="busy"
+      @commit="commitStaged"
+    />
   </section>
 </template>
 

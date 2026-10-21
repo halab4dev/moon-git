@@ -30,6 +30,11 @@ pub fn check_repo(path: &Path) -> Result<RepoInfo, AppError> {
     Ok(RepoInfo { root, name })
 }
 
+/// False for a freshly initialised repository: HEAD names a branch with no commit yet.
+pub fn has_commits(repo: &Path) -> bool {
+    run_git(repo, &["rev-parse", "--verify", "--quiet", "HEAD"]).is_ok()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

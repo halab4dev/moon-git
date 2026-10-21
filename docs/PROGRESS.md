@@ -2,7 +2,7 @@
 
 Cập nhật lần cuối: 2026-10-21
 
-**Đang ở:** Bước 9 (Commit + amend).
+**Đang ở:** Bước 10 (branch hiện tại + ahead/behind + fetch).
 
 Ký hiệu: ✅ xong · 🟡 đang làm / chờ xác nhận · ⬜ chưa làm
 
@@ -23,7 +23,7 @@ Giải thích chi tiết từng bước: [docs/learning/](learning/README.md)
 | 6 | Danh sách file thay đổi | ✅ | `git/status.rs` (porcelain v2 -z, `--no-optional-locks`), bảng `FileTable.vue` (Name/State/Location, sắp xếp theo cột, giống SmartGit), tự làm mới khi focus. 45 test pass. Đã xác nhận (2026-10-21) |
 | 7 | Stage / unstage | ✅ | `git/stage.rs` (`--literal-pathspecs`, chia lô 100, repo chưa có commit), chọn dòng kiểu desktop, nút + menu chuột phải. 52 test pass. State đặt tên theo SmartGit. Đã xác nhận (2026-10-21) |
 | 8 | Diff side-by-side | ✅ | Monaco (bạn chọn, so với CodeMirror / tự vẽ), tải lười; `git/diff.rs` (HEAD / Index / Working Tree, nhị phân, >5 MB, chặn đường dẫn ngoài repo); bố cục trên/dưới có thanh kéo; double-click → cửa sổ diff riêng (không chặn cửa sổ chính). 61 test pass |
-| 9 | Commit + amend | ⬜ | |
+| 9 | Commit + amend | ✅ | Message qua stdin (`-F -`), `--cleanup=whitespace`; kiểm tra trước (chưa stage / conflict / chưa có commit); lỗi thiếu danh tính → `IdentityUnknown`; xác nhận khi amend commit đã push. 71 test pass |
 | 10 | Branch hiện tại + ahead/behind + fetch | ⬜ | |
 | 11 | Pull, push | ⬜ | |
 | 12 | Thiết kế cách cấp credential | ⬜ | Chỉ đề xuất `GIT_ASKPASS` hay credential helper, chờ bạn chọn rồi mới code |
@@ -83,3 +83,4 @@ Giải thích chi tiết từng bước: [docs/learning/](learning/README.md)
 - [x] Bước 6 đã xác nhận và commit.
 - [x] Bước 7 đã xác nhận và commit.
 - [x] Bước 8 đã xác nhận và commit.
+- [x] Bước 9 đã xác nhận và commit.

@@ -1,6 +1,6 @@
-use std::io;
+use std::io::{self, Write};
 use std::path::Path;
-use std::process::Command;
+use std::process::{Command, Output, Stdio};
 
 use crate::error::{AppError, ErrorKind};
 
@@ -18,7 +18,34 @@ pub fn run_git(cwd: &Path, args: &[&str]) -> Result<String, AppError> {
 /// which may be binary or use an encoding other than UTF-8.
 pub fn run_git_bytes(cwd: &Path, args: &[&str]) -> Result<Vec<u8>, AppError> {
     let output = git_command(cwd, args)?.output().map_err(spawn_error)?;
+    check_output(output, args)
+}
 
+/// Like `run_git`, but also writes `input` to git's stdin, e.g. a commit
+/// message for `git commit -F -`. Text sent this way can never be mistaken
+/// for an option, and has no command-line length limit.
+pub fn run_git_with_input(cwd: &Path, args: &[&str], input: &str) -> Result<String, AppError> {
+    let mut child = git_command(cwd, args)?
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()
+        .map_err(spawn_error)?;
+
+    // take(): move the pipe out of `child`; dropping it at the end of this
+    // block closes stdin, which tells git the input is complete.
+    if let Some(mut stdin) = child.stdin.take() {
+        stdin.write_all(input.as_bytes()).map_err(|err| {
+            AppError::new(ErrorKind::Io, format!("Could not write to git: {err}"))
+        })?;
+    }
+    let output = child.wait_with_output().map_err(spawn_error)?;
+    let stdout = check_output(output, args)?;
+    Ok(String::from_utf8_lossy(&stdout).to_string())
+}
+
+// Turns a non-zero exit code into an error carrying git's own message.
+fn check_output(output: Output, args: &[&str]) -> Result<Vec<u8>, AppError> {
     if !output.status.success() {
         let stderr = String::from_utf8_lossy(&output.stderr).trim().to_string();
         let message = if stderr.is_empty() {
@@ -87,6 +114,15 @@ mod tests {
             "message: {}",
             err.message
         );
+    }
+
+    #[test]
+    fn passes_input_on_stdin() {
+        let dir = TempDir::new().unwrap();
+        // hash-object --stdin prints the id of whatever it reads.
+        let out = run_git_with_input(dir.path(), &["hash-object", "--stdin"], "hello\n").unwrap();
+        // The well-known id of the blob "hello\n".
+        assert_eq!(out.trim(), "ce013625030ba8dba906f756967f9e9ca394464a");
     }
 
     #[test]

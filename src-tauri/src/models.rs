@@ -115,3 +115,13 @@ pub struct FileDiff {
     pub binary: bool,
     pub too_large: bool,
 }
+
+/// The commit HEAD points to; used to prefill the message when amending.
+#[derive(Debug, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct HeadCommit {
+    pub message: String,
+    /// Already on a remote-tracking branch: amending it rewrites published
+    /// history, and the next push would need --force.
+    pub pushed: bool,
+}

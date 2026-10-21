@@ -22,6 +22,8 @@ pub enum ErrorKind {
     AuthRequired,
     /// git printed something our parser does not understand.
     UnexpectedOutput,
+    /// git does not know the author name/email to put on a commit.
+    IdentityUnknown,
 }
 
 #[derive(Debug, Serialize)]

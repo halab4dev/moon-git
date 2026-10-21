@@ -44,6 +44,8 @@ pub fn run() {
             commands::stage::stage_files,
             commands::stage::unstage_files,
             commands::diff::get_file_diff,
+            commands::commit::commit_changes,
+            commands::commit::get_head_commit,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

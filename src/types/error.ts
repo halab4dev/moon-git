@@ -13,6 +13,7 @@ export type ErrorKind =
   | "cancelled"
   | "authRequired"
   | "unexpectedOutput"
+  | "identityUnknown"
   | "unknown";
 
 export interface AppError {

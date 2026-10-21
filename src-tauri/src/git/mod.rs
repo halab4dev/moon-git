@@ -2,6 +2,7 @@
 // One file per area: runner (process handling), repo, status, stage, diff, later log, branch...
 
 pub mod clone;
+pub mod commit;
 pub mod diff;
 pub mod operations;
 pub mod repo;
