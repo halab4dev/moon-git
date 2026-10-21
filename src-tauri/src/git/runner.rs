@@ -9,6 +9,14 @@ use crate::error::{AppError, ErrorKind};
 /// Arguments are passed as a list, never through a shell, so paths with
 /// spaces or special characters are safe.
 pub fn run_git(cwd: &Path, args: &[&str]) -> Result<String, AppError> {
+    let stdout = run_git_bytes(cwd, args)?;
+    // Lossy: a file name in a non-UTF-8 encoding becomes "�" instead of an error.
+    Ok(String::from_utf8_lossy(&stdout).to_string())
+}
+
+/// Like `run_git`, but returns stdout as raw bytes. Needed for file contents,
+/// which may be binary or use an encoding other than UTF-8.
+pub fn run_git_bytes(cwd: &Path, args: &[&str]) -> Result<Vec<u8>, AppError> {
     let output = git_command(cwd, args)?.output().map_err(spawn_error)?;
 
     if !output.status.success() {
@@ -20,9 +28,7 @@ pub fn run_git(cwd: &Path, args: &[&str]) -> Result<String, AppError> {
         };
         return Err(AppError::new(ErrorKind::GitFailed, message));
     }
-
-    // Lossy: a file name in a non-UTF-8 encoding becomes "�" instead of an error.
-    Ok(String::from_utf8_lossy(&output.stdout).to_string())
+    Ok(output.stdout)
 }
 
 /// Builds the `git` process with the settings every git call needs.

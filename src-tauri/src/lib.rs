@@ -4,7 +4,7 @@ mod git;
 mod models;
 mod storage;
 
-use tauri::Manager;
+use tauri::{Manager, WindowEvent};
 
 use git::operations::Operations;
 use storage::repos::RepoStore;
@@ -21,6 +21,13 @@ pub fn run() {
             app.manage(RepoStore::open(data_dir.join("repos.json")));
             Ok(())
         })
+        // Closing the main window quits the app, diff windows included.
+        // (By default the app keeps running while any window is open.)
+        .on_window_event(|window, event| {
+            if window.label() == "main" && matches!(event, WindowEvent::Destroyed) {
+                window.app_handle().exit(0);
+            }
+        })
         // Every command callable from the frontend must be listed here.
         .invoke_handler(tauri::generate_handler![
             commands::repo::list_repos,
@@ -36,6 +43,7 @@ pub fn run() {
             commands::status::get_status,
             commands::stage::stage_files,
             commands::stage::unstage_files,
+            commands::diff::get_file_diff,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

@@ -22,6 +22,8 @@ const selected = defineModel<string[]>("selected", { required: true });
 const emit = defineEmits<{
   /** Right-click on a row; the selection already contains that row. */
   rowMenu: [];
+  /** Double-click on a row. */
+  rowOpen: [row: FileRow];
 }>();
 
 // The chosen sort is remembered for all repos (a viewer convenience only).
@@ -86,6 +88,20 @@ function selectAll() {
   selected.value = rows.value.map((r) => r.path);
 }
 
+// Arrow keys move a single selection up or down, handy for stepping through diffs.
+function moveSelection(step: number) {
+  const paths = rows.value.map((r) => r.path);
+  if (paths.length === 0) {
+    return;
+  }
+  const current = anchor.value === null ? -1 : paths.indexOf(anchor.value);
+  const next = current === -1 ? 0 : Math.min(paths.length - 1, Math.max(0, current + step));
+  selected.value = [paths[next]];
+  anchor.value = paths[next];
+  // Keep the newly selected row visible.
+  document.querySelector(`tr[data-path="${CSS.escape(paths[next])}"]`)?.scrollIntoView({ block: "nearest" });
+}
+
 // Click a header to sort by it; click the same header again to reverse.
 function sortBy(key: SortKey) {
   if (sortKey.value === key) {
@@ -119,7 +135,14 @@ function readSort(): { key: SortKey; ascending: boolean } {
 
 <template>
   <!-- tabindex makes the table focusable, so it can receive Cmd/Ctrl+A. -->
-  <table class="file-table" tabindex="0" @keydown.meta.a.prevent="selectAll" @keydown.ctrl.a.prevent="selectAll">
+  <table
+    class="file-table"
+    tabindex="0"
+    @keydown.meta.a.prevent="selectAll"
+    @keydown.ctrl.a.prevent="selectAll"
+    @keydown.up.prevent="moveSelection(-1)"
+    @keydown.down.prevent="moveSelection(1)"
+  >
     <thead>
       <tr>
         <th
@@ -139,9 +162,11 @@ function readSort(): { key: SortKey; ascending: boolean } {
       <tr
         v-for="row in rows"
         :key="row.path"
+        :data-path="row.path"
         :class="{ selected: selectedSet.has(row.path) }"
         :title="row.origPath ? `${row.origPath} → ${row.path}` : row.path"
         @click="onRowClick($event, row)"
+        @dblclick="emit('rowOpen', row)"
         @contextmenu.prevent="onRowContextMenu(row)"
       >
         <td class="name">

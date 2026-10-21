@@ -1,12 +1,16 @@
 {
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "default",
-  "description": "Capability for the main window",
+  "description": "Capability for the main window and the diff windows",
   "windows": [
-    "main"
+    "main",
+    "diff-*"
   ],
   "permissions": [
     "core:default",
+    "core:webview:allow-create-webview-window",
+    "core:window:allow-set-focus",
+    "core:window:allow-unminimize",
     "dialog:allow-open",
     "dialog:allow-ask"
   ]

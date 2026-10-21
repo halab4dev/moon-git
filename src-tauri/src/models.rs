@@ -87,3 +87,31 @@ pub struct RepoStatus {
     pub untracked: Vec<FileChange>,
     pub conflicted: Vec<FileChange>,
 }
+
+/// Which two versions of a file the diff view compares. Sent by the frontend,
+/// so it derives Deserialize (JSON "unstaged" -> DiffMode::Unstaged).
+#[derive(Debug, Clone, Copy, PartialEq, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub enum DiffMode {
+    /// Changes not staged yet: index -> working tree.
+    Unstaged,
+    /// Changes staged for the next commit: HEAD -> index.
+    Staged,
+    /// A file with merge conflicts: HEAD -> working tree (with conflict markers).
+    Conflict,
+}
+
+/// The two versions of a file, ready to show side by side.
+#[derive(Debug, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct FileDiff {
+    /// e.g. "HEAD", "Index", "Working Tree".
+    pub old_label: String,
+    pub new_label: String,
+    /// None when that version does not exist (new or deleted file), or when
+    /// the file is binary or too large to show.
+    pub old_text: Option<String>,
+    pub new_text: Option<String>,
+    pub binary: bool,
+    pub too_large: bool,
+}

@@ -2,7 +2,7 @@
 
 Cập nhật lần cuối: 2026-10-21
 
-**Đang ở:** Bước 8 (diff side-by-side): chờ chọn công cụ hiển thị diff.
+**Đang ở:** Bước 9 (Commit + amend).
 
 Ký hiệu: ✅ xong · 🟡 đang làm / chờ xác nhận · ⬜ chưa làm
 
@@ -22,7 +22,7 @@ Giải thích chi tiết từng bước: [docs/learning/](learning/README.md)
 | 5 | Clone có tiến trình + hủy | ✅ | `git/operations.rs` (thread worker + Tauri event + hủy cả process group), `git/clone.rs`, `CloneDialog`. 36 test pass. Đã xác nhận (2026-10-21). Fetch/pull/push sẽ dùng lại `operations.rs` |
 | 6 | Danh sách file thay đổi | ✅ | `git/status.rs` (porcelain v2 -z, `--no-optional-locks`), bảng `FileTable.vue` (Name/State/Location, sắp xếp theo cột, giống SmartGit), tự làm mới khi focus. 45 test pass. Đã xác nhận (2026-10-21) |
 | 7 | Stage / unstage | ✅ | `git/stage.rs` (`--literal-pathspecs`, chia lô 100, repo chưa có commit), chọn dòng kiểu desktop, nút + menu chuột phải. 52 test pass. State đặt tên theo SmartGit. Đã xác nhận (2026-10-21) |
-| 8 | Diff side-by-side | ⬜ | Monaco diff editor (sẽ trình bày các lựa chọn trước khi cài) |
+| 8 | Diff side-by-side | ✅ | Monaco (bạn chọn, so với CodeMirror / tự vẽ), tải lười; `git/diff.rs` (HEAD / Index / Working Tree, nhị phân, >5 MB, chặn đường dẫn ngoài repo); bố cục trên/dưới có thanh kéo; double-click → cửa sổ diff riêng (không chặn cửa sổ chính). 61 test pass |
 | 9 | Commit + amend | ⬜ | |
 | 10 | Branch hiện tại + ahead/behind + fetch | ⬜ | |
 | 11 | Pull, push | ⬜ | |
@@ -68,6 +68,8 @@ Giải thích chi tiết từng bước: [docs/learning/](learning/README.md)
 - Command thao tác trên repo nhận `repo_id` (Rust tự tra đường dẫn), chạy nền qua `run_blocking`.
 - Status làm mới khi cửa sổ được focus + nút Refresh (chưa dùng file watcher).
 - Stage/unstage luôn dùng `--literal-pathspecs`; file conflict chưa cho stage (để bước 15).
+- `vite.config.ts` dịch JS về mức `safari15` / `chrome105` (webview macOS 12 = WebKit hệ thống ≈ Safari 15.6, dù Safari app mới hơn). Kiểm tra bằng `jsc` của hệ thống.
+- Diff dùng Monaco, chỉ nạp lõi + tô màu cú pháp + worker, tải khi mở diff lần đầu. Ba chế độ: Working Tree (Index→WT), Staged (HEAD→Index), Conflict (HEAD→WT).
 - Cột State đặt tên theo trạng thái file của SmartGit (Staged, Added, Modified, Missing…); sắp theo mức quan trọng, Conflicted đầu tiên.
 - Bỏ ví dụ `greet` ở bước 2, thay bằng form thử `check_repo` (form này sẽ được thay bằng "Add repository" ở bước 3).
 - `AppError` là struct `{ kind, message }`; git chạy với `GIT_TERMINAL_PROMPT=0` và `LC_ALL=C`.
@@ -80,3 +82,4 @@ Giải thích chi tiết từng bước: [docs/learning/](learning/README.md)
 - [x] Bước 4, 5 đã xác nhận.
 - [x] Bước 6 đã xác nhận và commit.
 - [x] Bước 7 đã xác nhận và commit.
+- [x] Bước 8 đã xác nhận và commit.

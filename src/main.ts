@@ -1,6 +1,12 @@
 import { createApp } from "vue";
 import { createPinia } from "pinia";
 import App from "./App.vue";
+import DiffWindow from "./views/DiffWindow.vue";
 import "./styles.css";
 
-createApp(App).use(createPinia()).mount("#app");
+// Every window loads this same page; "?view=..." picks its screen
+// (see windows.ts). No view = the main window.
+const view = new URLSearchParams(window.location.search).get("view");
+const root = view === "diff" ? DiffWindow : App;
+
+createApp(root).use(createPinia()).mount("#app");
