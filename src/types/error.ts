@@ -14,6 +14,8 @@ export type ErrorKind =
   | "authRequired"
   | "unexpectedOutput"
   | "identityUnknown"
+  | "conflict"
+  | "pushRejected"
   | "unknown";
 
 export interface AppError {

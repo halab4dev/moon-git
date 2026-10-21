@@ -6,6 +6,8 @@ pub mod commit;
 pub mod diff;
 pub mod fetch;
 pub mod group;
+pub mod pull;
+pub mod push;
 pub mod repo;
 pub mod stage;
 pub mod status;

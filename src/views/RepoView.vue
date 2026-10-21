@@ -4,8 +4,8 @@ import { Menu } from "@tauri-apps/api/menu";
 import BranchStatus from "../components/BranchStatus.vue";
 import CommitBox from "../components/CommitBox.vue";
 import DiffPanel from "../components/DiffPanel.vue";
-import FetchButton from "../components/FetchButton.vue";
 import FileTable from "../components/FileTable.vue";
+import SyncButtons from "../components/SyncButtons.vue";
 import { buildRows, type FileRow } from "../components/fileRows";
 import { openDiffWindow } from "../windows";
 import { getStatus } from "../api/status";
@@ -26,6 +26,10 @@ const status = ref<RepoStatus | null>(null);
 // +1 every time a new status arrives; tells the diff panel to reload too.
 const statusVersion = ref(0);
 const busy = ref(false);
+// Set by SyncButtons while a pull may change files.
+const syncLocked = ref(false);
+// Staging and committing must wait for both.
+const working = computed(() => busy.value || syncLocked.value);
 const error = ref<AppError | null>(null);
 const selectedPaths = ref<string[]>([]);
 const commitMessage = ref("");
@@ -56,7 +60,7 @@ const pathsToUnstage = computed(() =>
 // runs, the others (and focus refreshes) are ignored.
 // Resolves with true when the action succeeded.
 async function run(action: () => Promise<RepoStatus>): Promise<boolean> {
-  if (busy.value) {
+  if (working.value) {
     return false;
   }
   busy.value = true;
@@ -91,6 +95,15 @@ async function commitStaged() {
   if (await run(() => commitChanges(props.repo.id, commitMessage.value, amend.value))) {
     commitMessage.value = "";
     amend.value = false;
+  }
+}
+
+// After fetch/pull/push: reload first, then show the error (a successful
+// reload clears the error line, so the order matters).
+async function onSyncFinished(syncError: AppError | null) {
+  await refresh();
+  if (syncError !== null) {
+    error.value = syncError;
   }
 }
 
@@ -174,15 +187,22 @@ onUnmounted(() => {
     </header>
 
     <div class="toolbar">
-      <button :disabled="busy || pathsToStage.length === 0" title="Stage selected files" @click="stageSelected">
+      <button :disabled="working || pathsToStage.length === 0" title="Stage selected files" @click="stageSelected">
         Stage
       </button>
-      <button :disabled="busy || pathsToUnstage.length === 0" title="Unstage selected files" @click="unstageSelected">
+      <button :disabled="working || pathsToUnstage.length === 0" title="Unstage selected files" @click="unstageSelected">
         Unstage
       </button>
       <span class="spacer"></span>
-      <FetchButton :repo-id="repo.id" @done="refresh" @failed="(err) => (error = err)" />
-      <button :disabled="busy" title="Reload changed files" @click="refresh">Refresh</button>
+      <SyncButtons
+        v-if="status"
+        v-model:locked="syncLocked"
+        :repo-id="repo.id"
+        :branch="status.branch"
+        :busy="busy"
+        @finished="onSyncFinished"
+      />
+      <button :disabled="working" title="Reload changed files" @click="refresh">Refresh</button>
     </div>
 
     <p v-if="error" class="err message">{{ error.message }}</p>
@@ -212,7 +232,7 @@ onUnmounted(() => {
       v-model:amend="amend"
       :repo-id="repo.id"
       :staged-count="stagedCount"
-      :busy="busy"
+      :busy="working"
       @commit="commitStaged"
     />
   </section>

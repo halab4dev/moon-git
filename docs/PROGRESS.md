@@ -2,9 +2,9 @@
 
 Cập nhật lần cuối: 2026-10-21
 
-**Đang ở:** Bước 11 (pull, push).
+**Đang ở:** Giai đoạn 2, bước 16a (đọc lịch sử commit + danh sách ảo hóa). Bước 12–15 tạm hoãn theo yêu cầu của bạn.
 
-Ký hiệu: ✅ xong · 🟡 đang làm / chờ xác nhận · ⬜ chưa làm
+Ký hiệu: ✅ xong · 🟡 đang làm / chờ xác nhận · ⏸ tạm hoãn · ⬜ chưa làm
 
 Giải thích chi tiết từng bước: [docs/learning/](learning/README.md)
 
@@ -25,11 +25,11 @@ Giải thích chi tiết từng bước: [docs/learning/](learning/README.md)
 | 8 | Diff side-by-side | ✅ | Monaco (bạn chọn, so với CodeMirror / tự vẽ), tải lười; `git/diff.rs` (HEAD / Index / Working Tree, nhị phân, >5 MB, chặn đường dẫn ngoài repo); bố cục trên/dưới có thanh kéo; double-click → cửa sổ diff riêng (không chặn cửa sổ chính). 61 test pass |
 | 9 | Commit + amend | ✅ | Message qua stdin (`-F -`), `--cleanup=whitespace`; kiểm tra trước (chưa stage / conflict / chưa có commit); lỗi thiếu danh tính → `IdentityUnknown`; xác nhận khi amend commit đã push. 71 test pass |
 | 10 | Branch hiện tại + ahead/behind + fetch | ✅ | Header `status --branch` (không thêm lệnh git), `fetch --all --progress` có tiến trình/hủy, không `--prune`; fetch không chặn stage/commit; hủy gửi SIGTERM + SIGCONT. 77 test pass |
-| 11 | Pull, push | ⬜ | |
-| 12 | Thiết kế cách cấp credential | ⬜ | Chỉ đề xuất `GIT_ASKPASS` hay credential helper, chờ bạn chọn rồi mới code |
-| 13 | Account theo server + keyring | ⬜ | Token chỉ lưu trong keyring, gắn account cho từng repo |
-| 14 | `user.name` / `user.email` riêng cho từng repo | ⬜ | `git config --local` |
-| 15 | Chọn SSH key theo server/repo | ⬜ | `GIT_SSH_COMMAND` |
+| 11 | Pull, push | ✅ | Pull = fetch (tiến trình/hủy) + `merge --ff-only` / hỏi Rebase–Merge khi tách nhánh (chọn sẵn theo `pull.rebase`); push không force, branch mới hỏi rồi `--set-upstream`; `Conflict` / `PushRejected`. 90 test pass |
+| 12 | Thiết kế cách cấp credential | ⏸ | Chỉ đề xuất `GIT_ASKPASS` hay credential helper, chờ bạn chọn rồi mới code |
+| 13 | Account theo server + keyring | ⏸ | Token chỉ lưu trong keyring, gắn account cho từng repo |
+| 14 | `user.name` / `user.email` riêng cho từng repo | ⏸ | `git config --local` |
+| 15 | Chọn SSH key theo server/repo | ⏸ | `GIT_SSH_COMMAND` |
 
 ## Giai đoạn 2 — lịch sử và branch (sẽ chia nhỏ khi tới nơi)
 
@@ -70,6 +70,8 @@ Giải thích chi tiết từng bước: [docs/learning/](learning/README.md)
 - Stage/unstage luôn dùng `--literal-pathspecs`; file conflict chưa cho stage (để bước 15).
 - `vite.config.ts` dịch JS về mức `safari15` / `chrome105` (webview macOS 12 = WebKit hệ thống ≈ Safari 15.6, dù Safari app mới hơn). Kiểm tra bằng `jsc` của hệ thống.
 - Fetch = `git fetch --all --progress`, không `--prune` (dọn branch đã xóa trên server sẽ là tùy chọn riêng sau).
+- Pull: hỏi Rebase/Merge mỗi lần khi branch tách nhánh (bạn chọn), chọn sẵn theo git config; chỉ thiếu commit thì fast-forward không hỏi. Thực hiện bằng fetch + merge/rebase cục bộ với `@{upstream}`, không dùng `git pull`.
+- Push không bao giờ force.
 - Diff dùng Monaco, chỉ nạp lõi + tô màu cú pháp + worker, tải khi mở diff lần đầu. Ba chế độ: Working Tree (Index→WT), Staged (HEAD→Index), Conflict (HEAD→WT).
 - Cột State đặt tên theo trạng thái file của SmartGit (Staged, Added, Modified, Missing…); sắp theo mức quan trọng, Conflicted đầu tiên.
 - Bỏ ví dụ `greet` ở bước 2, thay bằng form thử `check_repo` (form này sẽ được thay bằng "Add repository" ở bước 3).
@@ -86,3 +88,5 @@ Giải thích chi tiết từng bước: [docs/learning/](learning/README.md)
 - [x] Bước 8 đã xác nhận và commit.
 - [x] Bước 9 đã xác nhận và commit.
 - [x] Bước 10 đã xác nhận và commit.
+- [x] Bước 11 đã xác nhận và commit.
+- [ ] Bước 12–15 (credential, account + keyring, user.name/email theo repo, SSH key) **tạm hoãn** (2026-10-21), làm lại sau giai đoạn 2 hoặc khi bạn yêu cầu.

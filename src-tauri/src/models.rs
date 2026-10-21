@@ -109,6 +109,18 @@ pub struct BranchInfo {
     pub behind: u32,
 }
 
+/// How pulled commits are combined with local ones. Sent by the frontend.
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub enum PullMode {
+    /// Only move the branch forward; fails if there are local commits.
+    FastForward,
+    /// Create a merge commit joining both lines of history.
+    Merge,
+    /// Replay the local commits on top of the pulled ones.
+    Rebase,
+}
+
 /// Which two versions of a file the diff view compares. Sent by the frontend,
 /// so it derives Deserialize (JSON "unstaged" -> DiffMode::Unstaged).
 #[derive(Debug, Clone, Copy, PartialEq, Deserialize)]

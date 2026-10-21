@@ -26,47 +26,15 @@ pub fn fetch(
 mod tests {
     use super::*;
     use crate::error::ErrorKind;
-    use crate::git::runner::run_git;
     use crate::git::status::read_status;
-    use std::fs;
+    use crate::git::test_support::{clone_of, commit_file, git, server_and_clone};
     use tempfile::TempDir;
-
-    fn git(dir: &Path, args: &[&str]) -> String {
-        let mut all = vec!["-c", "user.name=Test", "-c", "user.email=test@example.com"];
-        all.extend_from_slice(args);
-        run_git(dir, &all).unwrap()
-    }
-
-    fn commit_file(dir: &Path, name: &str) {
-        fs::write(dir.join(name), format!("{name}\n")).unwrap();
-        git(dir, &["add", "--", name]);
-        git(dir, &["commit", "--quiet", "-m", name]);
-    }
-
-    /// A bare "server" repo with one commit on main, and a clone of it.
-    fn server_and_clone() -> (TempDir, TempDir) {
-        let server = TempDir::new().unwrap();
-        git(
-            server.path(),
-            &["init", "--quiet", "--bare", "--initial-branch=main"],
-        );
-        let work = TempDir::new().unwrap();
-        let url = server.path().to_string_lossy().to_string();
-        git(work.path(), &["clone", "--quiet", &url, "."]);
-        // An empty clone has no branch yet; make sure the first one is "main".
-        git(work.path(), &["symbolic-ref", "HEAD", "refs/heads/main"]);
-        commit_file(work.path(), "first.txt");
-        git(work.path(), &["push", "--quiet", "-u", "origin", "main"]);
-        (server, work)
-    }
 
     #[test]
     fn fetch_updates_ahead_and_behind() {
         let (server, mine) = server_and_clone();
         // Someone else pushes a commit...
-        let theirs = TempDir::new().unwrap();
-        let url = server.path().to_string_lossy().to_string();
-        git(theirs.path(), &["clone", "--quiet", &url, "."]);
+        let theirs = clone_of(server.path());
         commit_file(theirs.path(), "theirs.txt");
         git(theirs.path(), &["push", "--quiet", "origin", "main"]);
         // ...while I have one local commit.

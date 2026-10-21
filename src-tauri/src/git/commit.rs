@@ -72,7 +72,8 @@ fn invalid(message: &str) -> AppError {
 
 // git's "Please tell me who you are" text suggests terminal commands;
 // say what is wrong in a way that fits the app.
-fn explain_commit_error(err: AppError) -> AppError {
+// Also used by pull: merges and rebases create commits too.
+pub(crate) fn explain_commit_error(err: AppError) -> AppError {
     let identity_problem = err.message.contains("Please tell me who you are")
         || err.message.contains("Author identity unknown")
         || err.message.contains("empty ident name");

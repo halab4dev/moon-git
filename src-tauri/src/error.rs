@@ -24,6 +24,10 @@ pub enum ErrorKind {
     UnexpectedOutput,
     /// git does not know the author name/email to put on a commit.
     IdentityUnknown,
+    /// A merge or rebase stopped because files have conflicts.
+    Conflict,
+    /// The server refused a push because it has commits we don't have.
+    PushRejected,
 }
 
 #[derive(Debug, Serialize)]
