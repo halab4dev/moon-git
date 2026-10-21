@@ -158,3 +158,49 @@ pub struct HeadCommit {
     /// history, and the next push would need --force.
     pub pushed: bool,
 }
+
+/// One commit in the history list (step 16a). Details such as the full
+/// message and the changed files are loaded separately when a commit is clicked.
+#[derive(Debug, Clone, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CommitSummary {
+    pub id: String,
+    /// Parent ids: none for the first commit, two (or more) for a merge.
+    pub parents: Vec<String>,
+    pub author_name: String,
+    pub author_email: String,
+    /// Seconds since 1970-01-01 UTC (the frontend formats it in local time).
+    pub author_time: i64,
+    pub subject: String,
+    /// Branches and tags pointing at this commit.
+    pub refs: Vec<CommitRef>,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CommitRef {
+    pub kind: RefKind,
+    /// Short name: "main", "origin/main", "v1.0", or "HEAD" (detached).
+    pub name: String,
+    /// The checked-out branch (or the detached HEAD).
+    pub current: bool,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub enum RefKind {
+    Branch,
+    Remote,
+    Tag,
+    /// HEAD pointing at a commit directly, not at a branch.
+    Head,
+}
+
+/// A slice of the history, newest first.
+#[derive(Debug, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct LogPage {
+    pub commits: Vec<CommitSummary>,
+    /// More commits exist after this page.
+    pub has_more: bool,
+}

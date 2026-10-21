@@ -5,6 +5,7 @@ import BranchStatus from "../components/BranchStatus.vue";
 import CommitBox from "../components/CommitBox.vue";
 import DiffPanel from "../components/DiffPanel.vue";
 import FileTable from "../components/FileTable.vue";
+import HistoryView from "./HistoryView.vue";
 import SyncButtons from "../components/SyncButtons.vue";
 import { buildRows, type FileRow } from "../components/fileRows";
 import { openDiffWindow } from "../windows";
@@ -32,6 +33,28 @@ const syncLocked = ref(false);
 const working = computed(() => busy.value || syncLocked.value);
 const error = ref<AppError | null>(null);
 const selectedPaths = ref<string[]>([]);
+
+// Changes (working tree) or History. Remembered for all repos.
+type Tab = "changes" | "history";
+const TAB_KEY = "moongit.repoView.tab";
+const tab = ref<Tab>(readTab());
+
+function selectTab(next: Tab) {
+  tab.value = next;
+  try {
+    localStorage.setItem(TAB_KEY, next);
+  } catch {
+    // Not remembered; fine.
+  }
+}
+
+function readTab(): Tab {
+  try {
+    return localStorage.getItem(TAB_KEY) === "history" ? "history" : "changes";
+  } catch {
+    return "changes";
+  }
+}
 const commitMessage = ref("");
 const amend = ref(false);
 
@@ -186,13 +209,22 @@ onUnmounted(() => {
       <BranchStatus v-if="status" :branch="status.branch" />
     </header>
 
+    <nav class="tabs">
+      <button :class="{ active: tab === 'changes' }" @click="selectTab('changes')">
+        Changes<span v-if="rows.length > 0" class="count">{{ rows.length }}</span>
+      </button>
+      <button :class="{ active: tab === 'history' }" @click="selectTab('history')">History</button>
+    </nav>
+
     <div class="toolbar">
-      <button :disabled="working || pathsToStage.length === 0" title="Stage selected files" @click="stageSelected">
-        Stage
-      </button>
-      <button :disabled="working || pathsToUnstage.length === 0" title="Unstage selected files" @click="unstageSelected">
-        Unstage
-      </button>
+      <template v-if="tab === 'changes'">
+        <button :disabled="working || pathsToStage.length === 0" title="Stage selected files" @click="stageSelected">
+          Stage
+        </button>
+        <button :disabled="working || pathsToUnstage.length === 0" title="Unstage selected files" @click="unstageSelected">
+          Unstage
+        </button>
+      </template>
       <span class="spacer"></span>
       <SyncButtons
         v-if="status"
@@ -202,39 +234,45 @@ onUnmounted(() => {
         :busy="busy"
         @finished="onSyncFinished"
       />
-      <button :disabled="working" title="Reload changed files" @click="refresh">Refresh</button>
+      <button :disabled="working" title="Reload changed files and history" @click="refresh">Refresh</button>
     </div>
 
     <p v-if="error" class="err message">{{ error.message }}</p>
 
-    <div ref="split" class="split">
-      <div class="files" :style="{ flexBasis: `${filesRatio * 100}%` }">
-        <template v-if="status">
-          <p v-if="rows.length === 0" class="muted">Nothing to commit, working tree clean.</p>
-          <FileTable
-            v-else
-            v-model:selected="selectedPaths"
-            :status="status"
-            @row-menu="showRowMenu"
-            @row-open="openInWindow"
-          />
-        </template>
-        <p v-else-if="busy" class="muted">Loading…</p>
+    <!-- v-show, not v-if: switching tabs keeps the selection and the diff. -->
+    <div v-show="tab === 'changes'" class="pane">
+      <div ref="split" class="split">
+        <div class="files" :style="{ flexBasis: `${filesRatio * 100}%` }">
+          <template v-if="status">
+            <p v-if="rows.length === 0" class="muted">Nothing to commit, working tree clean.</p>
+            <FileTable
+              v-else
+              v-model:selected="selectedPaths"
+              :status="status"
+              @row-menu="showRowMenu"
+              @row-open="openInWindow"
+            />
+          </template>
+          <p v-else-if="busy" class="muted">Loading…</p>
+        </div>
+        <div class="splitter" title="Drag to resize" @mousedown="startResize"></div>
+        <div class="diff">
+          <DiffPanel :repo-id="repo.id" :row="diffRow" :selected-count="selectedRows.length" :version="statusVersion" />
+        </div>
       </div>
-      <div class="splitter" title="Drag to resize" @mousedown="startResize"></div>
-      <div class="diff">
-        <DiffPanel :repo-id="repo.id" :row="diffRow" :selected-count="selectedRows.length" :version="statusVersion" />
-      </div>
+
+      <CommitBox
+        v-model:message="commitMessage"
+        v-model:amend="amend"
+        :repo-id="repo.id"
+        :staged-count="stagedCount"
+        :busy="working"
+        @commit="commitStaged"
+      />
     </div>
 
-    <CommitBox
-      v-model:message="commitMessage"
-      v-model:amend="amend"
-      :repo-id="repo.id"
-      :staged-count="stagedCount"
-      :busy="working"
-      @commit="commitStaged"
-    />
+    <!-- v-if: the history is loaded when the tab is opened, and dropped when left. -->
+    <HistoryView v-if="tab === 'history'" class="pane" :repo-id="repo.id" :version="statusVersion" />
   </section>
 </template>
 
@@ -278,6 +316,44 @@ h1 {
 .message {
   white-space: pre-wrap;
   word-break: break-word;
+}
+
+.tabs {
+  display: flex;
+  gap: 2px;
+  margin-bottom: 8px;
+  border-bottom: 1px solid var(--border);
+}
+
+.tabs button {
+  border: none;
+  border-bottom: 2px solid transparent;
+  border-radius: 0;
+  background: transparent;
+  padding: 4px 12px;
+  color: var(--text-muted);
+}
+
+.tabs button.active {
+  border-bottom-color: var(--accent);
+  color: var(--text);
+  font-weight: 600;
+}
+
+.count {
+  margin-left: 6px;
+  padding: 0 6px;
+  border-radius: 8px;
+  background: var(--bg-sidebar);
+  font-size: 11px;
+}
+
+/* Each tab fills the rest of the height. */
+.pane {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
 }
 
 .split {

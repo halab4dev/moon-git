@@ -2,7 +2,7 @@
 
 Cập nhật lần cuối: 2026-10-21
 
-**Đang ở:** Giai đoạn 2, bước 16a (đọc lịch sử commit + danh sách ảo hóa). Bước 12–15 tạm hoãn theo yêu cầu của bạn.
+**Đang ở:** Giai đoạn 2, bước 16b (graph: lane layout + vẽ). Bước 12–15 tạm hoãn theo yêu cầu của bạn.
 
 Ký hiệu: ✅ xong · 🟡 đang làm / chờ xác nhận · ⏸ tạm hoãn · ⬜ chưa làm
 
@@ -31,11 +31,13 @@ Giải thích chi tiết từng bước: [docs/learning/](learning/README.md)
 | 14 | `user.name` / `user.email` riêng cho từng repo | ⏸ | `git config --local` |
 | 15 | Chọn SSH key theo server/repo | ⏸ | `GIT_SSH_COMMAND` |
 
-## Giai đoạn 2 — lịch sử và branch (sẽ chia nhỏ khi tới nơi)
+## Giai đoạn 2 — lịch sử và branch
 
 | # | Tính năng | Trạng thái |
 |---|---|---|
-| 16 | Graph lịch sử: chọn branch/tag hiển thị, lane layout bằng TS có test, danh sách ảo hóa + tải dần | ⬜ |
+| 16a | Lịch sử commit: `git/log.rs` (parser + test), tab History, danh sách ảo hóa tự viết + tải dần theo trang, nhãn branch/tag | ✅ 98 test pass |
+| 16b | Graph: thuật toán xếp làn (lane layout) bằng TS, module riêng có test (thêm Vitest), vẽ cột graph | 🟡 |
+| 16c | Chọn branch/remote/tag hiển thị trong graph | ⬜ |
 | 17 | Filter theo hash / message, chế độ highlight (mặc định) và ẩn | ⬜ |
 | 18 | Bấm vào commit: thông tin, danh sách file, diff | ⬜ |
 | 19 | Branch: tạo, checkout, đổi tên, xóa local/remote, tracking | ⬜ |
@@ -72,6 +74,7 @@ Giải thích chi tiết từng bước: [docs/learning/](learning/README.md)
 - Fetch = `git fetch --all --progress`, không `--prune` (dọn branch đã xóa trên server sẽ là tùy chọn riêng sau).
 - Pull: hỏi Rebase/Merge mỗi lần khi branch tách nhánh (bạn chọn), chọn sẵn theo git config; chỉ thiếu commit thì fast-forward không hỏi. Thực hiện bằng fetch + merge/rebase cục bộ với `@{upstream}`, không dùng `git pull`.
 - Push không bao giờ force.
+- Lịch sử: `git log --date-order` từ `--branches --remotes --tags HEAD` (không `--all`, để không kéo stash vào), trang 500 commit qua `--skip`; danh sách ảo hóa tự viết (không thêm thư viện).
 - Diff dùng Monaco, chỉ nạp lõi + tô màu cú pháp + worker, tải khi mở diff lần đầu. Ba chế độ: Working Tree (Index→WT), Staged (HEAD→Index), Conflict (HEAD→WT).
 - Cột State đặt tên theo trạng thái file của SmartGit (Staged, Added, Modified, Missing…); sắp theo mức quan trọng, Conflicted đầu tiên.
 - Bỏ ví dụ `greet` ở bước 2, thay bằng form thử `check_repo` (form này sẽ được thay bằng "Add repository" ở bước 3).
@@ -89,4 +92,5 @@ Giải thích chi tiết từng bước: [docs/learning/](learning/README.md)
 - [x] Bước 9 đã xác nhận và commit.
 - [x] Bước 10 đã xác nhận và commit.
 - [x] Bước 11 đã xác nhận và commit.
+- [x] Bước 16a đã xác nhận và commit.
 - [ ] Bước 12–15 (credential, account + keyring, user.name/email theo repo, SSH key) **tạm hoãn** (2026-10-21), làm lại sau giai đoạn 2 hoặc khi bạn yêu cầu.
