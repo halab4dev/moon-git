@@ -1,5 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, ref, watch } from "vue";
+import GraphCell from "./GraphCell.vue";
+import type { GraphRow } from "../graph/laneLayout";
 import type { CommitRef, CommitSummary } from "../types/log";
 
 // The history as a virtualized list: only the rows inside the visible area
@@ -8,6 +10,10 @@ import type { CommitRef, CommitSummary } from "../types/log";
 // are visible" a simple division.
 const props = defineProps<{
   commits: CommitSummary[];
+  /** graph[i] is the graph part of commits[i]. */
+  graph: GraphRow[];
+  /** Widest graph row, in lanes. */
+  graphLanes: number;
   hasMore: boolean;
   loading: boolean;
 }>();
@@ -22,6 +28,12 @@ const emit = defineEmits<{
 const ROW_HEIGHT = 24; // px, must match .row in the styles below
 const OVERSCAN = 10; // extra rows above and below, so fast scrolling shows no gaps
 const LOAD_AHEAD = 100; // ask for the next page this many rows before the end
+const LANE_WIDTH = 14; // px, must match GraphCell.vue
+// Very wide graphs (dozens of parallel branches) are cut off instead of
+// pushing the messages out of sight.
+const MAX_SHOWN_LANES = 20;
+
+const graphWidth = computed(() => Math.max(1, Math.min(props.graphLanes, MAX_SHOWN_LANES)) * LANE_WIDTH);
 
 const viewport = ref<HTMLDivElement | null>(null);
 const scrollTop = ref(0);
@@ -100,8 +112,9 @@ function refClass(ref: CommitRef): string[] {
 </script>
 
 <template>
-  <div class="commit-list">
+  <div class="commit-list" :style="{ '--graph-width': `${graphWidth}px` }">
     <div class="header row">
+      <span>Graph</span>
       <span>Message</span>
       <span>Author</span>
       <span>Date</span>
@@ -125,6 +138,13 @@ function refClass(ref: CommitRef): string[] {
           :style="{ top: `${(first + i) * ROW_HEIGHT}px` }"
           @click="selected = commit.id"
         >
+          <GraphCell
+            v-if="graph[first + i]"
+            :row="graph[first + i]"
+            :merge="commit.parents.length > 1"
+            :width="graphWidth"
+          />
+          <span v-else></span>
           <span class="message" :title="commit.subject">
             <span v-for="r in commit.refs" :key="r.kind + r.name" :class="refClass(r)">{{ r.name }}</span>
             {{ commit.subject }}
@@ -150,7 +170,8 @@ function refClass(ref: CommitRef): string[] {
 /* Same columns for the header and every row. */
 .row {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 160px 130px 80px;
+  /* --graph-width is set from the widest graph row (see template). */
+  grid-template-columns: var(--graph-width) minmax(0, 1fr) 160px 130px 80px;
   gap: 8px;
   align-items: center;
   height: 24px;

@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { onMounted, ref, shallowRef, watch } from "vue";
 import CommitList from "../components/CommitList.vue";
+import { LaneLayout, type GraphRow } from "../graph/laneLayout";
 import { getLog } from "../api/log";
 import { toAppError } from "../api/errors";
 import type { AppError } from "../types/error";
@@ -26,6 +27,18 @@ const loading = ref(false);
 const error = ref<AppError | null>(null);
 const selected = ref<string | null>(null);
 
+// The graph is laid out page by page, like the commits are loaded. The
+// LaneLayout object keeps its own state between pages and is not reactive;
+// graphRows (a copy of its rows) is what the template sees.
+let layout = new LaneLayout();
+const graphRows = shallowRef<GraphRow[]>([]);
+const graphLanes = ref(0);
+
+function showGraph() {
+  graphRows.value = layout.rows.slice(); // new array, so the shallowRef notices
+  graphLanes.value = layout.maxLanes;
+}
+
 // Bumped by every reload; an answer for an older generation is dropped
 // (e.g. a page requested just before the list was reloaded).
 let generation = 0;
@@ -43,6 +56,9 @@ async function reload() {
     commits.value = page.commits;
     hasMore.value = page.hasMore;
     error.value = null;
+    layout = new LaneLayout();
+    layout.add(page.commits);
+    showGraph();
   } catch (err) {
     if (current === generation) {
       error.value = toAppError(err);
@@ -67,6 +83,8 @@ async function loadMore() {
     }
     commits.value = commits.value.concat(page.commits);
     hasMore.value = page.hasMore;
+    layout.add(page.commits); // continues where the previous page ended
+    showGraph();
   } catch (err) {
     if (current === generation) {
       error.value = toAppError(err);
@@ -88,6 +106,8 @@ watch(() => props.version, reload);
     <CommitList
       v-model:selected="selected"
       :commits="commits"
+      :graph="graphRows"
+      :graph-lanes="graphLanes"
       :has-more="hasMore"
       :loading="loading"
       @load-more="loadMore"
