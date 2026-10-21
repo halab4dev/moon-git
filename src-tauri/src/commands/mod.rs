@@ -4,6 +4,7 @@
 pub mod clone;
 pub mod group;
 pub mod repo;
+pub mod stage;
 pub mod status;
 
 use crate::error::{AppError, ErrorKind};

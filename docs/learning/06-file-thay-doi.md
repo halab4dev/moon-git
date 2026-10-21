@@ -53,7 +53,7 @@ u UU N... 100644 100644 100644 100644 <h1> <h2> <h3> both.txt             ← co
 | File | Việc |
 |---|---|
 | `types/status.ts`, `api/status.ts` | Kiểu + wrapper `getStatus` |
-| `components/fileRows.ts` | **Mới.** `buildRows` (gộp 4 danh sách thành một dòng/file, tạo chữ State), `sortRows` (sắp xếp theo cột) — TypeScript thuần, không dính Vue |
+| `components/fileRows.ts` | **Mới.** `buildRows` (gộp 4 danh sách thành một dòng/file), `stateOf` (XY → State kiểu SmartGit), `STATE_TABLE` (tên, chữ cái, màu, thứ tự), `sortRows` — TypeScript thuần, không dính Vue |
 | `components/FileTable.vue` | **Mới.** Bảng Name / State / Location, tiêu đề bấm để sắp xếp, nhớ cách sắp xếp |
 | `views/RepoView.vue` | Tải status, nút Refresh, tự làm mới khi focus, hiện bảng |
 | `styles.css` | Thêm màu `--warning` (cho "M") |
@@ -83,21 +83,33 @@ Repo bị xóa/di chuyển trên ổ đĩa → `run_git` báo `Folder does not e
 
 Rust vẫn trả 4 danh sách (`staged`, `unstaged`, `untracked`, `conflicted`) — đúng với cách git nghĩ. Frontend gộp thành **một dòng mỗi file** để hiển thị (`buildRows` trong `fileRows.ts`).
 
-Một file có thể nằm ở cả staged lẫn unstaged → cột **State** ghi gộp:
+Một file có thể nằm ở cả staged lẫn unstaged → mỗi dòng có **một State**, đặt tên theo [bảng trạng thái file của SmartGit](https://docs.syntevo.com/SmartGit/Latest/Repositories-Directories-and-Files) (hàm `stateOf` trong `fileRows.ts`). X = phía index (đã stage), Y = phía working tree:
 
-| Trường hợp | State |
-|---|---|
-| Sửa, chưa stage | `Modified` |
-| Sửa, đã stage hết | `Modified (staged)` |
-| Đã stage một phần rồi sửa tiếp (`MM`) | `Modified (partly staged)` |
-| Thêm mới đã stage rồi sửa tiếp (`AM`) | `Added (staged), modified` |
-| Đổi tên đã stage | `Renamed (staged)`; Location có thêm `← đường dẫn cũ` |
-| Chưa track / conflict | `Untracked` / `Conflict` |
+| git (XY) | State | Chữ |
+|---|---|---|
+| `u` (conflict) | Conflicted | U |
+| `M.` | Staged | M (xanh lá) |
+| `MM` | Staged Modified | M (xanh lá) |
+| `A.` | Added | A |
+| `AM` | Added Modified | A |
+| `R.` / `RM` | Renamed / Renamed (modified) — Location có `← đường dẫn cũ` | R |
+| `C.` | Copied *(SmartGit không có)* | C |
+| `D.` | Removed (đã stage việc xóa) | D |
+| `.M` | Modified | M (vàng) |
+| `T` | Type Changed *(file ↔ symlink; SmartGit không có)* | T |
+| `.D`, `MD`, `AD` | Missing (file không còn trên ổ đĩa) | ! |
+| `.A` (`git add -N`) | Intent-to-Add | A |
+| `?` | Untracked *(SmartGit gọi là Unversioned)* | ? |
+
+Chưa làm được (cần thêm thông tin ngoài `git status`): *Staged, WT as HEAD*, *Modified (File Mode)*, *Modified (EOLs only)*, *Rename Source*, *Assume-Unchanged*, *Skipped*, *Ignored*.
+
+Màu chữ cái: **xanh lá** = đã stage cho lần commit tới, **vàng** = thay đổi chưa stage, **đỏ** = conflict / xóa / mất file, **xanh dương** = đổi tên/copy.
 
 Mỗi dòng còn giữ `hasStaged` / `hasUnstaged` — bước 7 dùng để biết nút nào (Stage / Unstage) có tác dụng.
 
 **Sắp xếp** (`sortRows`):
 - Bấm tiêu đề cột → sắp tăng dần theo cột đó (▲); bấm lại → giảm dần (▼).
+- Cột **State** sắp theo **mức quan trọng**, không theo bảng chữ cái — đúng thứ tự của bảng trên: Conflicted → Staged → Staged Modified → Added → Added Modified → Renamed → Renamed (modified) → Copied → Removed → Modified → Type Changed → Missing → Intent-to-Add → Untracked. Thứ tự này nằm ở một chỗ: mảng `STATE_TABLE` trong `fileRows.ts`.
 - Hai dòng bằng nhau ở cột chính thì xét tiếp cột khác (Name → Location; State → Location → Name; Location → Name) → thứ tự luôn ổn định, không "nhảy" khi làm mới.
 - `Intl.Collator` với `numeric: true`: `file9` đứng trước `file10` (sắp kiểu chữ thường sẽ ra ngược); `sensitivity: "base"`: không phân biệt hoa thường.
 - Cách sắp xếp được nhớ (localStorage), dùng chung cho mọi repo. Mặc định: Name tăng dần.
@@ -191,14 +203,14 @@ cd src-tauri && cargo test status     # 9 test của bước này (cargo test: c
 
 | Thao tác | Kết quả mong đợi |
 |---|---|
-| Chọn `moon-git` (code bước 6 chưa commit) | Bảng: các file `M` vàng — State `Modified`; các file `?` xanh — State `Untracked` (`status.rs`, `FileTable.vue`…) |
+| Chọn `moon-git` (có file chưa commit) | Bảng: các file `M` vàng — State `Modified`; các file `?` — State `Untracked` |
 | Bấm tiêu đề **Name** | ▲ chuyển thành ▼, thứ tự đảo ngược |
 | Bấm **Location** | Sắp theo thư mục (`docs/learning`, `src/api`, `src/components`, `src-tauri/src/...`), trong cùng thư mục theo tên |
-| Bấm **State** | Các `Modified` đứng cạnh nhau, các `Untracked` đứng cạnh nhau |
+| Bấm **State** | Staged / Added lên trước, rồi Modified, Untracked cuối cùng |
 | Đóng app, mở lại | Vẫn sắp theo cột đã chọn |
-| Trong terminal: `git add src/api/status.ts`, quay lại app | Tự làm mới: State thành `Added (staged)`, chữ `A` |
-| Sửa tiếp `src/api/status.ts` (thêm 1 dòng trống), quay lại app | State `Added (staged), modified` |
-| `git mv docs/learning/README.md docs/learning/INDEX.md` | `INDEX.md` chữ `R`, State `Renamed (staged)`, Location `docs/learning ← docs/learning/README.md` |
+| Trong terminal: tạo file mới rồi `git add` nó, quay lại app | Tự làm mới: State `Added`, chữ `A` xanh lá |
+| Sửa tiếp file đó, quay lại app | State `Added Modified` |
+| `git mv docs/learning/README.md docs/learning/INDEX.md` | `INDEX.md` chữ `R`, State `Renamed`, Location `docs/learning ← docs/learning/README.md` |
 | `git restore --staged . && git mv docs/learning/INDEX.md docs/learning/README.md` | Trả lại như cũ (nhớ chạy để dọn) |
 | Bấm **Refresh** | Nút đổi thành "Refreshing…" thoáng qua |
 | Chọn repo không có thay đổi (vd. repo vừa clone) | "Nothing to commit, working tree clean." |

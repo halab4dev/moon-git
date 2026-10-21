@@ -2,7 +2,7 @@
 
 Cập nhật lần cuối: 2026-10-21
 
-**Đang ở:** Bước 7 (stage / unstage) đang làm.
+**Đang ở:** Bước 8 (diff side-by-side): chờ chọn công cụ hiển thị diff.
 
 Ký hiệu: ✅ xong · 🟡 đang làm / chờ xác nhận · ⬜ chưa làm
 
@@ -21,7 +21,7 @@ Giải thích chi tiết từng bước: [docs/learning/](learning/README.md)
 | 4 | Nhóm / nhóm con repo | ✅ | `storage/repo_list.rs`, `repos.json` v2, menu chuột phải native, `NameDialog`. 23 test pass. Đã xác nhận (2026-10-21), thêm icon folder SVG. Chưa có: kéo-thả, di chuyển nhóm |
 | 5 | Clone có tiến trình + hủy | ✅ | `git/operations.rs` (thread worker + Tauri event + hủy cả process group), `git/clone.rs`, `CloneDialog`. 36 test pass. Đã xác nhận (2026-10-21). Fetch/pull/push sẽ dùng lại `operations.rs` |
 | 6 | Danh sách file thay đổi | ✅ | `git/status.rs` (porcelain v2 -z, `--no-optional-locks`), bảng `FileTable.vue` (Name/State/Location, sắp xếp theo cột, giống SmartGit), tự làm mới khi focus. 45 test pass. Đã xác nhận (2026-10-21) |
-| 7 | Stage / unstage | ⬜ | |
+| 7 | Stage / unstage | ✅ | `git/stage.rs` (`--literal-pathspecs`, chia lô 100, repo chưa có commit), chọn dòng kiểu desktop, nút + menu chuột phải. 52 test pass. State đặt tên theo SmartGit. Đã xác nhận (2026-10-21) |
 | 8 | Diff side-by-side | ⬜ | Monaco diff editor (sẽ trình bày các lựa chọn trước khi cài) |
 | 9 | Commit + amend | ⬜ | |
 | 10 | Branch hiện tại + ahead/behind + fetch | ⬜ | |
@@ -67,6 +67,8 @@ Giải thích chi tiết từng bước: [docs/learning/](learning/README.md)
 - Clone lỗi/hủy → xóa thư mục đích chỉ khi nó không tồn tại trước khi clone.
 - Command thao tác trên repo nhận `repo_id` (Rust tự tra đường dẫn), chạy nền qua `run_blocking`.
 - Status làm mới khi cửa sổ được focus + nút Refresh (chưa dùng file watcher).
+- Stage/unstage luôn dùng `--literal-pathspecs`; file conflict chưa cho stage (để bước 15).
+- Cột State đặt tên theo trạng thái file của SmartGit (Staged, Added, Modified, Missing…); sắp theo mức quan trọng, Conflicted đầu tiên.
 - Bỏ ví dụ `greet` ở bước 2, thay bằng form thử `check_repo` (form này sẽ được thay bằng "Add repository" ở bước 3).
 - `AppError` là struct `{ kind, message }`; git chạy với `GIT_TERMINAL_PROMPT=0` và `LC_ALL=C`.
 - Test dùng crate `tempfile` (chỉ dev-dependency).
@@ -77,3 +79,4 @@ Giải thích chi tiết từng bước: [docs/learning/](learning/README.md)
 - [x] Bước 3 đã xác nhận và commit.
 - [x] Bước 4, 5 đã xác nhận.
 - [x] Bước 6 đã xác nhận và commit.
+- [x] Bước 7 đã xác nhận và commit.

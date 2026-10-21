@@ -1,10 +1,27 @@
 <script setup lang="ts">
 import { computed, ref, watch } from "vue";
-import { buildRows, KIND_LETTER, sortRows, type SortKey } from "./fileRows";
+import {
+  buildRows,
+  sortRows,
+  stateLabel,
+  stateLetter,
+  stateTone,
+  type FileRow,
+  type SortKey,
+} from "./fileRows";
 import type { RepoStatus } from "../types/status";
 
 const props = defineProps<{
   status: RepoStatus;
+}>();
+
+// Paths of the selected rows. Two-way bound: the parent writes
+// `v-model:selected="..."` and reads the selection back from it.
+const selected = defineModel<string[]>("selected", { required: true });
+
+const emit = defineEmits<{
+  /** Right-click on a row; the selection already contains that row. */
+  rowMenu: [];
 }>();
 
 // The chosen sort is remembered for all repos (a viewer convenience only).
@@ -21,6 +38,53 @@ const sortKey = ref<SortKey>(saved.key);
 const ascending = ref(saved.ascending);
 
 const rows = computed(() => sortRows(buildRows(props.status), sortKey.value, ascending.value));
+
+const selectedSet = computed(() => new Set(selected.value));
+// Row where the last plain or Cmd/Ctrl click happened; Shift-click selects from here.
+const anchor = ref<string | null>(null);
+
+// After a refresh some files may be gone (e.g. committed); drop them from the selection.
+watch(rows, (current) => {
+  const present = new Set(current.map((r) => r.path));
+  if (selected.value.some((path) => !present.has(path))) {
+    selected.value = selected.value.filter((path) => present.has(path));
+  }
+});
+
+// Selection like a desktop file list:
+// click = only this row, Cmd/Ctrl+click = add/remove this row, Shift+click = range.
+function onRowClick(event: MouseEvent, row: FileRow) {
+  const paths = rows.value.map((r) => r.path);
+  const anchorIndex = anchor.value === null ? -1 : paths.indexOf(anchor.value);
+
+  if (event.shiftKey && anchorIndex !== -1) {
+    const rowIndex = paths.indexOf(row.path);
+    const [from, to] = anchorIndex < rowIndex ? [anchorIndex, rowIndex] : [rowIndex, anchorIndex];
+    selected.value = paths.slice(from, to + 1);
+    return;
+  }
+  if (event.metaKey || event.ctrlKey) {
+    selected.value = selectedSet.value.has(row.path)
+      ? selected.value.filter((path) => path !== row.path)
+      : [...selected.value, row.path];
+  } else {
+    selected.value = [row.path];
+  }
+  anchor.value = row.path;
+}
+
+function onRowContextMenu(row: FileRow) {
+  // Right-click outside the selection works on that row alone, like Finder.
+  if (!selectedSet.value.has(row.path)) {
+    selected.value = [row.path];
+    anchor.value = row.path;
+  }
+  emit("rowMenu");
+}
+
+function selectAll() {
+  selected.value = rows.value.map((r) => r.path);
+}
 
 // Click a header to sort by it; click the same header again to reverse.
 function sortBy(key: SortKey) {
@@ -54,7 +118,8 @@ function readSort(): { key: SortKey; ascending: boolean } {
 </script>
 
 <template>
-  <table class="file-table">
+  <!-- tabindex makes the table focusable, so it can receive Cmd/Ctrl+A. -->
+  <table class="file-table" tabindex="0" @keydown.meta.a.prevent="selectAll" @keydown.ctrl.a.prevent="selectAll">
     <thead>
       <tr>
         <th
@@ -71,12 +136,19 @@ function readSort(): { key: SortKey; ascending: boolean } {
       </tr>
     </thead>
     <tbody>
-      <tr v-for="row in rows" :key="row.path" :title="row.origPath ? `${row.origPath} → ${row.path}` : row.path">
+      <tr
+        v-for="row in rows"
+        :key="row.path"
+        :class="{ selected: selectedSet.has(row.path) }"
+        :title="row.origPath ? `${row.origPath} → ${row.path}` : row.path"
+        @click="onRowClick($event, row)"
+        @contextmenu.prevent="onRowContextMenu(row)"
+      >
         <td class="name">
-          <span class="badge" :class="row.kind">{{ KIND_LETTER[row.kind] }}</span>
+          <span class="badge" :class="stateTone(row.state)">{{ stateLetter(row.state) }}</span>
           {{ row.name }}
         </td>
-        <td class="state">{{ row.state }}</td>
+        <td class="state">{{ stateLabel(row.state) }}</td>
         <td class="location">
           {{ row.location }}
           <span v-if="row.origPath" class="orig">← {{ row.origPath }}</span>
@@ -139,8 +211,29 @@ td {
   text-overflow: ellipsis;
 }
 
+.file-table:focus {
+  outline: none;
+}
+
+tbody tr {
+  cursor: default;
+  /* Shift-click would otherwise also select the text between the rows. */
+  user-select: none;
+}
+
 tbody tr:hover {
   background: var(--bg-sidebar);
+}
+
+tbody tr.selected {
+  background: var(--accent);
+  color: #fff;
+}
+
+tbody tr.selected td,
+tbody tr.selected .orig,
+tbody tr.selected .badge {
+  color: #fff;
 }
 
 .badge {
@@ -152,23 +245,22 @@ tbody tr:hover {
   font-weight: 700;
 }
 
-.badge.added,
+/* Green = staged for the next commit, amber = changed but not staged. */
+.badge.staged,
 .badge.untracked {
   color: var(--success);
 }
 
-.badge.modified,
-.badge.typeChanged {
+.badge.modified {
   color: var(--warning);
 }
 
-.badge.deleted,
-.badge.unmerged {
+.badge.removed,
+.badge.conflict {
   color: var(--danger);
 }
 
-.badge.renamed,
-.badge.copied {
+.badge.renamed {
   color: var(--accent);
 }
 
