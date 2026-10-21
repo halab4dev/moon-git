@@ -5,6 +5,7 @@
 //   HEAD          `git cat-file blob HEAD:<path>`   last commit
 //   Index         `git cat-file blob :0:<path>`     staging area
 //   Working Tree  the file on disk
+//   a commit      `git cat-file blob <id>:<path>`   History tab (read_commit_diff)
 
 use std::fs;
 use std::io;
@@ -12,6 +13,7 @@ use std::path::{Component, Path};
 
 use crate::error::{AppError, ErrorKind};
 use crate::git::runner::{run_git, run_git_bytes};
+use crate::git::show::check_commit_id;
 use crate::models::{DiffMode, FileDiff};
 
 /// Bigger files are not sent to the editor: it would become slow.
@@ -66,6 +68,37 @@ pub fn read_diff(
         ),
     };
     Ok(make_diff(old, new, old_label, new_label))
+}
+
+/// One file of a commit in the History tab: its version in `parent` (the
+/// first parent; None for the first commit) against its version in `commit`.
+/// `orig_path`: the old name of a renamed file, read from the parent.
+pub fn read_commit_diff(
+    repo: &Path,
+    commit: &str,
+    parent: Option<&str>,
+    path: &str,
+    orig_path: Option<&str>,
+) -> Result<FileDiff, AppError> {
+    check_commit_id(commit)?;
+    check_relative(path)?;
+    if let Some(orig) = orig_path {
+        check_relative(orig)?;
+    }
+    let old = match parent {
+        Some(parent) => {
+            check_commit_id(parent)?;
+            read_blob(repo, &format!("{parent}:{}", orig_path.unwrap_or(path)))?
+        }
+        None => Version::Missing,
+    };
+    let new = read_blob(repo, &format!("{commit}:{path}"))?;
+    let old_label = parent.map_or("(none)".to_string(), short_id);
+    Ok(make_diff(old, new, &old_label, &short_id(commit)))
+}
+
+fn short_id(id: &str) -> String {
+    id.chars().take(8).collect()
 }
 
 fn make_diff(old: Version, new: Version, old_label: &str, new_label: &str) -> FileDiff {
@@ -319,6 +352,38 @@ mod tests {
         let diff = read_diff(dir.path(), "1:x", None, DiffMode::Staged).unwrap();
 
         assert_eq!(texts(&diff), (Some("head\n"), Some("index\n")));
+    }
+
+    #[test]
+    fn commit_diff_compares_with_the_parent() {
+        let dir = repo_with(&[("a.txt", "one\n"), ("old.txt", "rename me\n")]);
+        let root = dir.path();
+        let parent = git(root, &["rev-parse", "HEAD"]).trim().to_string();
+        fs::write(root.join("a.txt"), "two\n").unwrap();
+        git(root, &["mv", "old.txt", "new.txt"]);
+        fs::write(root.join("added.txt"), "fresh\n").unwrap();
+        git(root, &["add", "-A"]);
+        git(root, &["commit", "--quiet", "-m", "change"]);
+        let commit = git(root, &["rev-parse", "HEAD"]).trim().to_string();
+
+        let changed = read_commit_diff(root, &commit, Some(&parent), "a.txt", None).unwrap();
+        assert_eq!(texts(&changed), (Some("one\n"), Some("two\n")));
+        assert_eq!(changed.old_label, &parent[..8]);
+        assert_eq!(changed.new_label, &commit[..8]);
+
+        let renamed =
+            read_commit_diff(root, &commit, Some(&parent), "new.txt", Some("old.txt")).unwrap();
+        assert_eq!(texts(&renamed), (Some("rename me\n"), Some("rename me\n")));
+
+        let added = read_commit_diff(root, &commit, Some(&parent), "added.txt", None).unwrap();
+        assert_eq!(texts(&added), (None, Some("fresh\n")));
+
+        // First commit: nothing to compare with.
+        let first = read_commit_diff(root, &parent, None, "a.txt", None).unwrap();
+        assert_eq!(texts(&first), (None, Some("one\n")));
+
+        let err = read_commit_diff(root, "--all", None, "a.txt", None).unwrap_err();
+        assert_eq!(err.kind, ErrorKind::InvalidInput);
     }
 
     #[test]

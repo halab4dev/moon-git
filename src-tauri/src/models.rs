@@ -221,3 +221,23 @@ pub struct LogPage {
     /// More commits exist after this page.
     pub has_more: bool,
 }
+
+/// Everything shown when a commit is clicked in the History tab.
+#[derive(Debug, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CommitDetails {
+    pub id: String,
+    pub parents: Vec<String>,
+    pub author_name: String,
+    pub author_email: String,
+    pub author_time: i64,
+    /// Who created this commit object; differs from the author after a
+    /// rebase, cherry-pick or when applying someone else's patch.
+    pub committer_name: String,
+    pub committer_email: String,
+    pub committer_time: i64,
+    /// Full message: subject, blank line, body.
+    pub message: String,
+    /// Changed files compared with the first parent.
+    pub files: Vec<FileChange>,
+}

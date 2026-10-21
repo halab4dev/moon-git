@@ -1,5 +1,7 @@
 // Mirror the history structs in src-tauri/src/models.rs.
 
+import type { FileChange } from "./status";
+
 export type RefKind = "branch" | "remote" | "tag" | "head";
 
 export interface CommitRef {
@@ -41,3 +43,20 @@ export interface RefInfo {
 
 /** highlight: keep every commit, dim the others; hide: show matching commits only. */
 export type FilterMode = "highlight" | "hide";
+
+/** Shown when a commit is clicked. Mirrors CommitDetails in models.rs. */
+export interface CommitDetails {
+  id: string;
+  parents: string[];
+  authorName: string;
+  authorEmail: string;
+  authorTime: number;
+  /** Differs from the author after a rebase or cherry-pick. */
+  committerName: string;
+  committerEmail: string;
+  committerTime: number;
+  /** Subject, blank line, body. */
+  message: string;
+  /** Changed files compared with the first parent. */
+  files: FileChange[];
+}

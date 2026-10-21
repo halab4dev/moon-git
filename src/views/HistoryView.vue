@@ -1,10 +1,12 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, ref, shallowRef, watch } from "vue";
+import CommitDetails from "../components/CommitDetails.vue";
 import CommitList from "../components/CommitList.vue";
 import HistoryFilter from "../components/HistoryFilter.vue";
 import RefFilter from "../components/RefFilter.vue";
 import { currentBranchRefs } from "../components/refSelection";
 import { LaneLayout, type GraphRow } from "../graph/laneLayout";
+import { useSplitRatio } from "../composables/useSplitRatio";
 import { findCommits, getLog, listRefs } from "../api/log";
 import { toAppError } from "../api/errors";
 import type { AppError } from "../types/error";
@@ -28,7 +30,16 @@ const commits = shallowRef<CommitSummary[]>([]);
 const hasMore = ref(false);
 const loading = ref(false);
 const error = ref<AppError | null>(null);
+// The commit highlighted in the list.
 const selected = ref<string | null>(null);
+// The commit whose details are shown. Usually the selected one, but a parent
+// clicked in the details may not be in the list (hidden by the filter or
+// not in the chosen refs) and is shown anyway.
+const shownCommit = ref<string | null>(null);
+watch(selected, (id) => (shownCommit.value = id));
+
+// Splitter between the commit list (top) and the details (bottom).
+const { ratio: listRatio, startResize } = useSplitRatio("split", "moongit.history.listRatio", 0.5);
 
 // ---- which refs to show (remembered per repository) ----
 
@@ -172,17 +183,34 @@ async function jump(step: 1 | -1) {
     target = [...ids].reverse().find((id) => (position.get(id) ?? Infinity) < here) ?? ids[ids.length - 1];
   }
 
-  const isLoaded = () => commits.value.some((commit) => commit.id === target);
+  await revealCommit(target);
+}
+
+/**
+ * Selects `id` in the list, loading further pages until it appears.
+ * Returns false if it is not in the list at all (e.g. hidden by the filter).
+ */
+async function revealCommit(id: string): Promise<boolean> {
+  const isLoaded = () => commits.value.some((commit) => commit.id === id);
   while (!isLoaded() && hasMore.value) {
     const before = generation;
     await loadMore();
     if (before !== generation) {
-      return; // the list was reloaded meanwhile; start again with a fresh list
+      return false; // the list was reloaded meanwhile; give up
     }
   }
-  if (isLoaded()) {
-    selected.value = target; // CommitList scrolls it into view
+  if (!isLoaded()) {
+    return false;
   }
+  selected.value = id; // CommitList scrolls it into view
+  return true;
+}
+
+// A parent clicked in the details: select it in the list if it is there,
+// and show its details either way.
+async function showCommit(id: string) {
+  shownCommit.value = id;
+  await revealCommit(id);
 }
 
 // The graph is laid out page by page, like the commits are loaded. The
@@ -316,19 +344,25 @@ watch(() => props.version, reloadAll);
     <p v-if="refSelection !== null && refSelection.length === 0" class="muted">
       No branches or tags selected. Choose some with the button above.
     </p>
-    <CommitList
-      v-model:selected="selected"
-      :commits="commits"
-      :graph="graphRows"
-      :graph-lanes="graphLanes"
-      :matches="matchSet"
-      :has-more="hasMore"
-      :loading="loading"
-      @load-more="loadMore"
-    />
-    <p class="muted footer">
-      {{ commits.length }} {{ logFilter !== null ? "matching " : "" }}commit(s) loaded{{ hasMore ? ", more below" : "" }}{{ loading ? " · loading…" : "" }}
-    </p>
+    <div ref="split" class="split">
+      <div class="list" :style="{ flexBasis: `${listRatio * 100}%` }">
+        <CommitList
+          v-model:selected="selected"
+          :commits="commits"
+          :graph="graphRows"
+          :graph-lanes="graphLanes"
+          :matches="matchSet"
+          :has-more="hasMore"
+          :loading="loading"
+          @load-more="loadMore"
+        />
+        <p class="muted footer">
+          {{ commits.length }} {{ logFilter !== null ? "matching " : "" }}commit(s) loaded{{ hasMore ? ", more below" : "" }}{{ loading ? " · loading…" : "" }}
+        </p>
+      </div>
+      <div class="splitter" title="Drag to resize" @mousedown="startResize"></div>
+      <CommitDetails class="details" :repo-id="repoId" :commit-id="shownCommit" @select-commit="showCommit" />
+    </div>
   </div>
 </template>
 
@@ -344,6 +378,35 @@ watch(() => props.version, reloadAll);
   display: flex;
   gap: 8px;
   margin-bottom: 6px;
+}
+
+.split {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.list {
+  flex-grow: 0;
+  flex-shrink: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.splitter {
+  flex: 0 0 6px;
+  cursor: row-resize;
+}
+
+.splitter:hover {
+  background: var(--border);
+}
+
+.details {
+  flex: 1;
+  min-height: 0;
 }
 
 .footer {

@@ -3,7 +3,7 @@ use tauri::State;
 use super::run_blocking;
 use crate::error::AppError;
 use crate::git;
-use crate::models::{LogPage, RefInfo};
+use crate::models::{CommitDetails, FileDiff, LogPage, RefInfo};
 use crate::storage::repos::RepoStore;
 
 /// One page of the history: `limit` commits after the first `skip`.
@@ -51,4 +51,38 @@ pub async fn list_refs(
 ) -> Result<Vec<RefInfo>, AppError> {
     let repo = store.repo_path(&repo_id)?;
     run_blocking(move || git::refs::list_refs(&repo)).await
+}
+
+/// Message, author, committer and changed files of one commit.
+#[tauri::command]
+pub async fn get_commit_details(
+    repo_id: String,
+    commit_id: String,
+    store: State<'_, RepoStore>,
+) -> Result<CommitDetails, AppError> {
+    let repo = store.repo_path(&repo_id)?;
+    run_blocking(move || git::show::commit_details(&repo, &commit_id)).await
+}
+
+/// One file of a commit, compared with the commit's first parent.
+#[tauri::command]
+pub async fn get_commit_file_diff(
+    repo_id: String,
+    commit_id: String,
+    parent_id: Option<String>,
+    path: String,
+    orig_path: Option<String>,
+    store: State<'_, RepoStore>,
+) -> Result<FileDiff, AppError> {
+    let repo = store.repo_path(&repo_id)?;
+    run_blocking(move || {
+        git::diff::read_commit_diff(
+            &repo,
+            &commit_id,
+            parent_id.as_deref(),
+            &path,
+            orig_path.as_deref(),
+        )
+    })
+    .await
 }

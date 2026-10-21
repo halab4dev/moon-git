@@ -9,6 +9,7 @@ import HistoryView from "./HistoryView.vue";
 import SyncButtons from "../components/SyncButtons.vue";
 import { buildRows, type FileRow } from "../components/fileRows";
 import { openDiffWindow } from "../windows";
+import { useSplitRatio } from "../composables/useSplitRatio";
 import { getStatus } from "../api/status";
 import { stageFiles, unstageFiles } from "../api/stage";
 import { commitChanges } from "../api/commit";
@@ -149,46 +150,8 @@ async function openInWindow(row: FileRow) {
   }
 }
 
-// ---- Splitter between the file table (top) and the diff (bottom) ----
-
-const RATIO_KEY = "moongit.repoView.filesRatio";
-const split = ref<HTMLDivElement | null>(null);
-// Share of the height used by the file table.
-const filesRatio = ref(readRatio());
-
-function startResize(event: MouseEvent) {
-  const box = split.value?.getBoundingClientRect();
-  if (!box) {
-    return;
-  }
-  event.preventDefault(); // don't start selecting text while dragging
-  const onMove = (move: MouseEvent) => {
-    const ratio = (move.clientY - box.top) / box.height;
-    filesRatio.value = Math.min(0.85, Math.max(0.15, ratio));
-  };
-  const onUp = () => {
-    window.removeEventListener("mousemove", onMove);
-    try {
-      localStorage.setItem(RATIO_KEY, String(filesRatio.value));
-    } catch {
-      // Not remembered; fine.
-    }
-  };
-  window.addEventListener("mousemove", onMove);
-  window.addEventListener("mouseup", onUp, { once: true });
-}
-
-function readRatio(): number {
-  try {
-    const value = Number(localStorage.getItem(RATIO_KEY));
-    if (value >= 0.15 && value <= 0.85) {
-      return value;
-    }
-  } catch {
-    // Use the default.
-  }
-  return 0.35;
-}
+// Splitter between the file table (top) and the diff (bottom).
+const { ratio: filesRatio, startResize } = useSplitRatio("split", "moongit.repoView.filesRatio", 0.35);
 
 // Coming back to the window (e.g. after editing in an IDE) usually means files changed.
 onMounted(() => {

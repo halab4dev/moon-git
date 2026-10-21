@@ -1,5 +1,6 @@
 import { invoke } from "@tauri-apps/api/core";
-import type { LogPage, RefInfo } from "../types/log";
+import type { FileDiff } from "../types/diff";
+import type { CommitDetails, LogPage, RefInfo } from "../types/log";
 
 /**
  * Newest first: `limit` (max 2000) commits after the first `skip`.
@@ -23,4 +24,19 @@ export function listRefs(repoId: string): Promise<RefInfo[]> {
 /** Ids of every commit matching `text` (id prefix or message), newest first. */
 export function findCommits(repoId: string, refs: string[] | null, text: string): Promise<string[]> {
   return invoke<string[]>("find_commits", { repoId, refs, text });
+}
+
+export function getCommitDetails(repoId: string, commitId: string): Promise<CommitDetails> {
+  return invoke<CommitDetails>("get_commit_details", { repoId, commitId });
+}
+
+/** One file of a commit against the first parent (`parentId` null for the first commit). */
+export function getCommitFileDiff(
+  repoId: string,
+  commitId: string,
+  parentId: string | null,
+  path: string,
+  origPath: string | null,
+): Promise<FileDiff> {
+  return invoke<FileDiff>("get_commit_file_diff", { repoId, commitId, parentId, path, origPath });
 }

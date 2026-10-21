@@ -13,6 +13,7 @@ pub mod refs;
 pub mod repo;
 pub mod runner;
 pub mod search;
+pub mod show;
 pub mod stage;
 pub mod status;
 #[cfg(test)]
