@@ -4,6 +4,7 @@
 pub mod clone;
 pub mod commit;
 pub mod diff;
+pub mod fetch;
 pub mod operations;
 pub mod repo;
 pub mod runner;

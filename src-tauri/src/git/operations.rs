@@ -233,10 +233,15 @@ fn use_own_process_group(_command: &mut std::process::Command) {
 }
 
 // SIGTERM (not SIGKILL) gives git the chance to delete a half-finished clone.
+// SIGCONT afterwards: a process that tried to read from the terminal (e.g. ssh
+// asking about an unknown host key when the app was started from a terminal)
+// is stopped by the OS, and a stopped process only acts on SIGTERM once resumed.
 #[cfg(unix)]
 fn terminate(child: &mut Child) -> io::Result<()> {
     use rustix::process::{Pid, Signal, kill_process_group};
-    kill_process_group(Pid::from_child(child), Signal::TERM)?;
+    let group = Pid::from_child(child);
+    kill_process_group(group, Signal::TERM)?;
+    kill_process_group(group, Signal::CONT)?;
     Ok(())
 }
 

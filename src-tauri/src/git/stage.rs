@@ -210,6 +210,7 @@ mod tests {
         assert_eq!(
             status,
             RepoStatus {
+                branch: status.branch.clone(),
                 staged: status.staged.clone(),
                 ..RepoStatus::default()
             }

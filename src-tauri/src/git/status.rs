@@ -1,4 +1,4 @@
-// Reads `git status --porcelain=v2 -z`.
+// Reads `git status --porcelain=v2 --branch -z`.
 //
 // Each record is separated by NUL ("\0"), so paths may contain spaces or
 // newlines safely. Record types (first character):
@@ -6,6 +6,7 @@
 //   2 <XY> <sub> <mH> <mI> <mW> <hH> <hI> <Xscore> <path>\0<orig>  renamed/copied
 //   u <XY> <sub> <m1> <m2> <m3> <mW> <h1> <h2> <h3> <path>         merge conflict
 //   ? <path>                                                       untracked
+//   # branch.<key> <value>                                       header (--branch)
 // XY: X = change in the index (staged), Y = change in the working tree; "." = none.
 // Docs: `git help status`, section "Porcelain Format Version 2".
 
@@ -13,7 +14,7 @@ use std::path::Path;
 
 use crate::error::{AppError, ErrorKind};
 use crate::git::runner::run_git;
-use crate::models::{ChangeKind, FileChange, RepoStatus};
+use crate::models::{BranchInfo, ChangeKind, FileChange, RepoStatus};
 
 pub fn read_status(repo: &Path) -> Result<RepoStatus, AppError> {
     let output = run_git(
@@ -24,6 +25,8 @@ pub fn read_status(repo: &Path) -> Result<RepoStatus, AppError> {
             "--no-optional-locks",
             "status",
             "--porcelain=v2",
+            // Also print the branch headers (name, upstream, ahead/behind).
+            "--branch",
             "-z",
             // List every file inside new folders, not just "folder/".
             "--untracked-files=all",
@@ -35,6 +38,7 @@ pub fn read_status(repo: &Path) -> Result<RepoStatus, AppError> {
 pub fn parse_status(output: &str) -> Result<RepoStatus, AppError> {
     let mut status = RepoStatus::default();
     let mut records = output.split('\0');
+    let mut has_ahead_behind = false;
 
     while let Some(record) = records.next() {
         if record.is_empty() {
@@ -64,12 +68,58 @@ pub fn parse_status(output: &str) -> Result<RepoStatus, AppError> {
             "?" => status
                 .untracked
                 .push(change(rest, None, ChangeKind::Untracked)),
-            // Ignored files and "# branch" headers: not requested, skip if present.
-            "!" | "#" => {}
+            "#" => {
+                if read_header(&mut status.branch, rest, record)? {
+                    has_ahead_behind = true;
+                }
+            }
+            // Ignored files: not requested, skip if present.
+            "!" => {}
             _ => return Err(unexpected(record)),
         }
     }
+    // git omits "branch.ab" when the configured upstream does not exist any more.
+    status.branch.upstream_gone = status.branch.upstream.is_some() && !has_ahead_behind;
     Ok(status)
+}
+
+/// Reads one "branch.<key> <value>" header into `branch`.
+/// Returns true for the "branch.ab" (ahead/behind) header.
+fn read_header(branch: &mut BranchInfo, header: &str, record: &str) -> Result<bool, AppError> {
+    let (key, value) = header.split_once(' ').unwrap_or((header, ""));
+    match key {
+        "branch.oid" => {
+            branch.commit = if value == "(initial)" {
+                None
+            } else {
+                Some(value.to_string())
+            };
+        }
+        "branch.head" => {
+            branch.name = if value == "(detached)" {
+                None
+            } else {
+                Some(value.to_string())
+            };
+        }
+        "branch.upstream" => branch.upstream = Some(value.to_string()),
+        "branch.ab" => {
+            let (ahead, behind) = parse_ahead_behind(value).ok_or_else(|| unexpected(record))?;
+            branch.ahead = ahead;
+            branch.behind = behind;
+            return Ok(true);
+        }
+        _ => {} // other headers (e.g. "# stash") are not used
+    }
+    Ok(false)
+}
+
+/// "+3 -1" -> (3, 1)
+fn parse_ahead_behind(value: &str) -> Option<(u32, u32)> {
+    let (ahead, behind) = value.split_once(' ')?;
+    let ahead = ahead.strip_prefix('+')?.parse().ok()?;
+    let behind = behind.strip_prefix('-')?.parse().ok()?;
+    Some((ahead, behind))
 }
 
 /// Splits `rest` into exactly `count` space-separated fields. The last field
@@ -214,9 +264,43 @@ mod tests {
     }
 
     #[test]
-    fn skips_headers_and_ignored_files() {
-        let out = "# branch.oid abc\0! target/\0";
+    fn skips_ignored_files_and_unknown_headers() {
+        let out = "# stash 3\0! target/\0";
         assert_eq!(parse_status(out).unwrap(), RepoStatus::default());
+    }
+
+    #[test]
+    fn reads_branch_headers() {
+        let out = "# branch.oid 1234abcd\0# branch.head main\0\
+                   # branch.upstream origin/main\0# branch.ab +2 -5\0";
+        assert_eq!(
+            parse_status(out).unwrap().branch,
+            BranchInfo {
+                name: Some("main".to_string()),
+                commit: Some("1234abcd".to_string()),
+                upstream: Some("origin/main".to_string()),
+                upstream_gone: false,
+                ahead: 2,
+                behind: 5,
+            }
+        );
+    }
+
+    #[test]
+    fn reads_initial_detached_and_gone_branches() {
+        let initial = parse_status("# branch.oid (initial)\0# branch.head main\0").unwrap();
+        assert_eq!(initial.branch.commit, None);
+        assert_eq!(initial.branch.name.as_deref(), Some("main"));
+        assert_eq!(initial.branch.upstream, None);
+
+        let detached = parse_status("# branch.oid abc\0# branch.head (detached)\0").unwrap();
+        assert_eq!(detached.branch.name, None);
+
+        // Upstream configured, but no "branch.ab": it was deleted on the server.
+        let gone = parse_status("# branch.oid abc\0# branch.head x\0# branch.upstream origin/x\0")
+            .unwrap();
+        assert!(gone.branch.upstream_gone);
+        assert_eq!((gone.branch.ahead, gone.branch.behind), (0, 0));
     }
 
     #[test]
@@ -226,6 +310,7 @@ mod tests {
             "1 M. too few fields\0",
             "1 MMM N... a b c d e path\0",
             "2 R. N... a b c d e R100 path\0",
+            "# branch.ab 2 5\0",
         ] {
             let err = parse_status(bad).unwrap_err();
             assert_eq!(err.kind, ErrorKind::UnexpectedOutput, "input: {bad:?}");
@@ -256,7 +341,18 @@ mod tests {
     #[test]
     fn clean_repository_has_no_changes() {
         let dir = repo_with_commit();
-        assert_eq!(read_status(dir.path()).unwrap(), RepoStatus::default());
+        let status = read_status(dir.path()).unwrap();
+        assert_eq!(
+            status,
+            RepoStatus {
+                branch: status.branch.clone(),
+                ..RepoStatus::default()
+            }
+        );
+        // The default branch name depends on the machine (main / master).
+        assert!(status.branch.name.is_some());
+        assert_eq!(status.branch.commit.as_ref().map(|c| c.len()), Some(40));
+        assert_eq!(status.branch.upstream, None);
     }
 
     #[test]

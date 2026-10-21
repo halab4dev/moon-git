@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { computed, nextTick, ref, watch } from "vue";
 import { open } from "@tauri-apps/plugin-dialog";
-import { cancelOperation, onGitProgress, suggestFolderName } from "../api/clone";
+import { suggestFolderName } from "../api/clone";
+import { cancelOperation, onGitProgress } from "../api/operations";
 import { toAppError } from "../api/errors";
 import { useDialogStore } from "../stores/dialogs";
 import { useRepoStore } from "../stores/repos";

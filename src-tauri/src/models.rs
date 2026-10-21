@@ -81,11 +81,32 @@ pub struct FileChange {
 /// Result of `git status`. A file changed both in the index and in the
 /// working tree appears in both `staged` and `unstaged`.
 #[derive(Debug, Default, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct RepoStatus {
+    pub branch: BranchInfo,
     pub staged: Vec<FileChange>,
     pub unstaged: Vec<FileChange>,
     pub untracked: Vec<FileChange>,
     pub conflicted: Vec<FileChange>,
+}
+
+/// The checked-out branch and how it compares with its upstream
+/// (from the "# branch.*" header lines of `git status --branch`).
+#[derive(Debug, Default, Clone, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct BranchInfo {
+    /// None when HEAD is detached (a commit is checked out, not a branch).
+    pub name: Option<String>,
+    /// Full id of the current commit; None before the first commit.
+    pub commit: Option<String>,
+    /// e.g. "origin/main"; None when the branch tracks nothing.
+    pub upstream: Option<String>,
+    /// The upstream is configured but no longer exists (deleted on the server).
+    pub upstream_gone: bool,
+    /// Commits here and not on the upstream, and the other way round.
+    /// Both 0 without a (living) upstream.
+    pub ahead: u32,
+    pub behind: u32,
 }
 
 /// Which two versions of a file the diff view compares. Sent by the frontend,

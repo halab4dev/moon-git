@@ -2,7 +2,7 @@
 
 Cập nhật lần cuối: 2026-10-21
 
-**Đang ở:** Bước 10 (branch hiện tại + ahead/behind + fetch).
+**Đang ở:** Bước 11 (pull, push).
 
 Ký hiệu: ✅ xong · 🟡 đang làm / chờ xác nhận · ⬜ chưa làm
 
@@ -24,7 +24,7 @@ Giải thích chi tiết từng bước: [docs/learning/](learning/README.md)
 | 7 | Stage / unstage | ✅ | `git/stage.rs` (`--literal-pathspecs`, chia lô 100, repo chưa có commit), chọn dòng kiểu desktop, nút + menu chuột phải. 52 test pass. State đặt tên theo SmartGit. Đã xác nhận (2026-10-21) |
 | 8 | Diff side-by-side | ✅ | Monaco (bạn chọn, so với CodeMirror / tự vẽ), tải lười; `git/diff.rs` (HEAD / Index / Working Tree, nhị phân, >5 MB, chặn đường dẫn ngoài repo); bố cục trên/dưới có thanh kéo; double-click → cửa sổ diff riêng (không chặn cửa sổ chính). 61 test pass |
 | 9 | Commit + amend | ✅ | Message qua stdin (`-F -`), `--cleanup=whitespace`; kiểm tra trước (chưa stage / conflict / chưa có commit); lỗi thiếu danh tính → `IdentityUnknown`; xác nhận khi amend commit đã push. 71 test pass |
-| 10 | Branch hiện tại + ahead/behind + fetch | ⬜ | |
+| 10 | Branch hiện tại + ahead/behind + fetch | ✅ | Header `status --branch` (không thêm lệnh git), `fetch --all --progress` có tiến trình/hủy, không `--prune`; fetch không chặn stage/commit; hủy gửi SIGTERM + SIGCONT. 77 test pass |
 | 11 | Pull, push | ⬜ | |
 | 12 | Thiết kế cách cấp credential | ⬜ | Chỉ đề xuất `GIT_ASKPASS` hay credential helper, chờ bạn chọn rồi mới code |
 | 13 | Account theo server + keyring | ⬜ | Token chỉ lưu trong keyring, gắn account cho từng repo |
@@ -69,6 +69,7 @@ Giải thích chi tiết từng bước: [docs/learning/](learning/README.md)
 - Status làm mới khi cửa sổ được focus + nút Refresh (chưa dùng file watcher).
 - Stage/unstage luôn dùng `--literal-pathspecs`; file conflict chưa cho stage (để bước 15).
 - `vite.config.ts` dịch JS về mức `safari15` / `chrome105` (webview macOS 12 = WebKit hệ thống ≈ Safari 15.6, dù Safari app mới hơn). Kiểm tra bằng `jsc` của hệ thống.
+- Fetch = `git fetch --all --progress`, không `--prune` (dọn branch đã xóa trên server sẽ là tùy chọn riêng sau).
 - Diff dùng Monaco, chỉ nạp lõi + tô màu cú pháp + worker, tải khi mở diff lần đầu. Ba chế độ: Working Tree (Index→WT), Staged (HEAD→Index), Conflict (HEAD→WT).
 - Cột State đặt tên theo trạng thái file của SmartGit (Staged, Added, Modified, Missing…); sắp theo mức quan trọng, Conflicted đầu tiên.
 - Bỏ ví dụ `greet` ở bước 2, thay bằng form thử `check_repo` (form này sẽ được thay bằng "Add repository" ở bước 3).
@@ -84,3 +85,4 @@ Giải thích chi tiết từng bước: [docs/learning/](learning/README.md)
 - [x] Bước 7 đã xác nhận và commit.
 - [x] Bước 8 đã xác nhận và commit.
 - [x] Bước 9 đã xác nhận và commit.
+- [x] Bước 10 đã xác nhận và commit.

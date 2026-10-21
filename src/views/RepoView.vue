@@ -1,8 +1,10 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, ref } from "vue";
 import { Menu } from "@tauri-apps/api/menu";
+import BranchStatus from "../components/BranchStatus.vue";
 import CommitBox from "../components/CommitBox.vue";
 import DiffPanel from "../components/DiffPanel.vue";
+import FetchButton from "../components/FetchButton.vue";
 import FileTable from "../components/FileTable.vue";
 import { buildRows, type FileRow } from "../components/fileRows";
 import { openDiffWindow } from "../windows";
@@ -168,6 +170,7 @@ onUnmounted(() => {
     <header class="repo-header">
       <h1>{{ repo.name }}</h1>
       <p class="muted path">{{ repo.path }}</p>
+      <BranchStatus v-if="status" :branch="status.branch" />
     </header>
 
     <div class="toolbar">
@@ -178,6 +181,7 @@ onUnmounted(() => {
         Unstage
       </button>
       <span class="spacer"></span>
+      <FetchButton :repo-id="repo.id" @done="refresh" @failed="(err) => (error = err)" />
       <button :disabled="busy" title="Reload changed files" @click="refresh">Refresh</button>
     </div>
 

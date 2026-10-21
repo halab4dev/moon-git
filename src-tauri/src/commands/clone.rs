@@ -1,16 +1,13 @@
 use std::path::Path;
 
-use tauri::{AppHandle, Emitter, Manager, State};
+use tauri::{AppHandle, Manager, State};
 
-use super::run_blocking;
+use super::{emit_progress, run_blocking};
 use crate::error::AppError;
 use crate::git;
-use crate::git::operations::{Operations, parse_percent};
-use crate::models::{GitProgress, RepoEntry};
+use crate::git::operations::Operations;
+use crate::models::RepoEntry;
 use crate::storage::repos::RepoStore;
-
-/// Event name the frontend listens to for progress of any long git command.
-pub const PROGRESS_EVENT: &str = "git-progress";
 
 /// Clones a repository and adds it to the list.
 /// Progress arrives as "git-progress" events tagged with `op_id`;
@@ -27,21 +24,7 @@ pub async fn clone_repo(
     // Cloning can take minutes; the UI thread stays free (and can call cancel).
     run_blocking(move || {
         let ops = app.state::<Operations>();
-        let send_progress = |line: &str| {
-            let (phase, percent) = match parse_percent(line) {
-                Some((phase, percent)) => (Some(phase), Some(percent)),
-                None => (None, None),
-            };
-            let event = GitProgress {
-                op_id: op_id.clone(),
-                line: line.to_string(),
-                phase,
-                percent,
-            };
-            if let Err(err) = app.emit(PROGRESS_EVENT, event) {
-                eprintln!("Could not send progress: {err}");
-            }
-        };
+        let send_progress = |line: &str| emit_progress(&app, &op_id, line);
 
         let target = git::clone::clone_repo(
             &ops,
