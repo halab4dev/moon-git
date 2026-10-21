@@ -154,7 +154,7 @@ function refClass(ref: CommitRef): string[] {
           <span class="hash">{{ commit.id.slice(0, 8) }}</span>
         </div>
       </div>
-      <p v-if="!loading && commits.length === 0" class="muted empty">No commits yet.</p>
+      <p v-if="!loading && commits.length === 0" class="muted empty">No commits to show.</p>
     </div>
   </div>
 </template>

@@ -196,6 +196,23 @@ pub enum RefKind {
     Head,
 }
 
+/// A branch, remote branch or tag (or a detached HEAD) that the history can show.
+#[derive(Debug, Clone, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RefInfo {
+    /// "refs/heads/main", or "HEAD" for a detached HEAD. This is what the
+    /// frontend sends back to choose the history.
+    pub full_name: String,
+    /// "main", "origin/main", "v1.0", "HEAD".
+    pub name: String,
+    pub kind: RefKind,
+    /// The checked-out branch (or the detached HEAD).
+    pub current: bool,
+    /// Local branches only: full name of the branch it tracks,
+    /// e.g. "refs/remotes/origin/main".
+    pub upstream: Option<String>,
+}
+
 /// A slice of the history, newest first.
 #[derive(Debug, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase")]

@@ -9,6 +9,7 @@ pub mod log;
 pub mod operations;
 pub mod pull;
 pub mod push;
+pub mod refs;
 pub mod repo;
 pub mod runner;
 pub mod stage;

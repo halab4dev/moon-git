@@ -6,9 +6,11 @@
 // The subject is last: it is free text, so whatever it contains ends up in
 // the last field instead of shifting the others.
 
+use std::collections::HashSet;
 use std::path::Path;
 
 use crate::error::{AppError, ErrorKind};
+use crate::git::refs::{list_refs, ref_info};
 use crate::git::repo::has_commits;
 use crate::git::runner::run_git;
 use crate::models::{CommitRef, CommitSummary, LogPage, RefKind};
@@ -19,9 +21,17 @@ const FIELDS: usize = 7;
 /// Largest page the frontend may ask for, so one call stays fast.
 pub const MAX_PAGE: usize = 2000;
 
-/// `limit` commits starting after the first `skip`, newest first, from all
-/// local branches, remote-tracking branches, tags and HEAD.
-pub fn read_log(repo: &Path, skip: usize, limit: usize) -> Result<LogPage, AppError> {
+/// `limit` commits starting after the first `skip`, newest first.
+///
+/// `refs`: full ref names to show the history of ("refs/heads/main", or
+/// "HEAD" when detached), as listed by `list_refs`. None = all local
+/// branches, remote-tracking branches, tags and HEAD.
+pub fn read_log(
+    repo: &Path,
+    skip: usize,
+    limit: usize,
+    refs: Option<&[String]>,
+) -> Result<LogPage, AppError> {
     if limit == 0 || limit > MAX_PAGE {
         return Err(AppError::new(
             ErrorKind::InvalidInput,
@@ -31,6 +41,18 @@ pub fn read_log(repo: &Path, skip: usize, limit: usize) -> Result<LogPage, AppEr
     // One extra commit tells us whether another page exists.
     let max_count = format!("--max-count={}", limit + 1);
     let skip_arg = format!("--skip={skip}");
+    // Declared out here because `args` borrows from it below.
+    let selected: Vec<String> = match refs {
+        Some(wanted) => existing_refs(repo, wanted)?,
+        None => Vec::new(),
+    };
+    if refs.is_some() && selected.is_empty() {
+        // Nothing (still existing) is selected: nothing to show.
+        return Ok(LogPage {
+            commits: Vec::new(),
+            has_more: false,
+        });
+    }
 
     let mut args = vec![
         "log",
@@ -46,14 +68,18 @@ pub fn read_log(repo: &Path, skip: usize, limit: usize) -> Result<LogPage, AppEr
         "--no-color",
         &max_count,
         &skip_arg,
-        // Not --all: that would also list stash commits.
-        "--branches",
-        "--remotes",
-        "--tags",
     ];
-    // HEAD matters when it is detached; in an empty repository it names nothing.
-    if has_commits(repo) {
-        args.push("HEAD");
+    if refs.is_none() {
+        // Not --all: that would also list stash commits.
+        args.extend(["--branches", "--remotes", "--tags"]);
+        // HEAD matters when it is detached; in an empty repository it names nothing.
+        if has_commits(repo) {
+            args.push("HEAD");
+        }
+    } else {
+        // Everything after this is a revision, even if it started with "-".
+        args.push("--end-of-options");
+        args.extend(selected.iter().map(|name| name.as_str()));
     }
     // End of revisions: nothing after this may be taken for a file name.
     args.push("--");
@@ -77,6 +103,18 @@ pub fn parse_log(output: &str) -> Result<Vec<CommitSummary>, AppError> {
         commits.push(parse_record(record)?);
     }
     Ok(commits)
+}
+
+// Keeps the wanted refs that exist right now. A remembered selection may name
+// a branch deleted since (git would fail on it), and this also makes sure only
+// real ref names reach the command line.
+fn existing_refs(repo: &Path, wanted: &[String]) -> Result<Vec<String>, AppError> {
+    let known: HashSet<String> = list_refs(repo)?.into_iter().map(|r| r.full_name).collect();
+    Ok(wanted
+        .iter()
+        .filter(|name| known.contains(*name))
+        .cloned()
+        .collect())
 }
 
 fn parse_record(record: &str) -> Result<CommitSummary, AppError> {
@@ -125,28 +163,13 @@ fn parse_decorations(text: &str) -> Vec<CommitRef> {
     refs
 }
 
-// Full ref name -> kind + short name. Other refs (stash, notes, "origin/HEAD",
-// which only says which branch is the server's default) are left out.
+// Full ref name -> label; refs we don't show (stash, notes, origin/HEAD) give None.
 fn classify(full_name: &str, current: bool) -> Option<CommitRef> {
-    const PREFIXES: [(&str, RefKind); 3] = [
-        ("refs/heads/", RefKind::Branch),
-        ("refs/remotes/", RefKind::Remote),
-        ("refs/tags/", RefKind::Tag),
-    ];
-    for (prefix, kind) in PREFIXES {
-        let Some(name) = full_name.strip_prefix(prefix) else {
-            continue;
-        };
-        if kind == RefKind::Remote && name.ends_with("/HEAD") {
-            return None;
-        }
-        return Some(CommitRef {
-            kind,
-            name: name.to_string(),
-            current,
-        });
-    }
-    None
+    ref_info(full_name, current).map(|info| CommitRef {
+        kind: info.kind,
+        name: info.name,
+        current: info.current,
+    })
 }
 
 fn unexpected(record: &str) -> AppError {
@@ -249,7 +272,7 @@ mod tests {
     #[test]
     fn empty_repository_has_no_history() {
         let dir = new_repo();
-        let page = read_log(dir.path(), 0, 100).unwrap();
+        let page = read_log(dir.path(), 0, 100, None).unwrap();
         assert!(page.commits.is_empty());
         assert!(!page.has_more);
     }
@@ -261,13 +284,13 @@ mod tests {
             commit_file(dir.path(), name);
         }
 
-        let first = read_log(dir.path(), 0, 2).unwrap();
+        let first = read_log(dir.path(), 0, 2, None).unwrap();
         assert_eq!(subjects(&first), vec!["five", "four"]);
         assert!(first.has_more);
         assert_eq!(first.commits[0].refs, vec![branch("main", true)]);
         assert_eq!(first.commits[0].parents, vec![first.commits[1].id.clone()]);
 
-        let last = read_log(dir.path(), 4, 2).unwrap();
+        let last = read_log(dir.path(), 4, 2, None).unwrap();
         assert_eq!(subjects(&last), vec!["one"]);
         assert!(!last.has_more);
         assert!(last.commits[0].parents.is_empty());
@@ -285,7 +308,7 @@ mod tests {
         commit_file(root, "on-main");
         git(root, &["merge", "--quiet", "--no-edit", "--no-ff", "side"]);
 
-        let page = read_log(root, 0, 100).unwrap();
+        let page = read_log(root, 0, 100, None).unwrap();
         let merge = &page.commits[0];
         assert_eq!(merge.parents.len(), 2);
         assert_eq!(merge.refs, vec![branch("main", true)]);
@@ -315,22 +338,86 @@ mod tests {
         commit_file(root, "local");
         git(root, &["checkout", "--quiet", "--detach"]);
 
-        let page = read_log(root, 0, 10).unwrap();
+        let page = read_log(root, 0, 10, None).unwrap();
         let kinds: Vec<RefKind> = page.commits[0].refs.iter().map(|r| r.kind).collect();
         assert_eq!(kinds, vec![RefKind::Head, RefKind::Branch]);
         let pushed = &page.commits[1];
         assert_eq!(pushed.refs[0].name, "origin/main");
     }
 
+    /// main: base, on-main. side: base, on-side. Tag v1 on base.
+    fn two_branches() -> TempDir {
+        let dir = new_repo();
+        let root = dir.path();
+        commit_file(root, "base");
+        git(root, &["tag", "v1"]);
+        git(root, &["checkout", "--quiet", "-b", "side"]);
+        commit_file(root, "on-side");
+        git(root, &["checkout", "--quiet", "main"]);
+        commit_file(root, "on-main");
+        dir
+    }
+
+    fn selection(names: &[&str]) -> Vec<String> {
+        names.iter().map(|n| n.to_string()).collect()
+    }
+
+    #[test]
+    fn shows_only_the_selected_refs() {
+        let dir = two_branches();
+        let only_side = selection(&["refs/heads/side"]);
+        let page = read_log(dir.path(), 0, 100, Some(&only_side)).unwrap();
+        assert_eq!(subjects(&page), vec!["on-side", "base"]);
+
+        let both = selection(&["refs/heads/main", "refs/heads/side"]);
+        let page = read_log(dir.path(), 0, 100, Some(&both)).unwrap();
+        assert_eq!(page.commits.len(), 3);
+
+        let tag = selection(&["refs/tags/v1"]);
+        let page = read_log(dir.path(), 0, 100, Some(&tag)).unwrap();
+        assert_eq!(subjects(&page), vec!["base"]);
+    }
+
+    #[test]
+    fn ignores_unknown_and_option_like_refs() {
+        let dir = two_branches();
+        // A deleted branch, a made-up name and an option: all dropped.
+        let wanted = selection(&["refs/heads/deleted", "--all", "-n1", "refs/heads/side"]);
+        let page = read_log(dir.path(), 0, 100, Some(&wanted)).unwrap();
+        assert_eq!(subjects(&page), vec!["on-side", "base"]);
+
+        let nothing_left = selection(&["refs/heads/deleted"]);
+        let page = read_log(dir.path(), 0, 100, Some(&nothing_left)).unwrap();
+        assert!(page.commits.is_empty());
+        let empty: Vec<String> = Vec::new();
+        assert!(
+            read_log(dir.path(), 0, 100, Some(&empty))
+                .unwrap()
+                .commits
+                .is_empty()
+        );
+    }
+
+    #[test]
+    fn detached_head_can_be_selected() {
+        let dir = two_branches();
+        git(dir.path(), &["checkout", "--quiet", "--detach", "HEAD~1"]);
+        let head = selection(&["HEAD"]);
+        let page = read_log(dir.path(), 0, 100, Some(&head)).unwrap();
+        assert_eq!(subjects(&page), vec!["base"]);
+    }
+
     #[test]
     fn rejects_bad_page_size() {
         let dir = new_repo();
         assert_eq!(
-            read_log(dir.path(), 0, 0).unwrap_err().kind,
+            read_log(dir.path(), 0, 0, None).unwrap_err().kind,
             ErrorKind::InvalidInput
         );
         assert_eq!(
-            read_log(dir.path(), 0, MAX_PAGE + 1).unwrap_err().kind,
+            read_log(dir.path(), 0, MAX_PAGE + 1, None)
+                .unwrap_err()
+                .kind,
             ErrorKind::InvalidInput
         );
     }

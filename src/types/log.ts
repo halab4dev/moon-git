@@ -26,3 +26,15 @@ export interface LogPage {
   commits: CommitSummary[];
   hasMore: boolean;
 }
+
+/** A branch, remote branch or tag (or a detached HEAD) the history can show. */
+export interface RefInfo {
+  /** "refs/heads/main", or "HEAD" when detached. Sent back to choose the history. */
+  fullName: string;
+  /** "main", "origin/main", "v1.0", "HEAD". */
+  name: string;
+  kind: RefKind;
+  current: boolean;
+  /** Local branches only: full name of the tracked branch, e.g. "refs/remotes/origin/main". */
+  upstream: string | null;
+}

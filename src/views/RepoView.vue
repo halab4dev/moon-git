@@ -272,7 +272,12 @@ onUnmounted(() => {
     </div>
 
     <!-- v-if: the history is loaded when the tab is opened, and dropped when left. -->
-    <HistoryView v-if="tab === 'history'" class="pane" :repo-id="repo.id" :version="statusVersion" />
+    <HistoryView
+      v-if="tab === 'history'"
+      class="pane"
+      :repo-id="repo.id"
+      :version="statusVersion"
+    />
   </section>
 </template>
 

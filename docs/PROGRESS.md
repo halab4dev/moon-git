@@ -2,7 +2,7 @@
 
 Cập nhật lần cuối: 2026-10-21
 
-**Đang ở:** Giai đoạn 2, bước 16c (chọn branch/remote/tag hiển thị). Bước 12–15 tạm hoãn theo yêu cầu của bạn.
+**Đang ở:** Giai đoạn 2, bước 17 (filter theo hash / message, highlight / ẩn). Bước 12–15 tạm hoãn theo yêu cầu của bạn.
 
 Ký hiệu: ✅ xong · 🟡 đang làm / chờ xác nhận · ⏸ tạm hoãn · ⬜ chưa làm
 
@@ -37,8 +37,8 @@ Giải thích chi tiết từng bước: [docs/learning/](learning/README.md)
 |---|---|---|
 | 16a | Lịch sử commit: `git/log.rs` (parser + test), tab History, danh sách ảo hóa tự viết + tải dần theo trang, nhãn branch/tag | ✅ 98 test pass |
 | 16b | Graph: thuật toán xếp làn (lane layout) bằng TS, module riêng có test (thêm Vitest), vẽ cột graph | ✅ 11 test Vitest + 98 test Rust |
-| 16c | Chọn branch/remote/tag hiển thị trong graph | 🟡 |
-| 17 | Filter theo hash / message, chế độ highlight (mặc định) và ẩn | ⬜ |
+| 16c | Chọn branch/remote/tag hiển thị trong graph | ✅ Lần đầu = branch hiện tại, sau đó nhớ theo repo. 104 Rust + 15 Vitest |
+| 17 | Filter theo hash / message, chế độ highlight (mặc định) và ẩn | 🟡 |
 | 18 | Bấm vào commit: thông tin, danh sách file, diff | ⬜ |
 | 19 | Branch: tạo, checkout, đổi tên, xóa local/remote, tracking | ⬜ |
 
@@ -81,6 +81,7 @@ Giải thích chi tiết từng bước: [docs/learning/](learning/README.md)
 - `AppError` là struct `{ kind, message }`; git chạy với `GIT_TERMINAL_PROMPT=0` và `LC_ALL=C`.
 - Test dùng crate `tempfile` (chỉ dev-dependency).
 - Test TypeScript dùng **Vitest** (devDependency), chạy `pnpm test`.
+- Chọn ref cho History: lần đầu = branch hiện tại + upstream (bạn yêu cầu), sau đó lưu theo repo trong localStorage (`null` = tất cả, kể cả branch mới); Rust chỉ nhận ref đang tồn tại + `--end-of-options`.
 - Graph: làn không dịch ngang, cột trống được dùng lại; `LaneLayout` tính dần theo trang; vẽ SVG mỗi dòng, tối đa 20 làn hiển thị.
 
 ## Việc còn treo
@@ -96,4 +97,5 @@ Giải thích chi tiết từng bước: [docs/learning/](learning/README.md)
 - [x] Bước 11 đã xác nhận và commit.
 - [x] Bước 16a đã xác nhận và commit.
 - [x] Bước 16b đã xác nhận và commit.
+- [x] Bước 16c đã xác nhận và commit.
 - [ ] Bước 12–15 (credential, account + keyring, user.name/email theo repo, SSH key) **tạm hoãn** (2026-10-21), làm lại sau giai đoạn 2 hoặc khi bạn yêu cầu.
