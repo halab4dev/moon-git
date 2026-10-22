@@ -1,12 +1,15 @@
-// Branches: checking out and creating (step 19a). Renaming, deleting and
-// changing the upstream come in step 19b.
+// Branches: checking out and creating (step 19a), renaming, deleting and
+// changing the upstream (step 19b).
 //
-// Never forced: when local changes are in the way, git refuses and its
-// message ("commit or stash them first") is shown as is.
+// Never forced on its own: when local changes are in the way, git refuses
+// and its message ("commit or stash them first") is shown as is. Deleting an
+// unmerged branch needs a second, explicit confirmation in the UI (`force`).
 
 use std::path::Path;
 
 use crate::error::{AppError, ErrorKind};
+use crate::git::operations::{Operations, run_git_with_progress};
+use crate::git::push::list_remotes;
 use crate::git::refs::list_refs;
 use crate::git::runner::run_git;
 use crate::git::show::check_commit_id;
@@ -116,6 +119,144 @@ pub fn create(
     }
 }
 
+/// Renames local branch `full_name` ("refs/heads/x") to `new_name`. Works for
+/// the current branch too. Its upstream setting moves along; the branch on
+/// the server keeps its old name.
+pub fn rename(repo: &Path, full_name: &str, new_name: &str) -> Result<(), AppError> {
+    let refs = list_refs(repo)?;
+    let branch = find_local(&refs, full_name)?;
+    let new_name = check_branch_name(repo, new_name)?;
+    if new_name == branch.name {
+        return Ok(());
+    }
+    if refs
+        .iter()
+        .any(|r| r.full_name == format!("refs/heads/{new_name}"))
+    {
+        return Err(invalid(format!(
+            "A branch named \"{new_name}\" already exists."
+        )));
+    }
+    run_git(
+        repo,
+        &[
+            "branch",
+            "--move",
+            "--end-of-options",
+            &branch.name,
+            &new_name,
+        ],
+    )?;
+    Ok(())
+}
+
+/// Deletes local branch `full_name`. Without `force`, git refuses when the
+/// branch has commits no other branch contains (ErrorKind::NotMerged), so the
+/// UI can ask again before `force` throws them away.
+pub fn delete_local(repo: &Path, full_name: &str, force: bool) -> Result<(), AppError> {
+    let refs = list_refs(repo)?;
+    let branch = find_local(&refs, full_name)?;
+    if branch.current {
+        return Err(invalid(format!(
+            "\"{}\" is checked out. Check out another branch first.",
+            branch.name
+        )));
+    }
+    // --delete --force is "git branch -D".
+    let mut args = vec!["branch", "--delete"];
+    if force {
+        args.push("--force");
+    }
+    args.extend(["--end-of-options", branch.name.as_str()]);
+    run_git(repo, &args).map_err(|err| {
+        if err.message.contains("not fully merged") {
+            AppError::new(
+                ErrorKind::NotMerged,
+                format!(
+                    "\"{}\" has commits that are not in any other branch. Deleting it anyway \
+                     makes them hard to find (git keeps them for a while in its reflog).",
+                    branch.name
+                ),
+            )
+        } else {
+            err
+        }
+    })?;
+    Ok(())
+}
+
+/// Deletes a branch on the server: `full_name` is its remote-tracking ref
+/// ("refs/remotes/origin/feature"). Runs `git push <remote> --delete`, which
+/// also removes the local "origin/feature".
+pub fn delete_remote(
+    ops: &Operations,
+    op_id: &str,
+    repo: &Path,
+    full_name: &str,
+    on_line: impl FnMut(&str),
+) -> Result<(), AppError> {
+    let refs = list_refs(repo)?;
+    let target = find(&refs, full_name)?;
+    if target.kind != RefKind::Remote {
+        return Err(invalid(format!("{} is not a remote branch.", target.name)));
+    }
+    let (remote, branch) = split_remote_name(&list_remotes(repo)?, &target.name)
+        .ok_or_else(|| invalid(format!("No remote found for {}.", target.name)))?;
+    // Full ref name on the server, so a tag with the same name is never hit.
+    let server_ref = format!("refs/heads/{branch}");
+    run_git_with_progress(
+        ops,
+        op_id,
+        repo,
+        &["push", "--progress", "--delete", &remote, &server_ref],
+        on_line,
+    )
+}
+
+/// "origin/feature/x" -> ("origin", "feature/x"). The longest remote name that
+/// fits wins, because remote names may contain "/" too ("team/origin").
+fn split_remote_name(remotes: &[String], short_name: &str) -> Option<(String, String)> {
+    remotes
+        .iter()
+        .filter_map(|remote| {
+            let branch = short_name
+                .strip_prefix(remote.as_str())?
+                .strip_prefix('/')?;
+            Some((remote.clone(), branch.to_string()))
+        })
+        .max_by_key(|(remote, _)| remote.len())
+}
+
+/// Makes local branch `full_name` track remote branch `upstream`
+/// ("refs/remotes/origin/x"), or stop tracking anything when `upstream` is None.
+pub fn set_upstream(repo: &Path, full_name: &str, upstream: Option<&str>) -> Result<(), AppError> {
+    let refs = list_refs(repo)?;
+    let branch = find_local(&refs, full_name)?;
+    match upstream {
+        Some(upstream) => {
+            let target = find(&refs, upstream)?;
+            if target.kind != RefKind::Remote {
+                return Err(invalid(format!("{} is not a remote branch.", target.name)));
+            }
+            let flag = format!("--set-upstream-to={}", target.full_name);
+            run_git(repo, &["branch", &flag, "--end-of-options", &branch.name])?;
+        }
+        None if branch.upstream.is_none() => {} // nothing to remove
+        None => {
+            run_git(
+                repo,
+                &[
+                    "branch",
+                    "--unset-upstream",
+                    "--end-of-options",
+                    &branch.name,
+                ],
+            )?;
+        }
+    }
+    Ok(())
+}
+
 /// Checks a new branch name with git's own rules and returns it trimmed.
 fn check_branch_name(repo: &Path, name: &str) -> Result<String, AppError> {
     let name = name.trim();
@@ -156,6 +297,14 @@ fn find<'a>(refs: &'a [RefInfo], full_name: &str) -> Result<&'a RefInfo, AppErro
                 format!("{full_name} does not exist (any more)."),
             )
         })
+}
+
+fn find_local<'a>(refs: &'a [RefInfo], full_name: &str) -> Result<&'a RefInfo, AppError> {
+    let found = find(refs, full_name)?;
+    if found.kind != RefKind::Branch {
+        return Err(invalid(format!("{} is not a local branch.", found.name)));
+    }
+    Ok(found)
 }
 
 fn invalid(message: String) -> AppError {
@@ -279,6 +428,135 @@ mod tests {
         // From a remote branch: tracks it.
         create(root, "mirror", Some("refs/remotes/origin/main"), true).unwrap();
         assert_eq!(upstream(root).as_deref(), Some("origin/main"));
+    }
+
+    fn local_branches(dir: &Path) -> Vec<String> {
+        list_refs(dir)
+            .unwrap()
+            .into_iter()
+            .filter(|r| r.kind == RefKind::Branch)
+            .map(|r| r.name)
+            .collect()
+    }
+
+    #[test]
+    fn renames_branches_including_the_current_one() {
+        let (_server, work) = server_and_clone();
+        let root = work.path();
+        git(root, &["branch", "old-name"]);
+
+        rename(root, "refs/heads/old-name", "new-name").unwrap();
+        assert_eq!(local_branches(root), vec!["main", "new-name"]);
+
+        // The checked-out branch keeps its upstream after a rename.
+        rename(root, "refs/heads/main", "trunk").unwrap();
+        assert_eq!(current_branch(root).as_deref(), Some("trunk"));
+        assert_eq!(upstream(root).as_deref(), Some("origin/main"));
+
+        let err = rename(root, "refs/heads/trunk", "new-name").unwrap_err();
+        assert!(err.message.contains("already exists"), "{}", err.message);
+        assert_eq!(
+            rename(root, "refs/heads/trunk", "bad name")
+                .unwrap_err()
+                .kind,
+            ErrorKind::InvalidInput
+        );
+        assert_eq!(
+            rename(root, "refs/remotes/origin/main", "x")
+                .unwrap_err()
+                .kind,
+            ErrorKind::InvalidInput
+        );
+    }
+
+    #[test]
+    fn deleting_an_unmerged_branch_needs_force() {
+        let (_server, work) = server_and_clone();
+        let root = work.path();
+        git(root, &["branch", "merged"]);
+        git(root, &["checkout", "--quiet", "-b", "unmerged"]);
+        commit_file(root, "only-here.txt");
+        git(root, &["checkout", "--quiet", "main"]);
+
+        delete_local(root, "refs/heads/merged", false).unwrap();
+        let err = delete_local(root, "refs/heads/unmerged", false).unwrap_err();
+        assert_eq!(err.kind, ErrorKind::NotMerged, "{}", err.message);
+        assert_eq!(local_branches(root), vec!["main", "unmerged"]);
+
+        delete_local(root, "refs/heads/unmerged", true).unwrap();
+        assert_eq!(local_branches(root), vec!["main"]);
+    }
+
+    #[test]
+    fn cannot_delete_the_current_branch() {
+        let (_server, work) = server_and_clone();
+        let err = delete_local(work.path(), "refs/heads/main", true).unwrap_err();
+        assert_eq!(err.kind, ErrorKind::InvalidInput);
+        assert_eq!(local_branches(work.path()), vec!["main"]);
+    }
+
+    #[test]
+    fn deletes_a_branch_on_the_server() {
+        let (server, work) = server_and_clone();
+        let root = work.path();
+        git(root, &["push", "--quiet", "origin", "main:feature"]);
+        git(root, &["fetch", "--quiet"]);
+
+        delete_remote(
+            &Operations::new(),
+            "op",
+            root,
+            "refs/remotes/origin/feature",
+            |_| {},
+        )
+        .unwrap();
+
+        let on_server = git(server.path(), &["branch", "--list"]);
+        assert!(!on_server.contains("feature"), "{on_server}");
+        // The local remote-tracking ref is gone too.
+        assert!(
+            list_refs(root)
+                .unwrap()
+                .iter()
+                .all(|r| r.name != "origin/feature")
+        );
+        // Only remote branches can be deleted this way.
+        let err =
+            delete_remote(&Operations::new(), "op", root, "refs/heads/main", |_| {}).unwrap_err();
+        assert_eq!(err.kind, ErrorKind::InvalidInput);
+    }
+
+    #[test]
+    fn splits_remote_names_with_slashes() {
+        let remotes = vec!["origin".to_string(), "team/origin".to_string()];
+        assert_eq!(
+            split_remote_name(&remotes, "team/origin/feature/x"),
+            Some(("team/origin".to_string(), "feature/x".to_string()))
+        );
+        assert_eq!(
+            split_remote_name(&remotes, "origin/main"),
+            Some(("origin".to_string(), "main".to_string()))
+        );
+        assert_eq!(split_remote_name(&remotes, "elsewhere/main"), None);
+    }
+
+    #[test]
+    fn sets_and_removes_the_upstream() {
+        let (_server, work) = server_and_clone();
+        let root = work.path();
+        git(root, &["push", "--quiet", "origin", "main:other"]);
+        git(root, &["fetch", "--quiet"]);
+
+        set_upstream(root, "refs/heads/main", Some("refs/remotes/origin/other")).unwrap();
+        assert_eq!(upstream(root).as_deref(), Some("origin/other"));
+
+        set_upstream(root, "refs/heads/main", None).unwrap();
+        assert_eq!(upstream(root), None);
+        // Removing again is fine.
+        set_upstream(root, "refs/heads/main", None).unwrap();
+
+        let err = set_upstream(root, "refs/heads/main", Some("refs/heads/main")).unwrap_err();
+        assert_eq!(err.kind, ErrorKind::InvalidInput);
     }
 
     #[test]

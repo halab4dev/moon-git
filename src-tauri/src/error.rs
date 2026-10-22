@@ -28,6 +28,8 @@ pub enum ErrorKind {
     Conflict,
     /// The server refused a push because it has commits we don't have.
     PushRejected,
+    /// A branch to delete has commits that no other branch contains.
+    NotMerged,
 }
 
 #[derive(Debug, Serialize)]

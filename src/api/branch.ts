@@ -17,3 +17,23 @@ export function createBranch(
 ): Promise<RepoStatus> {
   return invoke<RepoStatus>("create_branch", { repoId, name, start, checkOut });
 }
+
+/** Local branch `fullName` ("refs/heads/x") gets `newName`. */
+export function renameBranch(repoId: string, fullName: string, newName: string): Promise<RepoStatus> {
+  return invoke<RepoStatus>("rename_branch", { repoId, fullName, newName });
+}
+
+/** Local branch. Rejects with kind "notMerged" unless `force`. */
+export function deleteBranch(repoId: string, fullName: string, force: boolean): Promise<RepoStatus> {
+  return invoke<RepoStatus>("delete_branch", { repoId, fullName, force });
+}
+
+/** Branch on the server, given as "refs/remotes/<remote>/<branch>". Progress tagged `opId`. */
+export function deleteRemoteBranch(opId: string, repoId: string, fullName: string): Promise<RepoStatus> {
+  return invoke<RepoStatus>("delete_remote_branch", { opId, repoId, fullName });
+}
+
+/** `upstream`: "refs/remotes/origin/x", or null to stop tracking. */
+export function setBranchUpstream(repoId: string, fullName: string, upstream: string | null): Promise<RepoStatus> {
+  return invoke<RepoStatus>("set_branch_upstream", { repoId, fullName, upstream });
+}

@@ -4,7 +4,7 @@ import CommitDetails from "../components/CommitDetails.vue";
 import CommitList from "../components/CommitList.vue";
 import HistoryFilter from "../components/HistoryFilter.vue";
 import RefFilter from "../components/RefFilter.vue";
-import { currentBranchRefs } from "../components/refSelection";
+import { currentBranchRefs, readSavedSelection, saveSelection } from "../components/refSelection";
 import { LaneLayout, type GraphRow } from "../graph/laneLayout";
 import { useSplitRatio } from "../composables/useSplitRatio";
 import { showCommitMenu } from "../components/branchMenus";
@@ -61,42 +61,15 @@ const { ratio: listRatio, startResize } = useSplitRatio("split", "moongit.histor
 const refs = ref<RefInfo[]>([]);
 // null = all. Stale names (deleted branches) are simply ignored by Rust.
 // undefined from readSelection() = never chosen for this repository yet.
-const saved = readSelection();
+const saved = readSavedSelection(props.repoId);
 const refSelection = ref<string[] | null>(saved ?? null);
 // False until there is a choice to remember: the user's, or the
 // first-time default (the current branch), set once the refs are known.
 let decided = saved !== undefined;
 
-function selectionKey(): string {
-  return `moongit.history.refs.${props.repoId}`;
-}
-
-function readSelection(): string[] | null | undefined {
-  try {
-    const stored = localStorage.getItem(selectionKey());
-    if (stored === null) {
-      return undefined;
-    }
-    const parsed = JSON.parse(stored);
-    if (parsed === null) {
-      return null; // "All" was chosen
-    }
-    if (Array.isArray(parsed) && parsed.every((name) => typeof name === "string")) {
-      return parsed;
-    }
-  } catch {
-    // Unreadable: treat as never chosen.
-  }
-  return undefined;
-}
-
 watch(refSelection, (current) => {
   decided = true;
-  try {
-    localStorage.setItem(selectionKey(), JSON.stringify(current));
-  } catch {
-    // Not remembered; fine.
-  }
+  saveSelection(props.repoId, current);
   reload();
   search();
 });
@@ -325,6 +298,13 @@ async function loadNextPage() {
 
 async function reloadAll() {
   await loadRefs();
+  // The saved choice may have changed elsewhere (a branch was renamed).
+  // Assigning triggers the watch, which reloads.
+  const latest = readSavedSelection(props.repoId);
+  if (decided && latest !== undefined && JSON.stringify(latest) !== JSON.stringify(refSelection.value)) {
+    refSelection.value = latest;
+    return;
+  }
   // First visit: start with the current branch instead of everything.
   // (Assigning triggers the watch above, which saves and reloads.)
   if (!decided) {

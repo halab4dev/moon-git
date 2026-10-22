@@ -1,8 +1,8 @@
 # MoonGit — Kế hoạch và tiến độ
 
-Cập nhật lần cuối: 2026-10-21
+Cập nhật lần cuối: 2026-10-22
 
-**Đang ở:** Giai đoạn 2, bước 19b (branch: đổi tên, xóa local/remote, upstream). Bước 12–15 tạm hoãn theo yêu cầu của bạn.
+**Đang ở:** Giai đoạn 3, bước 20 (stash). Giai đoạn 2 đã xong. Bước 12–15 tạm hoãn theo yêu cầu của bạn.
 
 Ký hiệu: ✅ xong · 🟡 đang làm / chờ xác nhận · ⏸ tạm hoãn · ⬜ chưa làm
 
@@ -41,7 +41,7 @@ Giải thích chi tiết từng bước: [docs/learning/](learning/README.md)
 | 17 | Filter theo hash / message, chế độ highlight (mặc định) và ẩn | ✅ 111 Rust + 15 Vitest |
 | 18 | Bấm vào commit: thông tin, danh sách file, diff | ✅ 117 Rust + 15 Vitest |
 | 19a | Branch: checkout (local / remote → tạo branch theo dõi), tạo branch mới (từ HEAD hoặc từ commit trong History) | ✅ 123 Rust + 15 Vitest |
-| 19b | Branch: đổi tên, xóa local / remote (có xác nhận), đặt / bỏ upstream | 🟡 |
+| 19b | Branch: đổi tên, xóa local / remote (có xác nhận), đặt / bỏ upstream | ✅ 129 Rust + 17 Vitest |
 
 ## Giai đoạn 3 — thao tác nâng cao (sẽ chia nhỏ khi tới nơi)
 
@@ -85,7 +85,7 @@ Giải thích chi tiết từng bước: [docs/learning/](learning/README.md)
 - Chọn ref cho History: lần đầu = branch hiện tại + upstream (bạn yêu cầu), sau đó lưu theo repo trong localStorage (`null` = tất cả, kể cả branch mới); Rust chỉ nhận ref đang tồn tại + `--end-of-options`.
 - Filter lịch sử: một ô cho cả tiền tố id (khi toàn hex) lẫn message đầy đủ, không phân biệt hoa thường; tìm ở Rust trên toàn lịch sử; chế độ Hide viết lại cha về tổ tiên khớp gần nhất.
 - Chi tiết commit: merge so với cha thứ nhất (như SmartGit); chỉ nhận commit id dạng hex.
-- Branch: dùng `git switch` (không `checkout`), `--no-guess`, không bao giờ `--force`; checkout remote = tạo branch local cùng tên theo dõi nó.
+- Branch: dùng `git switch` (không `checkout`), `--no-guess`, không bao giờ `--force`; checkout remote = tạo branch local cùng tên theo dõi nó. Xóa branch chưa merge: hỏi lần 2 rồi mới `--force`. Xóa trên server dùng `refs/heads/<tên>` để không trúng tag.
 - Graph: làn không dịch ngang, cột trống được dùng lại; `LaneLayout` tính dần theo trang; vẽ SVG mỗi dòng, tối đa 20 làn hiển thị.
 
 ## Việc còn treo
@@ -105,4 +105,5 @@ Giải thích chi tiết từng bước: [docs/learning/](learning/README.md)
 - [x] Bước 17 đã xác nhận và commit.
 - [x] Bước 18 đã xác nhận và commit.
 - [x] Bước 19a đã xác nhận và commit.
+- [x] Bước 19b đã xác nhận và commit.
 - [ ] Bước 12–15 (credential, account + keyring, user.name/email theo repo, SSH key) **tạm hoãn** (2026-10-21), làm lại sau giai đoạn 2 hoặc khi bạn yêu cầu.
