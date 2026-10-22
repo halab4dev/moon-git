@@ -16,6 +16,7 @@ pub mod runner;
 pub mod search;
 pub mod show;
 pub mod stage;
+pub mod stash;
 pub mod status;
 #[cfg(test)]
 pub mod test_support;

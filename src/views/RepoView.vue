@@ -6,6 +6,7 @@ import CommitBox from "../components/CommitBox.vue";
 import DiffPanel from "../components/DiffPanel.vue";
 import FileTable from "../components/FileTable.vue";
 import HistoryView from "./HistoryView.vue";
+import StashView from "./StashView.vue";
 import SyncButtons from "../components/SyncButtons.vue";
 import { buildRows, type FileRow } from "../components/fileRows";
 import { openDiffWindow } from "../windows";
@@ -14,6 +15,8 @@ import { showBranchMenu, type BranchCallbacks } from "../components/branchMenus"
 import { getStatus } from "../api/status";
 import { stageFiles, unstageFiles } from "../api/stage";
 import { commitChanges } from "../api/commit";
+import { createStash } from "../api/stash";
+import { useDialogStore } from "../stores/dialogs";
 import { toAppError } from "../api/errors";
 import type { AppError } from "../types/error";
 import type { RepoEntry } from "../types/repo";
@@ -36,8 +39,9 @@ const working = computed(() => busy.value || syncLocked.value);
 const error = ref<AppError | null>(null);
 const selectedPaths = ref<string[]>([]);
 
-// Changes (working tree) or History. Remembered for all repos.
-type Tab = "changes" | "history";
+// Changes (working tree), History or Stashes. Remembered for all repos.
+type Tab = "changes" | "history" | "stashes";
+const TABS: Tab[] = ["changes", "history", "stashes"];
 const TAB_KEY = "moongit.repoView.tab";
 const tab = ref<Tab>(readTab());
 
@@ -52,7 +56,8 @@ function selectTab(next: Tab) {
 
 function readTab(): Tab {
   try {
-    return localStorage.getItem(TAB_KEY) === "history" ? "history" : "changes";
+    const saved = localStorage.getItem(TAB_KEY);
+    return TABS.find((t) => t === saved) ?? "changes";
   } catch {
     return "changes";
   }
@@ -145,6 +150,36 @@ const branchCallbacks: BranchCallbacks = {
   onError: (err) => (error.value = err),
 };
 
+// "Stash…": message (optional) and whether to include untracked files.
+// Errors are shown inside the dialog, which stays open.
+function askStash() {
+  if (working.value) {
+    return;
+  }
+  useDialogStore().askName({
+    title: "Stash Changes",
+    confirmLabel: "Stash",
+    initial: "",
+    placeholder: "Message (optional)",
+    allowEmpty: true,
+    option: { label: "Include untracked files", initial: false },
+    submit: async (message, includeUntracked) => {
+      if (working.value) {
+        return "Another operation is running. Try again when it has finished.";
+      }
+      busy.value = true;
+      try {
+        applyStatus(await createStash(props.repo.id, message, includeUntracked));
+        return null;
+      } catch (err) {
+        return toAppError(err).message;
+      } finally {
+        busy.value = false;
+      }
+    },
+  });
+}
+
 function openBranchMenu() {
   if (!working.value) {
     void showBranchMenu(props.repo.id, branchCallbacks);
@@ -197,6 +232,7 @@ onUnmounted(() => {
         Changes<span v-if="rows.length > 0" class="count">{{ rows.length }}</span>
       </button>
       <button :class="{ active: tab === 'history' }" @click="selectTab('history')">History</button>
+      <button :class="{ active: tab === 'stashes' }" @click="selectTab('stashes')">Stashes</button>
     </nav>
 
     <div class="toolbar">
@@ -208,6 +244,14 @@ onUnmounted(() => {
           Unstage
         </button>
       </template>
+      <button
+        v-if="tab !== 'history'"
+        :disabled="working || rows.length === 0"
+        title="Put the local changes aside and clean the working tree"
+        @click="askStash"
+      >
+        Stash…
+      </button>
       <span class="spacer"></span>
       <SyncButtons
         v-if="status"
@@ -262,6 +306,7 @@ onUnmounted(() => {
       :version="statusVersion"
       @status-changed="applyStatus"
     />
+    <StashView v-if="tab === 'stashes'" class="pane" :repo-id="repo.id" :version="statusVersion" />
   </section>
 </template>
 

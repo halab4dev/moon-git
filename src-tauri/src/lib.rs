@@ -62,6 +62,8 @@ pub fn run() {
             commands::branch::delete_branch,
             commands::branch::delete_remote_branch,
             commands::branch::set_branch_upstream,
+            commands::stash::create_stash,
+            commands::stash::list_stashes,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

@@ -14,6 +14,11 @@ const props = defineProps<{
   repoId: string;
   /** null = no commit chosen. */
   commitId: string | null;
+  /**
+   * For stashes (whose parents are internal commits, not in any history):
+   * no parent links, and no "compared with the first parent" note.
+   */
+  hideParents?: boolean;
 }>();
 
 const emit = defineEmits<{
@@ -160,7 +165,7 @@ function folderOf(file: FileChange): string {
           <dl>
             <dt>Commit</dt>
             <dd class="hash selectable">{{ details.id }}</dd>
-            <template v-if="details.parents.length > 0">
+            <template v-if="details.parents.length > 0 && !hideParents">
               <dt>{{ details.parents.length > 1 ? "Parents" : "Parent" }}</dt>
               <dd>
                 <button
@@ -190,7 +195,7 @@ function folderOf(file: FileChange): string {
         </div>
 
         <p class="files-title muted">
-          {{ details.files.length }} changed file(s){{ details.parents.length > 1 ? " (compared with the first parent)" : "" }}
+          {{ details.files.length }} changed file(s){{ details.parents.length > 1 && !hideParents ? " (compared with the first parent)" : "" }}
         </p>
         <ul class="files" tabindex="0" @keydown.up.prevent="moveFile(-1)" @keydown.down.prevent="moveFile(1)">
           <li

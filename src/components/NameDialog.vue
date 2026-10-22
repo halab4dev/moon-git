@@ -48,7 +48,7 @@ async function onSubmit() {
   <div v-if="dialogs.nameRequest" class="backdrop" @mousedown.self="dialogs.closeName()">
     <form class="dialog" @submit.prevent="onSubmit" @keydown.esc="dialogs.closeName()">
       <h2>{{ dialogs.nameRequest.title }}</h2>
-      <input ref="input" v-model="value" placeholder="Name" spellcheck="false" />
+      <input ref="input" v-model="value" :placeholder="dialogs.nameRequest.placeholder ?? 'Name'" spellcheck="false" />
       <label v-if="dialogs.nameRequest.option" class="option">
         <input v-model="optionChecked" type="checkbox" />
         {{ dialogs.nameRequest.option.label }}
@@ -56,7 +56,7 @@ async function onSubmit() {
       <p v-if="message" class="err">{{ message }}</p>
       <div class="buttons">
         <button type="button" @click="dialogs.closeName()">Cancel</button>
-        <button type="submit" class="primary" :disabled="busy || !value.trim()">
+        <button type="submit" class="primary" :disabled="busy || (!value.trim() && !dialogs.nameRequest.allowEmpty)">
           {{ dialogs.nameRequest.confirmLabel }}
         </button>
       </div>

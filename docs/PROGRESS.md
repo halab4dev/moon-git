@@ -2,7 +2,7 @@
 
 Cập nhật lần cuối: 2026-10-22
 
-**Đang ở:** Giai đoạn 3, bước 20 (stash). Giai đoạn 2 đã xong. Bước 12–15 tạm hoãn theo yêu cầu của bạn.
+**Đang ở:** Giai đoạn 3, bước 20a (tạo + xem stash) đã code, chờ bạn thử; tiếp theo 20b (apply/pop/drop). Bước 12–15 tạm hoãn theo yêu cầu của bạn.
 
 Ký hiệu: ✅ xong · 🟡 đang làm / chờ xác nhận · ⏸ tạm hoãn · ⬜ chưa làm
 
@@ -47,7 +47,8 @@ Giải thích chi tiết từng bước: [docs/learning/](learning/README.md)
 
 | # | Tính năng | Trạng thái |
 |---|---|---|
-| 20 | Stash: tạo (message, tùy chọn gồm untracked), danh sách, apply/pop/drop | ⬜ |
+| 20a | Stash: tạo (message, tùy chọn gồm untracked), tab Stashes (danh sách + nội dung) | ✅ 136 Rust + 17 Vitest |
+| 20b | Stash: apply, pop, drop (xác nhận), conflict khi apply | ⬜ |
 | 21 | Merge: `--no-ff` hoặc `--squash` / `--no-commit` | ⬜ |
 | 22 | Rebase (không interactive) | ⬜ |
 | 23 | Cherry-pick: giữ commit hoặc `-n` | ⬜ |
@@ -86,6 +87,7 @@ Giải thích chi tiết từng bước: [docs/learning/](learning/README.md)
 - Filter lịch sử: một ô cho cả tiền tố id (khi toàn hex) lẫn message đầy đủ, không phân biệt hoa thường; tìm ở Rust trên toàn lịch sử; chế độ Hide viết lại cha về tổ tiên khớp gần nhất.
 - Chi tiết commit: merge so với cha thứ nhất (như SmartGit); chỉ nhận commit id dạng hex.
 - Branch: dùng `git switch` (không `checkout`), `--no-guess`, không bao giờ `--force`; checkout remote = tạo branch local cùng tên theo dõi nó. Xóa branch chưa merge: hỏi lần 2 rồi mới `--force`. Xóa trên server dùng `refs/heads/<tên>` để không trúng tag.
+- Stash: kiểm tra trước khi stash (git báo thành công cả khi không có gì); nhận diện stash bằng id, không bằng số thứ tự; xem nội dung bằng `CommitDetails` (W so với HEAD lúc stash, U cho file untracked).
 - Graph: làn không dịch ngang, cột trống được dùng lại; `LaneLayout` tính dần theo trang; vẽ SVG mỗi dòng, tối đa 20 làn hiển thị.
 
 ## Việc còn treo
@@ -106,4 +108,5 @@ Giải thích chi tiết từng bước: [docs/learning/](learning/README.md)
 - [x] Bước 18 đã xác nhận và commit.
 - [x] Bước 19a đã xác nhận và commit.
 - [x] Bước 19b đã xác nhận và commit.
+- [x] Bước 20a đã xác nhận và commit.
 - [ ] Bước 12–15 (credential, account + keyring, user.name/email theo repo, SSH key) **tạm hoãn** (2026-10-21), làm lại sau giai đoạn 2 hoặc khi bạn yêu cầu.

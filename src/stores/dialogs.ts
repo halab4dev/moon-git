@@ -9,6 +9,10 @@ export interface NameRequest {
   /** Text of the confirm button, e.g. "Create" or "Rename". */
   confirmLabel: string;
   initial: string;
+  /** Hint in the empty input; default "Name". */
+  placeholder?: string;
+  /** The input may stay empty (e.g. an optional stash message). */
+  allowEmpty?: boolean;
   /** Optional checkbox under the input, e.g. "Check out the new branch". */
   option?: { label: string; initial: boolean };
   /**

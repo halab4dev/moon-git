@@ -241,3 +241,23 @@ pub struct CommitDetails {
     /// Changed files compared with the first parent.
     pub files: Vec<FileChange>,
 }
+
+/// One stash, as listed by `git stash list` (step 20).
+#[derive(Debug, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct StashEntry {
+    /// Position: 0 = `stash@{0}`, the newest. Changes when stashes are added
+    /// or dropped, so `id` is what identifies a stash.
+    pub index: usize,
+    /// The stash commit. Compared with `base`, it holds the stashed changes
+    /// of tracked files.
+    pub id: String,
+    /// The commit that was checked out when stashing.
+    pub base: String,
+    /// Commit holding the untracked files, when they were included.
+    pub untracked: Option<String>,
+    /// Unix seconds.
+    pub time: i64,
+    /// "On main: <message>", or "WIP on main: <commit>" without a message.
+    pub message: String,
+}
