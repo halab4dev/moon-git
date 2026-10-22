@@ -25,6 +25,8 @@ const selected = defineModel<string | null>("selected", { required: true });
 const emit = defineEmits<{
   /** The user scrolled close to the end of what is loaded. */
   loadMore: [];
+  /** Right-click on a commit (it is selected first). */
+  rowMenu: [commit: CommitSummary];
 }>();
 
 const ROW_HEIGHT = 24; // px, must match .row in the styles below
@@ -102,6 +104,11 @@ watch(selected, (id) => {
   }
 });
 
+function onRowMenu(commit: CommitSummary) {
+  selected.value = commit.id;
+  emit("rowMenu", commit);
+}
+
 // ---- formatting ----
 
 const dateFormat = new Intl.DateTimeFormat(undefined, {
@@ -147,6 +154,7 @@ function refClass(ref: CommitRef): string[] {
           :class="{ selected: commit.id === selected, dim: matches !== null && !matches.has(commit.id) }"
           :style="{ top: `${(first + i) * ROW_HEIGHT}px` }"
           @click="selected = commit.id"
+          @contextmenu.prevent="onRowMenu(commit)"
         >
           <GraphCell
             v-if="graph[first + i]"

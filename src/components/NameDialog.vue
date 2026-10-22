@@ -5,6 +5,7 @@ import { useDialogStore } from "../stores/dialogs";
 const dialogs = useDialogStore();
 
 const value = ref("");
+const optionChecked = ref(false);
 const message = ref<string | null>(null);
 const busy = ref(false);
 // Template ref: filled by Vue with the <input> element once it is rendered.
@@ -18,6 +19,7 @@ watch(
       return;
     }
     value.value = request.initial;
+    optionChecked.value = request.option?.initial ?? false;
     message.value = null;
     await nextTick(); // wait for the <input> to exist
     input.value?.focus();
@@ -32,7 +34,7 @@ async function onSubmit() {
   }
   busy.value = true;
   try {
-    message.value = await request.submit(value.value);
+    message.value = await request.submit(value.value, optionChecked.value);
     if (message.value === null) {
       dialogs.closeName();
     }
@@ -46,7 +48,11 @@ async function onSubmit() {
   <div v-if="dialogs.nameRequest" class="backdrop" @mousedown.self="dialogs.closeName()">
     <form class="dialog" @submit.prevent="onSubmit" @keydown.esc="dialogs.closeName()">
       <h2>{{ dialogs.nameRequest.title }}</h2>
-      <input ref="input" v-model="value" placeholder="Name" />
+      <input ref="input" v-model="value" placeholder="Name" spellcheck="false" />
+      <label v-if="dialogs.nameRequest.option" class="option">
+        <input v-model="optionChecked" type="checkbox" />
+        {{ dialogs.nameRequest.option.label }}
+      </label>
       <p v-if="message" class="err">{{ message }}</p>
       <div class="buttons">
         <button type="button" @click="dialogs.closeName()">Cancel</button>
@@ -63,7 +69,14 @@ async function onSubmit() {
   width: 360px;
 }
 
-.dialog input {
+.dialog input:not([type="checkbox"]) {
   width: 100%;
+}
+
+.option {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 10px;
 }
 </style>

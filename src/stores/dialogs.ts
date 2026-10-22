@@ -9,8 +9,13 @@ export interface NameRequest {
   /** Text of the confirm button, e.g. "Create" or "Rename". */
   confirmLabel: string;
   initial: string;
-  /** Returns an error message to show in the dialog, or null to close it. */
-  submit: (name: string) => Promise<string | null>;
+  /** Optional checkbox under the input, e.g. "Check out the new branch". */
+  option?: { label: string; initial: boolean };
+  /**
+   * Returns an error message to show in the dialog, or null to close it.
+   * `optionChecked`: state of the checkbox (false when there is none).
+   */
+  submit: (name: string, optionChecked: boolean) => Promise<string | null>;
 }
 
 export interface CloneRequest {

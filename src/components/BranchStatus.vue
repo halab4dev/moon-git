@@ -7,6 +7,11 @@ const props = defineProps<{
   branch: BranchInfo;
 }>();
 
+const emit = defineEmits<{
+  /** The branch name was clicked: show the branch menu. */
+  openMenu: [];
+}>();
+
 const branchLabel = computed(() => {
   const { name, commit } = props.branch;
   if (name !== null) {
@@ -22,7 +27,14 @@ const upToDate = computed(() => props.branch.ahead === 0 && props.branch.behind 
 
 <template>
   <p class="branch-status">
-    <span class="name" :class="{ detached: branch.name === null }">⎇ {{ branchLabel }}</span>
+    <button
+      class="name"
+      :class="{ detached: branch.name === null }"
+      title="Check out another branch, or create one"
+      @click="emit('openMenu')"
+    >
+      ⎇ {{ branchLabel }} ▾
+    </button>
     <span v-if="branch.commit === null" class="muted">(no commits yet)</span>
 
     <template v-if="branch.upstream !== null">
@@ -52,8 +64,20 @@ const upToDate = computed(() => props.branch.ahead === 0 && props.branch.behind 
   margin: 4px 0 0;
 }
 
+/* Looks like text, behaves like a button. */
 .name {
+  border: none;
+  background: none;
+  padding: 0 4px;
+  margin-left: -4px;
+  border-radius: 4px;
   font-weight: 600;
+  color: var(--text);
+  cursor: pointer;
+}
+
+.name:hover {
+  background: var(--bg-sidebar);
 }
 
 .detached {

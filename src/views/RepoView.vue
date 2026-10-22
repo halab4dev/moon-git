@@ -10,6 +10,7 @@ import SyncButtons from "../components/SyncButtons.vue";
 import { buildRows, type FileRow } from "../components/fileRows";
 import { openDiffWindow } from "../windows";
 import { useSplitRatio } from "../composables/useSplitRatio";
+import { showBranchMenu, type BranchCallbacks } from "../components/branchMenus";
 import { getStatus } from "../api/status";
 import { stageFiles, unstageFiles } from "../api/stage";
 import { commitChanges } from "../api/commit";
@@ -131,6 +132,25 @@ async function onSyncFinished(syncError: AppError | null) {
   }
 }
 
+// A branch was checked out or created (from the header menu or the History
+// tab): show the new status, and let the history reload.
+function applyStatus(next: RepoStatus) {
+  status.value = next;
+  statusVersion.value++;
+  error.value = null;
+}
+
+const branchCallbacks: BranchCallbacks = {
+  onStatus: applyStatus,
+  onError: (err) => (error.value = err),
+};
+
+function openBranchMenu() {
+  if (!working.value) {
+    void showBranchMenu(props.repo.id, branchCallbacks);
+  }
+}
+
 async function showRowMenu() {
   const menu = await Menu.new({
     items: [
@@ -169,7 +189,7 @@ onUnmounted(() => {
     <header class="repo-header">
       <h1>{{ repo.name }}</h1>
       <p class="muted path">{{ repo.path }}</p>
-      <BranchStatus v-if="status" :branch="status.branch" />
+      <BranchStatus v-if="status" :branch="status.branch" @open-menu="openBranchMenu" />
     </header>
 
     <nav class="tabs">
@@ -240,6 +260,7 @@ onUnmounted(() => {
       class="pane"
       :repo-id="repo.id"
       :version="statusVersion"
+      @status-changed="applyStatus"
     />
   </section>
 </template>

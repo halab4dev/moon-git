@@ -7,9 +7,11 @@ import RefFilter from "../components/RefFilter.vue";
 import { currentBranchRefs } from "../components/refSelection";
 import { LaneLayout, type GraphRow } from "../graph/laneLayout";
 import { useSplitRatio } from "../composables/useSplitRatio";
+import { showCommitMenu } from "../components/branchMenus";
 import { findCommits, getLog, listRefs } from "../api/log";
 import { toAppError } from "../api/errors";
 import type { AppError } from "../types/error";
+import type { RepoStatus } from "../types/status";
 import type { CommitSummary, FilterMode, RefInfo } from "../types/log";
 
 // "History" tab: all branches, remote branches and tags, newest first,
@@ -19,6 +21,19 @@ const props = defineProps<{
   /** Changes whenever the status was reloaded: new commits may exist. */
   version: number;
 }>();
+
+const emit = defineEmits<{
+  /** A branch was created or checked out from the commit menu. */
+  statusChanged: [status: RepoStatus];
+}>();
+
+function openCommitMenu(commit: CommitSummary) {
+  void showCommitMenu(props.repoId, commit, {
+    // RepoView updates its status, which bumps `version`, which reloads us.
+    onStatus: (status) => emit("statusChanged", status),
+    onError: (err) => (error.value = err),
+  });
+}
 
 const PAGE_SIZE = 500;
 const MAX_PAGE = 2000; // limit of the Rust side
@@ -355,6 +370,7 @@ watch(() => props.version, reloadAll);
           :has-more="hasMore"
           :loading="loading"
           @load-more="loadMore"
+          @row-menu="openCommitMenu"
         />
         <p class="muted footer">
           {{ commits.length }} {{ logFilter !== null ? "matching " : "" }}commit(s) loaded{{ hasMore ? ", more below" : "" }}{{ loading ? " · loading…" : "" }}
