@@ -273,3 +273,29 @@ pub enum StashAction {
     /// Delete the stash. Its changes are lost (the UI asks first).
     Drop,
 }
+
+/// How to merge (step 21). Sent by the frontend.
+#[derive(Debug, Clone, Copy, PartialEq, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub enum MergeMode {
+    /// Only move the branch forward; fails if it has commits of its own.
+    FastForward,
+    /// Always create a merge commit (--no-ff).
+    MergeCommit,
+    /// Merge, but stop before the commit (--no-ff --no-commit).
+    WorkingTree,
+}
+
+/// What a merge would do, shown in the merge dialog before choosing.
+#[derive(Debug, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct MergePreview {
+    /// The current branch, which receives the merge.
+    pub branch: String,
+    /// Short name of what is merged: "feature", "origin/x", "v1.0", "1234abcd".
+    pub source: String,
+    /// Everything in `source` is already in the branch.
+    pub up_to_date: bool,
+    /// The branch has no commits of its own, so it can just move forward.
+    pub can_fast_forward: bool,
+}

@@ -1,5 +1,5 @@
 import { Menu } from "@tauri-apps/api/menu";
-import { ask } from "@tauri-apps/plugin-dialog";
+import { ask, message } from "@tauri-apps/plugin-dialog";
 import {
   checkoutBranch,
   createBranch,
@@ -10,6 +10,8 @@ import {
 } from "../api/branch";
 import { toAppError } from "../api/errors";
 import { listRefs } from "../api/log";
+import { getMergePreview, mergeIntoCurrent } from "../api/merge";
+import { getStatus } from "../api/status";
 import { useDialogStore } from "../stores/dialogs";
 import { renameInSavedSelection } from "./refSelection";
 import type { AppError } from "../types/error";
@@ -89,6 +91,7 @@ export async function showBranchMenu(repoId: string, callbacks: BranchCallbacks)
         ? [
             { text: `Rename "${current.name}"…`, action: () => askRename(repoId, current, callbacks) },
             ...upstreamMenu(repoId, current, remote, callbacks),
+            ...mergeMenu(repoId, current, [...others, ...remote], callbacks),
           ]
         : []),
       ...(others.length > 0 || remote.length > 0 ? [SEPARATOR] : []),
@@ -143,6 +146,22 @@ function upstreamMenu(repoId: string, branch: RefInfo, remote: RefInfo[], callba
   ];
 }
 
+// "Merge into main ▸": the other local branches and the remote branches.
+function mergeMenu(repoId: string, current: RefInfo, sources: RefInfo[], callbacks: BranchCallbacks) {
+  if (sources.length === 0) {
+    return [];
+  }
+  return [
+    {
+      text: `Merge into "${current.name}"`,
+      items: sources.map((info) => ({
+        text: `${info.name}…`,
+        action: () => void askMerge(repoId, info.fullName, callbacks),
+      })),
+    },
+  ];
+}
+
 /** Right-click on a commit in the History tab. */
 export async function showCommitMenu(repoId: string, commit: CommitSummary, callbacks: BranchCallbacks) {
   const local = commit.refs.filter((r) => r.kind === "branch");
@@ -175,14 +194,41 @@ export async function showCommitMenu(repoId: string, commit: CommitSummary, call
         text: `Delete ${r.name} on the Server…`,
         action: () => void confirmDeleteRemote(repoId, toRefInfo(r), callbacks),
       })),
+      SEPARATOR,
+      ...mergeItems(repoId, commit, callbacks),
     ],
   });
   await menu.popup();
 }
 
+// "Merge feature into Current Branch…" for each branch or tag on the commit
+// (not the current branch itself), or the bare commit when it has none.
+function mergeItems(repoId: string, commit: CommitSummary, callbacks: BranchCallbacks) {
+  const named = commit.refs.filter((r) => r.kind !== "head" && !r.current);
+  if (named.length === 0) {
+    return [
+      {
+        text: `Merge Commit ${commit.id.slice(0, 8)} into Current Branch…`,
+        action: () => void askMerge(repoId, commit.id, callbacks),
+      },
+    ];
+  }
+  return named.map((r) => ({
+    text: `Merge ${r.name} into Current Branch…`,
+    action: () => void askMerge(repoId, fullNameOf(r), callbacks),
+  }));
+}
+
 // History labels carry short names; the full name follows from the kind.
 function fullNameOf(r: CommitRef): string {
-  return r.kind === "branch" ? `refs/heads/${r.name}` : `refs/remotes/${r.name}`;
+  switch (r.kind) {
+    case "branch":
+      return `refs/heads/${r.name}`;
+    case "tag":
+      return `refs/tags/${r.name}`;
+    default:
+      return `refs/remotes/${r.name}`;
+  }
 }
 
 function toRefInfo(r: CommitRef): RefInfo {
@@ -263,6 +309,44 @@ async function confirmDeleteLocal(repoId: string, branch: RefInfo, callbacks: Br
       await perform(() => deleteBranch(repoId, branch.fullName, true), callbacks);
     }
   }
+}
+
+// Shows what the merge would do first (in the dialog), then merges.
+async function askMerge(repoId: string, source: string, callbacks: BranchCallbacks) {
+  let preview;
+  try {
+    preview = await getMergePreview(repoId, source);
+  } catch (err) {
+    callbacks.onError(toAppError(err));
+    return;
+  }
+  if (preview.upToDate) {
+    await message(`"${preview.branch}" already contains everything in "${preview.source}".`, {
+      title: "Nothing to Merge",
+      kind: "info",
+    });
+    return;
+  }
+  useDialogStore().askMerge({
+    preview,
+    submit: async (mode) => {
+      try {
+        callbacks.onStatus(await mergeIntoCurrent(repoId, source, mode));
+        return null;
+      } catch (err) {
+        const error = toAppError(err);
+        if (error.kind !== "conflict") {
+          // Nothing changed: show it in the dialog, which stays open.
+          return error.message;
+        }
+        // Conflicts: the merge did change files. Close the dialog, show the
+        // new status (conflicted files), then the explanation.
+        await perform(() => getStatus(repoId), callbacks);
+        callbacks.onError(error);
+        return null;
+      }
+    },
+  });
 }
 
 async function confirmDeleteRemote(repoId: string, branch: RefInfo, callbacks: BranchCallbacks) {

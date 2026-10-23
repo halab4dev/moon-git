@@ -2,7 +2,7 @@
 
 Cập nhật lần cuối: 2026-10-23
 
-**Đang ở:** Giai đoạn 3, bước 20b (apply/pop/drop stash) đã code, chờ bạn thử; tiếp theo bước 21 (merge). Bước 12–15 tạm hoãn theo yêu cầu của bạn.
+**Đang ở:** Giai đoạn 3, bước 21a (merge) đã code, chờ bạn thử; tiếp theo 21b (trạng thái đang merge: Abort, message điền sẵn, merge commit / commit thường). Bước 12–15 tạm hoãn theo yêu cầu của bạn.
 
 Ký hiệu: ✅ xong · 🟡 đang làm / chờ xác nhận · ⏸ tạm hoãn · ⬜ chưa làm
 
@@ -49,7 +49,8 @@ Giải thích chi tiết từng bước: [docs/learning/](learning/README.md)
 |---|---|---|
 | 20a | Stash: tạo (message, tùy chọn gồm untracked), tab Stashes (danh sách + nội dung) | ✅ 136 Rust + 17 Vitest |
 | 20b | Stash: apply, pop, drop (xác nhận), conflict khi apply | ✅ 141 Rust + 17 Vitest |
-| 21 | Merge: `--no-ff` hoặc `--squash` / `--no-commit` | ⬜ |
+| 21a | Merge giống SmartGit: Fast-Forward / Create Merge-Commit (`--no-ff`) / Merge to Working Tree (`--no-ff --no-commit`) | ✅ 149 Rust + 17 Vitest |
+| 21b | Đang merge: dòng báo + Abort (xác nhận), message điền sẵn, chọn merge commit / commit thường khi commit | ⬜ |
 | 22 | Rebase (không interactive) | ⬜ |
 | 23 | Cherry-pick: giữ commit hoặc `-n` | ⬜ |
 | 24 | Xử lý conflict: phát hiện trạng thái, ours/theirs, công cụ ngoài, Continue/Abort | ⬜ |
@@ -88,6 +89,7 @@ Giải thích chi tiết từng bước: [docs/learning/](learning/README.md)
 - Chi tiết commit: merge so với cha thứ nhất (như SmartGit); chỉ nhận commit id dạng hex.
 - Branch: dùng `git switch` (không `checkout`), `--no-guess`, không bao giờ `--force`; checkout remote = tạo branch local cùng tên theo dõi nó. Xóa branch chưa merge: hỏi lần 2 rồi mới `--force`. Xóa trên server dùng `refs/heads/<tên>` để không trúng tag.
 - Stash: kiểm tra trước khi stash (git báo thành công cả khi không có gì); nhận diện stash bằng id, không bằng số thứ tự; xem nội dung bằng `CommitDetails` (W so với HEAD lúc stash, U cho file untracked). Apply không dùng `--index` (mọi thay đổi về dạng chưa stage); pop bị conflict thì stash được giữ.
+- Merge làm giống SmartGit (bạn chọn, 2026-10-23): ba lựa chọn Fast-Forward / Create Merge-Commit / Merge to Working Tree; mặc định luôn là Create Merge-Commit (bạn chọn). App tự viết message merge (truyền tên ref đầy đủ cho git).
 - Graph: làn không dịch ngang, cột trống được dùng lại; `LaneLayout` tính dần theo trang; vẽ SVG mỗi dòng, tối đa 20 làn hiển thị.
 
 ## Việc còn treo
@@ -110,4 +112,5 @@ Giải thích chi tiết từng bước: [docs/learning/](learning/README.md)
 - [x] Bước 19b đã xác nhận và commit.
 - [x] Bước 20a đã xác nhận và commit.
 - [x] Bước 20b đã xác nhận và commit.
+- [x] Bước 21a đã xác nhận và commit.
 - [ ] Bước 12–15 (credential, account + keyring, user.name/email theo repo, SSH key) **tạm hoãn** (2026-10-21), làm lại sau giai đoạn 2 hoặc khi bạn yêu cầu.

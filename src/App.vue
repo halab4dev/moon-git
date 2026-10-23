@@ -2,6 +2,7 @@
 import { onMounted } from "vue";
 import AppSidebar from "./components/AppSidebar.vue";
 import CloneDialog from "./components/CloneDialog.vue";
+import MergeDialog from "./components/MergeDialog.vue";
 import NameDialog from "./components/NameDialog.vue";
 import RepoView from "./views/RepoView.vue";
 import WelcomeView from "./views/WelcomeView.vue";
@@ -25,6 +26,7 @@ onMounted(() => {
   </div>
   <NameDialog />
   <CloneDialog />
+  <MergeDialog />
 </template>
 
 <style scoped>

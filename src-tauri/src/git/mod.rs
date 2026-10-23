@@ -7,6 +7,7 @@ pub mod commit;
 pub mod diff;
 pub mod fetch;
 pub mod log;
+pub mod merge;
 pub mod operations;
 pub mod pull;
 pub mod push;
