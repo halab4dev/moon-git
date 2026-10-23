@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, onUnmounted, ref } from "vue";
+import { computed, onMounted, onUnmounted, ref, watch } from "vue";
 import { Menu } from "@tauri-apps/api/menu";
 import BranchStatus from "../components/BranchStatus.vue";
 import CommitBox from "../components/CommitBox.vue";
@@ -16,6 +16,8 @@ import { getStatus } from "../api/status";
 import { stageFiles, unstageFiles } from "../api/stage";
 import { commitChanges } from "../api/commit";
 import { createStash } from "../api/stash";
+import { abortMerge } from "../api/merge";
+import { ask } from "@tauri-apps/plugin-dialog";
 import { useDialogStore } from "../stores/dialogs";
 import { toAppError } from "../api/errors";
 import type { AppError } from "../types/error";
@@ -66,6 +68,33 @@ function readTab(): Tab {
 }
 const commitMessage = ref("");
 const amend = ref(false);
+// During a merge: commit it as an ordinary commit instead of the merge commit.
+const simpleCommit = ref(false);
+
+const merge = computed(() => status.value?.merge ?? null);
+// First line of git's prepared message, e.g. "Merge branch 'feature' into main".
+const mergeTitle = computed(() => merge.value?.message.split("\n")[0] || "Merge");
+
+// A merge started (or the app opened on one): fill in git's prepared message,
+// unless something is typed already. When it ends without our commit
+// (aborted, or committed in a terminal), take that message away again.
+watch(
+  () => merge.value?.message ?? null,
+  (next, previous) => {
+    if (next !== null) {
+      // The Amend box is hidden during a merge (git can't amend then).
+      amend.value = false;
+      if (commitMessage.value.trim() === "") {
+        commitMessage.value = next;
+      }
+    } else if (next === null && previous !== null && previous !== undefined) {
+      if (commitMessage.value === previous) {
+        commitMessage.value = "";
+      }
+      simpleCommit.value = false;
+    }
+  },
+);
 
 const rows = computed(() => (status.value === null ? [] : buildRows(status.value)));
 const selectedRows = computed(() => {
@@ -124,9 +153,11 @@ function unstageSelected() {
 }
 
 async function commitStaged() {
-  if (await run(() => commitChanges(props.repo.id, commitMessage.value, amend.value))) {
+  const asSimple = merge.value !== null && simpleCommit.value;
+  if (await run(() => commitChanges(props.repo.id, commitMessage.value, amend.value, asSimple))) {
     commitMessage.value = "";
     amend.value = false;
+    simpleCommit.value = false;
   }
 }
 
@@ -158,6 +189,21 @@ const branchCallbacks: BranchCallbacks = {
   onStatus: applyStatus,
   onError: (err) => (error.value = err),
 };
+
+// The merge's own changes leave the working tree; changes made before it are
+// kept (git refuses to merge over files with local changes it would touch).
+async function confirmAbortMerge() {
+  if (working.value) {
+    return;
+  }
+  const confirmed = await ask(
+    `Abort "${mergeTitle.value}"?\n\nThe changes the merge brought into the working tree are removed, including any conflict fixes you made. The branch stays where it was.`,
+    { title: "Abort Merge", kind: "warning", okLabel: "Abort Merge", cancelLabel: "Cancel" },
+  );
+  if (confirmed) {
+    await run(() => abortMerge(props.repo.id));
+  }
+}
 
 // "Stash…": message (optional) and whether to include untracked files.
 // Errors are shown inside the dialog, which stays open.
@@ -273,6 +319,19 @@ onUnmounted(() => {
       <button :disabled="working" title="Reload changed files and history" @click="refresh">Refresh</button>
     </div>
 
+    <!-- Blue while the merge just waits for its commit, red while files conflict. -->
+    <div v-if="merge" class="merge-banner" :class="{ conflicts: status && status.conflicted.length > 0 }">
+      <span>
+        <strong>Merging:</strong> {{ mergeTitle }}.
+        <template v-if="status && status.conflicted.length > 0">
+          {{ status.conflicted.length }} file(s) have conflicts: fix them, then stage them.
+        </template>
+        <template v-else>Review the changes, then commit to finish.</template>
+      </span>
+      <span class="spacer"></span>
+      <button :disabled="working" title="Undo the merge (git merge --abort)" @click="confirmAbortMerge">Abort Merge</button>
+    </div>
+
     <p v-if="error" class="err message">{{ error.message }}</p>
 
     <!-- v-show, not v-if: switching tabs keeps the selection and the diff. -->
@@ -300,7 +359,9 @@ onUnmounted(() => {
       <CommitBox
         v-model:message="commitMessage"
         v-model:amend="amend"
+        v-model:simple="simpleCommit"
         :repo-id="repo.id"
+        :merging="merge !== null"
         :staged-count="stagedCount"
         :busy="working"
         @commit="commitStaged"
@@ -359,6 +420,31 @@ h1 {
 
 .spacer {
   flex: 1;
+}
+
+.merge-banner {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+  padding: 6px 10px;
+  border: 1px solid var(--accent);
+  border-left-width: 4px;
+  border-radius: 6px;
+  background: var(--info-bg);
+}
+
+.merge-banner.conflicts {
+  border-color: var(--danger);
+  background: var(--danger-bg);
+}
+
+.merge-banner strong {
+  color: var(--accent);
+}
+
+.merge-banner.conflicts strong {
+  color: var(--danger);
 }
 
 .muted {

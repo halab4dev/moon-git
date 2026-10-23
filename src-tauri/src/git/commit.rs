@@ -13,7 +13,12 @@ use crate::models::HeadCommit;
 /// With `amend`, the last commit is replaced instead: its changes plus
 /// whatever is staged now, under the new message. Nothing staged is fine
 /// then (only the message changes).
-pub fn commit(repo: &Path, message: &str, amend: bool) -> Result<(), AppError> {
+///
+/// During a merge, the commit becomes the merge commit (two parents). With
+/// `simple`, it becomes an ordinary commit instead (one parent, like
+/// `merge --squash`): the same changes, but the history does not record
+/// that the other branch was merged. SmartGit offers the same choice.
+pub fn commit(repo: &Path, message: &str, amend: bool, simple: bool) -> Result<(), AppError> {
     if message.trim().is_empty() {
         return Err(invalid("Enter a commit message."));
     }
@@ -29,6 +34,11 @@ pub fn commit(repo: &Path, message: &str, amend: bool) -> Result<(), AppError> {
             "Some files still have conflicts. Resolve them before committing.",
         ));
     }
+    if amend && status.merge.is_some() {
+        return Err(invalid(
+            "A merge is in progress. Commit or abort it before amending.",
+        ));
+    }
     if !amend && status.staged.is_empty() {
         return Err(invalid(
             "Nothing is staged. Stage the files you want to commit first.",
@@ -38,6 +48,13 @@ pub fn commit(repo: &Path, message: &str, amend: bool) -> Result<(), AppError> {
     // -F -: read the message from stdin, so it can never be taken for an option.
     // --cleanup=whitespace: only trim blank lines/spaces; keep lines starting
     // with '#' (e.g. "#123 fix login"), which the default for an editor would drop.
+    if simple && status.merge.is_some() {
+        // git makes a merge commit whenever MERGE_HEAD exists; removing it
+        // turns this into an ordinary commit. git removes the other merge
+        // files (MERGE_MSG, MERGE_MODE) itself after committing.
+        run_git(repo, &["update-ref", "-d", "MERGE_HEAD"])?;
+    }
+
     let mut args = vec!["commit", "--quiet", "--cleanup=whitespace", "-F", "-"];
     if amend {
         args.push("--amend");
@@ -133,7 +150,7 @@ mod tests {
         write_and_stage(root, "a.txt", "a\n");
         fs::write(root.join("not-staged.txt"), "x\n").unwrap();
 
-        commit(root, "First commit", false).unwrap();
+        commit(root, "First commit", false, false).unwrap();
 
         assert_eq!(commit_count(root), 1);
         assert_eq!(files_in_head(root), "a.txt\n");
@@ -150,7 +167,7 @@ mod tests {
         // A message that looks like an option must not be read as one.
         let message = "--amend is not an option here\n\n#123 body line\n- item";
 
-        commit(root, message, false).unwrap();
+        commit(root, message, false, false).unwrap();
 
         assert_eq!(head_commit(root).unwrap().unwrap().message, message);
     }
@@ -160,10 +177,10 @@ mod tests {
         let dir = new_repo();
         let root = dir.path();
         write_and_stage(root, "a.txt", "a\n");
-        commit(root, "Frist", false).unwrap();
+        commit(root, "Frist", false, false).unwrap();
         write_and_stage(root, "b.txt", "b\n");
 
-        commit(root, "First", true).unwrap();
+        commit(root, "First", true, false).unwrap();
 
         assert_eq!(commit_count(root), 1);
         assert_eq!(files_in_head(root), "a.txt\nb.txt\n");
@@ -175,9 +192,9 @@ mod tests {
         let dir = new_repo();
         let root = dir.path();
         write_and_stage(root, "a.txt", "a\n");
-        commit(root, "old message", false).unwrap();
+        commit(root, "old message", false, false).unwrap();
 
-        commit(root, "new message", true).unwrap();
+        commit(root, "new message", true, false).unwrap();
 
         assert_eq!(commit_count(root), 1);
         assert_eq!(head_commit(root).unwrap().unwrap().message, "new message");
@@ -190,16 +207,16 @@ mod tests {
         write_and_stage(root, "a.txt", "a\n");
 
         assert_eq!(
-            commit(root, "  \n ", false).unwrap_err().kind,
+            commit(root, "  \n ", false, false).unwrap_err().kind,
             ErrorKind::InvalidInput
         );
         assert_eq!(
-            commit(root, "msg", true).unwrap_err().kind,
+            commit(root, "msg", true, false).unwrap_err().kind,
             ErrorKind::InvalidInput
         );
 
-        commit(root, "msg", false).unwrap();
-        let err = commit(root, "again", false).unwrap_err();
+        commit(root, "msg", false, false).unwrap();
+        let err = commit(root, "again", false, false).unwrap_err();
         assert_eq!(err.kind, ErrorKind::InvalidInput);
         assert!(err.message.contains("Nothing is staged"), "{}", err.message);
     }
@@ -209,17 +226,17 @@ mod tests {
         let dir = new_repo();
         let root = dir.path();
         write_and_stage(root, "a.txt", "base\n");
-        commit(root, "base", false).unwrap();
+        commit(root, "base", false, false).unwrap();
         git(root, &["checkout", "--quiet", "-b", "other"]);
         write_and_stage(root, "a.txt", "other\n");
-        commit(root, "other", false).unwrap();
+        commit(root, "other", false, false).unwrap();
         git(root, &["checkout", "--quiet", "-"]);
         write_and_stage(root, "a.txt", "main\n");
-        commit(root, "main", false).unwrap();
+        commit(root, "main", false, false).unwrap();
         // Exits non-zero because of the conflict; that is the point.
         let _ = run_git(root, &["merge", "--quiet", "other"]);
 
-        let err = commit(root, "merge", false).unwrap_err();
+        let err = commit(root, "merge", false, false).unwrap_err();
         assert_eq!(err.kind, ErrorKind::InvalidInput);
         assert!(err.message.contains("conflicts"), "{}", err.message);
     }
@@ -239,14 +256,14 @@ mod tests {
         let remote_path = remote.path().to_string_lossy().to_string();
         git(root, &["remote", "add", "origin", &remote_path]);
         write_and_stage(root, "a.txt", "a\n");
-        commit(root, "pushed", false).unwrap();
+        commit(root, "pushed", false, false).unwrap();
         git(root, &["push", "--quiet", "origin", "HEAD:refs/heads/main"]);
         git(root, &["fetch", "--quiet", "origin"]);
 
         assert!(head_commit(root).unwrap().unwrap().pushed);
 
         write_and_stage(root, "b.txt", "b\n");
-        commit(root, "local only", false).unwrap();
+        commit(root, "local only", false, false).unwrap();
         assert!(!head_commit(root).unwrap().unwrap().pushed);
     }
 
@@ -260,5 +277,61 @@ mod tests {
 
         let other = AppError::new(ErrorKind::GitFailed, "hook failed".to_string());
         assert_eq!(explain_commit_error(other).kind, ErrorKind::GitFailed);
+    }
+
+    // main and "other" both have a commit; "other" merged into main without
+    // committing (like "Merge to Working Tree").
+    fn merge_waiting_for_commit() -> TempDir {
+        let dir = new_repo();
+        let root = dir.path();
+        git(root, &["symbolic-ref", "HEAD", "refs/heads/main"]);
+        write_and_stage(root, "base.txt", "base\n");
+        commit(root, "base", false, false).unwrap();
+        git(root, &["switch", "--quiet", "--create", "other"]);
+        write_and_stage(root, "other.txt", "other\n");
+        commit(root, "other", false, false).unwrap();
+        git(root, &["switch", "--quiet", "main"]);
+        write_and_stage(root, "main.txt", "main\n");
+        commit(root, "main", false, false).unwrap();
+        git(
+            root,
+            &["merge", "--quiet", "--no-ff", "--no-commit", "other"],
+        );
+        dir
+    }
+
+    fn parent_count(dir: &Path) -> usize {
+        git(dir, &["log", "-1", "--format=%P"])
+            .split_whitespace()
+            .count()
+    }
+
+    #[test]
+    fn commit_during_a_merge_is_the_merge_commit() {
+        let dir = merge_waiting_for_commit();
+        let root = dir.path();
+        commit(root, "Merge other", false, false).unwrap();
+        assert_eq!(parent_count(root), 2);
+        assert_eq!(read_status(root).unwrap().merge, None);
+    }
+
+    #[test]
+    fn simple_commit_during_a_merge_has_one_parent() {
+        let dir = merge_waiting_for_commit();
+        let root = dir.path();
+        commit(root, "Bring in other", false, true).unwrap();
+        assert_eq!(parent_count(root), 1);
+        assert_eq!(files_in_head(root), "base.txt\nmain.txt\nother.txt\n");
+        assert_eq!(read_status(root).unwrap().merge, None);
+    }
+
+    #[test]
+    fn no_amend_during_a_merge() {
+        let dir = merge_waiting_for_commit();
+        let root = dir.path();
+        let err = commit(root, "x", true, false).unwrap_err();
+        assert_eq!(err.kind, ErrorKind::InvalidInput);
+        // Still merging.
+        assert!(read_status(root).unwrap().merge.is_some());
     }
 }

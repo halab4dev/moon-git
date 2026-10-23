@@ -34,3 +34,17 @@ pub async fn merge_into_current(
     })
     .await
 }
+
+/// `git merge --abort` (the UI asks first). Returns the new status.
+#[tauri::command]
+pub async fn abort_merge(
+    repo_id: String,
+    store: State<'_, RepoStore>,
+) -> Result<RepoStatus, AppError> {
+    let repo = store.repo_path(&repo_id)?;
+    run_blocking(move || {
+        git::merge::abort(&repo)?;
+        git::status::read_status(&repo)
+    })
+    .await
+}

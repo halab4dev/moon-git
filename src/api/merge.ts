@@ -12,3 +12,8 @@ export function getMergePreview(repoId: string, source: string): Promise<MergePr
 export function mergeIntoCurrent(repoId: string, source: string, mode: MergeMode): Promise<RepoStatus> {
   return invoke<RepoStatus>("merge_into_current", { repoId, source, mode });
 }
+
+/** `git merge --abort`; resolves with the new status. */
+export function abortMerge(repoId: string): Promise<RepoStatus> {
+  return invoke<RepoStatus>("abort_merge", { repoId });
+}

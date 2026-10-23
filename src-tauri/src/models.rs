@@ -88,6 +88,17 @@ pub struct RepoStatus {
     pub unstaged: Vec<FileChange>,
     pub untracked: Vec<FileChange>,
     pub conflicted: Vec<FileChange>,
+    /// Set while a merge waits for its commit (step 21b): after "Merge to
+    /// Working Tree", or after a merge stopped on conflicts.
+    pub merge: Option<MergeState>,
+}
+
+#[derive(Debug, Default, Clone, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct MergeState {
+    /// The message git prepared for the merge commit (.git/MERGE_MSG),
+    /// without git's "#" comment lines. Empty if there is none.
+    pub message: String,
 }
 
 /// The checked-out branch and how it compares with its upstream

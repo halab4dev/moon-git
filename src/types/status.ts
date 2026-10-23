@@ -37,4 +37,11 @@ export interface RepoStatus {
   unstaged: FileChange[];
   untracked: FileChange[];
   conflicted: FileChange[];
+  /** Set while a merge waits for its commit; null otherwise. */
+  merge: MergeState | null;
+}
+
+export interface MergeState {
+  /** The message git prepared for the merge commit; may be empty. */
+  message: string;
 }

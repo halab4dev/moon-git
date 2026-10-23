@@ -10,11 +10,51 @@
 // XY: X = change in the index (staged), Y = change in the working tree; "." = none.
 // Docs: `git help status`, section "Porcelain Format Version 2".
 
+use std::fs;
 use std::path::Path;
 
 use crate::error::{AppError, ErrorKind};
 use crate::git::runner::run_git;
-use crate::models::{BranchInfo, ChangeKind, FileChange, RepoStatus};
+use crate::models::{BranchInfo, ChangeKind, FileChange, MergeState, RepoStatus};
+
+// Not part of `git status --porcelain`: git keeps the merge state in files
+// inside .git (MERGE_HEAD = the commit being merged, MERGE_MSG = its message).
+// --git-path: where those files are, also for worktrees and custom git dirs.
+fn merge_state(repo: &Path) -> Result<Option<MergeState>, AppError> {
+    let output = run_git(
+        repo,
+        &[
+            "rev-parse",
+            "--git-path",
+            "MERGE_HEAD",
+            "--git-path",
+            "MERGE_MSG",
+        ],
+    )?;
+    let mut lines = output.lines();
+    let (Some(head), Some(msg)) = (lines.next(), lines.next()) else {
+        return Err(unexpected(&output));
+    };
+    // The paths are relative to the repo folder (or absolute; join keeps those).
+    if !repo.join(head).is_file() {
+        return Ok(None);
+    }
+    let raw = fs::read_to_string(repo.join(msg)).unwrap_or_default();
+    Ok(Some(MergeState {
+        message: clean_message(&raw),
+    }))
+}
+
+// git adds hints as "#" lines (e.g. "# Conflicts:" with the file names);
+// an editor would drop them, so the prefilled message drops them too.
+fn clean_message(raw: &str) -> String {
+    raw.lines()
+        .filter(|line| !line.starts_with('#'))
+        .collect::<Vec<_>>()
+        .join("\n")
+        .trim()
+        .to_string()
+}
 
 pub fn read_status(repo: &Path) -> Result<RepoStatus, AppError> {
     let output = run_git(
@@ -32,7 +72,9 @@ pub fn read_status(repo: &Path) -> Result<RepoStatus, AppError> {
             "--untracked-files=all",
         ],
     )?;
-    parse_status(&output)
+    let mut status = parse_status(&output)?;
+    status.merge = merge_state(repo)?;
+    Ok(status)
 }
 
 pub fn parse_status(output: &str) -> Result<RepoStatus, AppError> {

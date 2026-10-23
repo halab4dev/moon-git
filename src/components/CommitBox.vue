@@ -11,10 +11,14 @@ const props = defineProps<{
   repoId: string;
   stagedCount: number;
   busy: boolean;
+  /** A merge waits for its commit: offer merge commit / simple commit instead of Amend. */
+  merging: boolean;
 }>();
 
 const message = defineModel<string>("message", { required: true });
 const amend = defineModel<boolean>("amend", { required: true });
+// During a merge: false = the merge commit (two parents), true = an ordinary commit.
+const simple = defineModel<boolean>("simple", { required: true });
 
 const emit = defineEmits<{
   commit: [];
@@ -30,6 +34,13 @@ let prefilled: string | null = null;
 const canCommit = computed(
   () => !props.busy && message.value.trim() !== "" && (amend.value || props.stagedCount > 0),
 );
+
+const buttonLabel = computed(() => {
+  if (props.merging) {
+    return simple.value ? "Commit" : "Commit Merge";
+  }
+  return amend.value ? "Amend" : "Commit";
+});
 
 const hint = computed(() => {
   if (props.stagedCount > 0) {
@@ -100,14 +111,25 @@ async function submit() {
       @keydown.ctrl.enter.prevent="submit"
     ></textarea>
     <div class="actions">
-      <label class="amend">
+      <template v-if="merging">
+        <!-- :value="false"/"true": the radio sets the boolean model, not a string. -->
+        <label class="choice" title="Two parents: the history shows that the other branch was merged">
+          <input v-model="simple" type="radio" :value="false" :disabled="busy" />
+          Merge commit
+        </label>
+        <label class="choice" title="One parent, like a squash: the same changes, but no link to the other branch">
+          <input v-model="simple" type="radio" :value="true" :disabled="busy" />
+          Simple commit
+        </label>
+      </template>
+      <label v-else class="choice">
         <input v-model="amend" type="checkbox" :disabled="busy" />
         Amend last commit
       </label>
       <span class="muted">{{ hint }}</span>
       <span class="spacer"></span>
       <button class="primary" :disabled="!canCommit" title="Commit (⌘/Ctrl+Enter)" @click="submit">
-        {{ amend ? "Amend" : "Commit" }}
+        {{ buttonLabel }}
       </button>
     </div>
     <p v-if="note" class="muted note">{{ note }}</p>
@@ -137,7 +159,7 @@ textarea {
   gap: 12px;
 }
 
-.amend {
+.choice {
   display: flex;
   align-items: center;
   gap: 4px;

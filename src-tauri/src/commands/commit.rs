@@ -7,16 +7,18 @@ use crate::models::{HeadCommit, RepoStatus};
 use crate::storage::repos::RepoStore;
 
 /// Commits (or amends) and returns the new status, like stage/unstage.
+/// `simple_commit`: during a merge, make an ordinary commit, not the merge commit.
 #[tauri::command]
 pub async fn commit_changes(
     repo_id: String,
     message: String,
     amend: bool,
+    simple_commit: bool,
     store: State<'_, RepoStore>,
 ) -> Result<RepoStatus, AppError> {
     let repo = store.repo_path(&repo_id)?;
     run_blocking(move || {
-        git::commit::commit(&repo, &message, amend)?;
+        git::commit::commit(&repo, &message, amend, simple_commit)?;
         git::status::read_status(&repo)
     })
     .await

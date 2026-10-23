@@ -79,6 +79,16 @@ pub fn merge(repo: &Path, source: &str, mode: MergeMode) -> Result<(), AppError>
     }
 }
 
+/// Undoes the merge that waits for its commit: the branch stays where it
+/// was, and the merged changes leave the working tree. (The UI asks first.)
+pub fn abort(repo: &Path) -> Result<(), AppError> {
+    if !merge_in_progress(repo) {
+        return Err(invalid("There is no merge in progress.".to_string()));
+    }
+    run_git(repo, &["merge", "--abort"])?;
+    Ok(())
+}
+
 /// A merge stopped before its commit: "to the working tree", or because of
 /// conflicts. (`MERGE_HEAD` exists until it is committed or aborted.)
 pub fn merge_in_progress(repo: &Path) -> bool {
@@ -375,5 +385,51 @@ mod tests {
             assert!(merge(root, bad, MergeMode::MergeCommit).is_err(), "{bad}");
         }
         assert_eq!(parents_of_head(root), 1);
+    }
+
+    #[test]
+    fn status_shows_the_merge_with_its_message() {
+        let dir = diverged();
+        let root = dir.path();
+        assert_eq!(read_status(root).unwrap().merge, None);
+
+        merge(root, "refs/heads/feature", MergeMode::WorkingTree).unwrap();
+
+        let state = read_status(root).unwrap().merge.unwrap();
+        assert_eq!(state.message, "Merge branch 'feature' into main");
+    }
+
+    #[test]
+    fn conflict_hints_are_left_out_of_the_message() {
+        let dir = diverged();
+        let root = dir.path();
+        fs::write(root.join("init.txt"), "main\n").unwrap();
+        git(root, &["commit", "--quiet", "-am", "main side"]);
+        git(root, &["switch", "--quiet", "feature"]);
+        fs::write(root.join("init.txt"), "feature\n").unwrap();
+        git(root, &["commit", "--quiet", "-am", "feature side"]);
+        git(root, &["switch", "--quiet", "main"]);
+        merge(root, "refs/heads/feature", MergeMode::MergeCommit).unwrap_err();
+
+        // git's MERGE_MSG ends with "# Conflicts:" and "#\tinit.txt" lines.
+        let state = read_status(root).unwrap().merge.unwrap();
+        assert_eq!(state.message, "Merge branch 'feature' into main");
+    }
+
+    #[test]
+    fn abort_undoes_the_merge() {
+        let dir = diverged();
+        let root = dir.path();
+        let before = git(root, &["rev-parse", "HEAD"]);
+        merge(root, "refs/heads/feature", MergeMode::WorkingTree).unwrap();
+
+        abort(root).unwrap();
+
+        let status = read_status(root).unwrap();
+        assert_eq!(status.merge, None);
+        assert!(status.staged.is_empty());
+        assert!(!root.join("f.txt").exists());
+        assert_eq!(git(root, &["rev-parse", "HEAD"]), before);
+        assert_eq!(abort(root).unwrap_err().kind, ErrorKind::InvalidInput);
     }
 }

@@ -67,6 +67,7 @@ pub fn run() {
             commands::stash::run_stash_action,
             commands::merge::get_merge_preview,
             commands::merge::merge_into_current,
+            commands::merge::abort_merge,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
