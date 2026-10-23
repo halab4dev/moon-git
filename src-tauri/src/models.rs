@@ -310,3 +310,21 @@ pub struct MergePreview {
     /// The branch has no commits of its own, so it can just move forward.
     pub can_fast_forward: bool,
 }
+
+/// What rebasing the current branch would do (step 22), shown before starting.
+#[derive(Debug, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RebasePreview {
+    /// The current branch, whose commits are replayed.
+    pub branch: String,
+    /// Short name of the target: "feature", "origin/x", "v1.0", "1234abcd".
+    pub onto: String,
+    /// The branch already starts from the target: nothing to do.
+    pub up_to_date: bool,
+    /// Commits of the branch that are not in the target (they get replayed).
+    /// 0 = the branch just moves forward to the target.
+    pub commits: u32,
+    /// How many of those are already on a remote branch. Rewriting them
+    /// means the next push needs --force.
+    pub pushed: u32,
+}

@@ -11,6 +11,7 @@ pub mod merge;
 pub mod operations;
 pub mod pull;
 pub mod push;
+pub mod rebase;
 pub mod refs;
 pub mod repo;
 pub mod runner;

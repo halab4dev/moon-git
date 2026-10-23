@@ -12,6 +12,7 @@ use std::path::Path;
 
 use crate::error::{AppError, ErrorKind};
 use crate::git::commit::explain_commit_error;
+use crate::git::rebase::rebase_in_progress;
 use crate::git::refs::list_refs;
 use crate::git::runner::run_git;
 use crate::git::show::check_commit_id;
@@ -59,6 +60,11 @@ pub fn merge(repo: &Path, source: &str, mode: MergeMode) -> Result<(), AppError>
             "A merge is already in progress. Commit it or abort it first.".to_string(),
         ));
     }
+    if rebase_in_progress(repo) {
+        return Err(invalid(
+            "A rebase is in progress. Finish it or abort it first.".to_string(),
+        ));
+    }
 
     // Our own message: git's default would say "Merge branch 'refs/heads/x'",
     // because the full ref name is what we pass (to never mix up a branch
@@ -95,11 +101,12 @@ pub fn merge_in_progress(repo: &Path) -> bool {
     run_git(repo, &["rev-parse", "--quiet", "--verify", "MERGE_HEAD"]).is_ok()
 }
 
-struct Source {
+// Also used by rebase.rs, which accepts the same kinds of targets.
+pub(crate) struct Source {
     /// What git is given: a full ref name or a commit id.
-    revision: String,
+    pub revision: String,
     /// Short name shown to the user: "feature", "origin/feature", "v1.0", "1234abcd".
-    label: String,
+    pub label: String,
     kind: Option<RefKind>,
 }
 
@@ -118,7 +125,7 @@ impl Source {
 
 // Only a branch, remote branch or tag that exists, or a commit id: never
 // anything git would read as an option or a revision expression.
-fn resolve_source(repo: &Path, source: &str) -> Result<Source, AppError> {
+pub(crate) fn resolve_source(repo: &Path, source: &str) -> Result<Source, AppError> {
     if source.starts_with("refs/") {
         let refs = list_refs(repo)?;
         let found = refs
@@ -144,14 +151,15 @@ fn resolve_source(repo: &Path, source: &str) -> Result<Source, AppError> {
     })
 }
 
-fn current_branch(repo: &Path) -> Result<String, AppError> {
-    read_status(repo)?.branch.name.ok_or_else(|| {
-        invalid("HEAD is detached. Check out the branch to merge into first.".to_string())
-    })
+pub(crate) fn current_branch(repo: &Path) -> Result<String, AppError> {
+    read_status(repo)?
+        .branch
+        .name
+        .ok_or_else(|| invalid("HEAD is detached. Check out a branch first.".to_string()))
 }
 
 // ^{commit}: for a tag, the commit it points at (not the tag object).
-fn commit_of(repo: &Path, revision: &str) -> Result<String, AppError> {
+pub(crate) fn commit_of(repo: &Path, revision: &str) -> Result<String, AppError> {
     let spec = format!("{revision}^{{commit}}");
     let out = run_git(
         repo,

@@ -3,6 +3,7 @@
 use std::path::Path;
 
 use crate::error::{AppError, ErrorKind};
+use crate::git::rebase::rebase_in_progress;
 use crate::git::repo::has_commits;
 use crate::git::runner::{run_git, run_git_with_input};
 use crate::git::status::read_status;
@@ -32,6 +33,14 @@ pub fn commit(repo: &Path, message: &str, amend: bool, simple: bool) -> Result<(
     if !status.conflicted.is_empty() {
         return Err(invalid(
             "Some files still have conflicts. Resolve them before committing.",
+        ));
+    }
+    // Halfway through a rebase, HEAD is detached on a replayed commit; a
+    // commit made now would not end up where the user expects.
+    if rebase_in_progress(repo) {
+        return Err(invalid(
+            "A rebase is in progress. Finish it with `git rebase --continue` (or undo it with \
+             `git rebase --abort`) in a terminal.",
         ));
     }
     if amend && status.merge.is_some() {

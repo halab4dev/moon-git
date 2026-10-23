@@ -11,6 +11,7 @@ import {
 import { toAppError } from "../api/errors";
 import { listRefs } from "../api/log";
 import { getMergePreview, mergeIntoCurrent } from "../api/merge";
+import { getRebasePreview, rebaseCurrent } from "../api/rebase";
 import { getStatus } from "../api/status";
 import { useDialogStore } from "../stores/dialogs";
 import { renameInSavedSelection } from "./refSelection";
@@ -92,6 +93,7 @@ export async function showBranchMenu(repoId: string, callbacks: BranchCallbacks)
             { text: `Rename "${current.name}"…`, action: () => askRename(repoId, current, callbacks) },
             ...upstreamMenu(repoId, current, remote, callbacks),
             ...mergeMenu(repoId, current, [...others, ...remote], callbacks),
+            ...rebaseMenu(repoId, current, [...others, ...remote], callbacks),
           ]
         : []),
       ...(others.length > 0 || remote.length > 0 ? [SEPARATOR] : []),
@@ -162,6 +164,22 @@ function mergeMenu(repoId: string, current: RefInfo, sources: RefInfo[], callbac
   ];
 }
 
+// "Rebase main onto ▸": the same targets as merging.
+function rebaseMenu(repoId: string, current: RefInfo, targets: RefInfo[], callbacks: BranchCallbacks) {
+  if (targets.length === 0) {
+    return [];
+  }
+  return [
+    {
+      text: `Rebase "${current.name}" onto`,
+      items: targets.map((info) => ({
+        text: `${info.name}…`,
+        action: () => void confirmRebase(repoId, info.fullName, callbacks),
+      })),
+    },
+  ];
+}
+
 /** Right-click on a commit in the History tab. */
 export async function showCommitMenu(repoId: string, commit: CommitSummary, callbacks: BranchCallbacks) {
   const local = commit.refs.filter((r) => r.kind === "branch");
@@ -196,6 +214,7 @@ export async function showCommitMenu(repoId: string, commit: CommitSummary, call
       })),
       SEPARATOR,
       ...mergeItems(repoId, commit, callbacks),
+      ...rebaseItems(repoId, commit, callbacks),
     ],
   });
   await menu.popup();
@@ -216,6 +235,23 @@ function mergeItems(repoId: string, commit: CommitSummary, callbacks: BranchCall
   return named.map((r) => ({
     text: `Merge ${r.name} into Current Branch…`,
     action: () => void askMerge(repoId, fullNameOf(r), callbacks),
+  }));
+}
+
+// "Rebase Current Branch onto feature…", like mergeItems.
+function rebaseItems(repoId: string, commit: CommitSummary, callbacks: BranchCallbacks) {
+  const named = commit.refs.filter((r) => r.kind !== "head" && !r.current);
+  if (named.length === 0) {
+    return [
+      {
+        text: `Rebase Current Branch onto Commit ${commit.id.slice(0, 8)}…`,
+        action: () => void confirmRebase(repoId, commit.id, callbacks),
+      },
+    ];
+  }
+  return named.map((r) => ({
+    text: `Rebase Current Branch onto ${r.name}…`,
+    action: () => void confirmRebase(repoId, fullNameOf(r), callbacks),
   }));
 }
 
@@ -347,6 +383,50 @@ async function askMerge(repoId: string, source: string, callbacks: BranchCallbac
       }
     },
   });
+}
+
+// Rebasing rewrites commits, so it always asks first, and says plainly when
+// some of those commits are already on the server.
+async function confirmRebase(repoId: string, onto: string, callbacks: BranchCallbacks) {
+  let preview;
+  try {
+    preview = await getRebasePreview(repoId, onto);
+  } catch (err) {
+    callbacks.onError(toAppError(err));
+    return;
+  }
+  const { branch, commits, pushed } = preview;
+  if (preview.upToDate) {
+    await message(`"${branch}" already starts from "${preview.onto}".`, { title: "Nothing to Rebase", kind: "info" });
+    return;
+  }
+  let text =
+    commits === 0
+      ? `"${branch}" has no commits of its own: it simply moves forward to "${preview.onto}".`
+      : `The ${commits} commit(s) of "${branch}" that are not in "${preview.onto}" will be replayed on top of it, as new commits.`;
+  if (pushed > 0) {
+    text += `\n\n${pushed} of them are already pushed. Afterwards, pushing "${branch}" needs --force (MoonGit never forces), and anyone who pulled them has to fix their copy.`;
+  }
+  const confirmed = await ask(text, {
+    title: `Rebase "${branch}" onto "${preview.onto}"`,
+    kind: pushed > 0 ? "warning" : "info",
+    okLabel: "Rebase",
+    cancelLabel: "Cancel",
+  });
+  if (!confirmed) {
+    return;
+  }
+  try {
+    callbacks.onStatus(await rebaseCurrent(repoId, onto));
+  } catch (err) {
+    // On conflicts the rebase changed files and waits halfway: show that
+    // status first, then the explanation.
+    const error = toAppError(err);
+    if (error.kind === "conflict") {
+      await perform(() => getStatus(repoId), callbacks);
+    }
+    callbacks.onError(error);
+  }
 }
 
 async function confirmDeleteRemote(repoId: string, branch: RefInfo, callbacks: BranchCallbacks) {
