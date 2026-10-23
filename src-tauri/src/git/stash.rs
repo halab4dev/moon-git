@@ -1,4 +1,5 @@
-// Stashes (step 20): put local changes aside, list what was put aside.
+// Stashes (step 20): put local changes aside, list what was put aside,
+// and apply / pop / drop them.
 //
 // A stash is stored as a commit (with 2 or 3 parents) that only the reflog of
 // refs/stash points at, so it never shows up in the history of a branch.
@@ -9,7 +10,7 @@ use crate::error::{AppError, ErrorKind};
 use crate::git::repo::has_commits;
 use crate::git::runner::run_git;
 use crate::git::status::read_status;
-use crate::models::StashEntry;
+use crate::models::{StashAction, StashEntry};
 
 // One record per stash (-z: NUL-terminated), fields split by \x1f.
 // %ct: when the stash was made. %gs: the reflog message, e.g.
@@ -77,6 +78,94 @@ pub fn list(repo: &Path) -> Result<Vec<StashEntry>, AppError> {
         ],
     )?;
     parse_list(&output)
+}
+
+/// Runs `action` on the stash with commit `id`.
+///
+/// The frontend sends the id, not the position: `stash@{n}` shifts whenever a
+/// stash is added or dropped, and a stale position could drop the wrong one.
+/// The position is looked up again right before running git.
+pub fn run(repo: &Path, id: &str, action: StashAction) -> Result<(), AppError> {
+    let stash = list(repo)?
+        .into_iter()
+        .find(|s| s.id == id)
+        .ok_or_else(|| {
+            AppError::new(
+                ErrorKind::NotFound,
+                "This stash no longer exists. The list has been reloaded.".to_string(),
+            )
+        })?;
+    // Built from a number, so it can never be taken for an option.
+    let name = format!("stash@{{{}}}", stash.index);
+
+    if action == StashAction::Drop {
+        run_git(repo, &["stash", "drop", "--quiet", &name])?;
+        return Ok(());
+    }
+
+    // git refuses too, but with a message about the index that is hard to read.
+    if !read_status(repo)?.conflicted.is_empty() {
+        return Err(invalid(
+            "Some files have conflicts. Resolve them before applying a stash.",
+        ));
+    }
+    let command = if action == StashAction::Pop {
+        "pop"
+    } else {
+        "apply"
+    };
+    match run_git(repo, &["stash", command, "--quiet", &name]) {
+        Ok(_) => Ok(()),
+        Err(err) => Err(explain_apply_error(repo, err)),
+    }
+}
+
+// The three ways applying fails, in words that say what to do.
+fn explain_apply_error(repo: &Path, err: AppError) -> AppError {
+    // Like pull: git reports conflicts on stdout, so the status is what
+    // tells reliably whether applying stopped on conflicts.
+    if let Ok(status) = read_status(repo) {
+        let count = status.conflicted.len();
+        if count > 0 {
+            return AppError::new(
+                ErrorKind::Conflict,
+                format!(
+                    "The stash was applied, but {count} file(s) have conflicts. Fix them in your \
+                     editor, then stage them. The stash was kept, so nothing is lost. \
+                     Resolving conflicts inside MoonGit comes in a later step."
+                ),
+            );
+        }
+    }
+    // "error: Your local changes to the following files would be overwritten
+    // by merge:\n\ta.txt\n\tb.txt\nPlease commit …": the files are the lines
+    // starting with a tab.
+    if err.message.contains("would be overwritten") {
+        let files: Vec<&str> = err
+            .message
+            .lines()
+            .filter_map(|line| line.strip_prefix('\t'))
+            .collect();
+        return invalid(&format!(
+            "Applying the stash would overwrite your uncommitted changes to: {}. \
+             Commit or stash them first. Nothing was changed.",
+            files.join(", ")
+        ));
+    }
+    // "u.txt already exists, no checkout"
+    if err.message.contains("already exists, no checkout") {
+        let files: Vec<&str> = err
+            .message
+            .lines()
+            .filter_map(|line| line.strip_suffix(" already exists, no checkout"))
+            .collect();
+        return invalid(&format!(
+            "The stash contains untracked files that already exist here: {}. \
+             Move or delete them first.",
+            files.join(", ")
+        ));
+    }
+    err
 }
 
 fn parse_list(output: &str) -> Result<Vec<StashEntry>, AppError> {
@@ -234,5 +323,104 @@ mod tests {
         assert_eq!(stashes[1].untracked.as_deref(), Some("ggg"));
         assert_eq!(stashes[1].time, 200);
         assert!(parse_list("only-id\0").is_err());
+    }
+
+    // A repo with a.txt committed, and one stash changing it to `text`.
+    fn repo_with_stash(text: &str) -> TempDir {
+        let dir = new_repo();
+        let root = dir.path();
+        commit_file(root, "a.txt");
+        fs::write(root.join("a.txt"), text).unwrap();
+        create(root, "", false).unwrap();
+        dir
+    }
+
+    fn read(root: &Path, name: &str) -> String {
+        fs::read_to_string(root.join(name)).unwrap()
+    }
+
+    #[test]
+    fn apply_keeps_the_stash_and_pop_drops_it() {
+        let dir = repo_with_stash("stashed\n");
+        let root = dir.path();
+        let id = list(root).unwrap()[0].id.clone();
+
+        run(root, &id, StashAction::Apply).unwrap();
+        assert_eq!(read(root, "a.txt"), "stashed\n");
+        assert_eq!(list(root).unwrap().len(), 1);
+
+        git(root, &["checkout", "--quiet", "--", "a.txt"]);
+        run(root, &id, StashAction::Pop).unwrap();
+        assert_eq!(read(root, "a.txt"), "stashed\n");
+        assert!(list(root).unwrap().is_empty());
+    }
+
+    #[test]
+    fn finds_the_stash_by_id_after_the_list_shifted() {
+        let dir = repo_with_stash("old\n");
+        let root = dir.path();
+        let old = list(root).unwrap()[0].id.clone();
+        // A newer stash moves the old one from stash@{0} to stash@{1}.
+        fs::write(root.join("a.txt"), "new\n").unwrap();
+        create(root, "", false).unwrap();
+
+        run(root, &old, StashAction::Drop).unwrap();
+
+        let left = list(root).unwrap();
+        assert_eq!(left.len(), 1);
+        assert_ne!(left[0].id, old);
+        // Dropping it again: it is gone.
+        let err = run(root, &old, StashAction::Drop).unwrap_err();
+        assert_eq!(err.kind, ErrorKind::NotFound);
+    }
+
+    #[test]
+    fn pop_with_conflicts_keeps_the_stash() {
+        let dir = repo_with_stash("stashed\n");
+        let root = dir.path();
+        let id = list(root).unwrap()[0].id.clone();
+        fs::write(root.join("a.txt"), "committed meanwhile\n").unwrap();
+        git(root, &["commit", "--quiet", "-am", "change"]);
+
+        let err = run(root, &id, StashAction::Pop).unwrap_err();
+
+        assert_eq!(err.kind, ErrorKind::Conflict);
+        assert_eq!(read_status(root).unwrap().conflicted.len(), 1);
+        assert_eq!(list(root).unwrap().len(), 1);
+        // And no second apply on top of the conflicts.
+        let err = run(root, &id, StashAction::Apply).unwrap_err();
+        assert_eq!(err.kind, ErrorKind::InvalidInput);
+    }
+
+    #[test]
+    fn refuses_to_overwrite_uncommitted_changes() {
+        let dir = repo_with_stash("stashed\n");
+        let root = dir.path();
+        let id = list(root).unwrap()[0].id.clone();
+        fs::write(root.join("a.txt"), "work in progress\n").unwrap();
+
+        let err = run(root, &id, StashAction::Apply).unwrap_err();
+
+        assert_eq!(err.kind, ErrorKind::InvalidInput);
+        assert!(err.message.contains("a.txt"), "{}", err.message);
+        assert_eq!(read(root, "a.txt"), "work in progress\n");
+    }
+
+    #[test]
+    fn refuses_to_overwrite_existing_untracked_files() {
+        let dir = new_repo();
+        let root = dir.path();
+        commit_file(root, "a.txt");
+        fs::write(root.join("u.txt"), "stashed\n").unwrap();
+        create(root, "", true).unwrap();
+        let id = list(root).unwrap()[0].id.clone();
+        fs::write(root.join("u.txt"), "mine\n").unwrap();
+
+        let err = run(root, &id, StashAction::Pop).unwrap_err();
+
+        assert_eq!(err.kind, ErrorKind::InvalidInput);
+        assert!(err.message.contains("u.txt"), "{}", err.message);
+        assert_eq!(read(root, "u.txt"), "mine\n");
+        assert_eq!(list(root).unwrap().len(), 1);
     }
 }

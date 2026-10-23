@@ -1,18 +1,34 @@
 <script setup lang="ts">
 import { computed, ref, watch } from "vue";
+import { Menu } from "@tauri-apps/api/menu";
+import { ask } from "@tauri-apps/plugin-dialog";
 import CommitDetails from "../components/CommitDetails.vue";
 import { useSplitRatio } from "../composables/useSplitRatio";
-import { listStashes } from "../api/stash";
+import { listStashes, runStashAction } from "../api/stash";
 import { toAppError } from "../api/errors";
 import type { AppError } from "../types/error";
-import type { StashEntry } from "../types/stash";
+import type { StashAction, StashEntry } from "../types/stash";
+import type { RepoStatus } from "../types/status";
 
 // The Stashes tab: every stash on top, the changes of the selected one below.
 const props = defineProps<{
   repoId: string;
   /** Changes after every new status (e.g. a stash was made): reload then. */
   version: number;
+  /** Another git action is running in this repo: wait. */
+  busy: boolean;
 }>();
+
+const emit = defineEmits<{
+  /** Apply/pop/drop worked: the new status. */
+  statusChanged: [status: RepoStatus];
+  /** It failed (e.g. conflicts). RepoView reloads the status and shows the error. */
+  failed: [error: AppError];
+}>();
+
+// True while a stash action runs, so RepoView blocks other git actions
+// (same idea as SyncButtons' "locked").
+const locked = defineModel<boolean>("locked", { required: true });
 
 const stashes = ref<StashEntry[]>([]);
 const loading = ref(false);
@@ -80,6 +96,54 @@ function move(step: number) {
   document.querySelector(`li[data-stash="${list[next].id}"]`)?.scrollIntoView({ block: "nearest" });
 }
 
+// ---- apply / pop / drop ----
+
+async function perform(stash: StashEntry, action: StashAction) {
+  if (props.busy) {
+    return;
+  }
+  if (action === "drop" && !(await confirmDrop(stash))) {
+    return;
+  }
+  locked.value = true;
+  let failure: AppError | null = null;
+  try {
+    emit("statusChanged", await runStashAction(props.repoId, stash.id, action));
+  } catch (err) {
+    failure = toAppError(err);
+  } finally {
+    locked.value = false;
+  }
+  // After unlocking: RepoView reloads the status first, which it can't while locked.
+  if (failure !== null) {
+    emit("failed", failure);
+  }
+}
+
+// Dropping deletes the changes for good (CLAUDE.md: confirm destructive actions).
+function confirmDrop(stash: StashEntry): Promise<boolean> {
+  return ask(`Drop ${stashName(stash)}?\n\n"${stash.message}"\n\nThe changes in this stash will be lost.`, {
+    title: "Drop Stash",
+    kind: "warning",
+    okLabel: "Drop",
+    cancelLabel: "Cancel",
+  });
+}
+
+async function showMenu(stash: StashEntry) {
+  selectedId.value = stash.id;
+  const enabled = !props.busy;
+  const menu = await Menu.new({
+    items: [
+      { text: "Apply", enabled, action: () => void perform(stash, "apply") },
+      { text: "Pop (Apply and Drop)", enabled, action: () => void perform(stash, "pop") },
+      { item: "Separator" },
+      { text: "Drop…", enabled, action: () => void perform(stash, "drop") },
+    ],
+  });
+  await menu.popup();
+}
+
 // "stash@{0}". (Written here: braces inside {{ }} in the template are confusing.)
 function stashName(stash: StashEntry): string {
   return `stash@{${stash.index}}`;
@@ -97,6 +161,25 @@ const { ratio: listRatio, startResize } = useSplitRatio("split", "moongit.stashe
 <template>
   <div class="stashes">
     <p v-if="error" class="err message">{{ error.message }}</p>
+    <div class="stash-toolbar">
+      <button
+        :disabled="busy || !selected"
+        title="Put the changes of the selected stash back into the working tree; keep the stash"
+        @click="selected && perform(selected, 'apply')"
+      >
+        Apply
+      </button>
+      <button
+        :disabled="busy || !selected"
+        title="Apply the selected stash, then drop it (it is kept if there are conflicts)"
+        @click="selected && perform(selected, 'pop')"
+      >
+        Pop
+      </button>
+      <button :disabled="busy || !selected" title="Delete the selected stash" @click="selected && perform(selected, 'drop')">
+        Drop…
+      </button>
+    </div>
     <div ref="split" class="split">
       <div class="list" :style="{ flexBasis: `${listRatio * 100}%` }">
         <p v-if="stashes.length === 0 && !loading" class="muted">
@@ -109,6 +192,7 @@ const { ratio: listRatio, startResize } = useSplitRatio("split", "moongit.stashe
             :data-stash="stash.id"
             :class="{ selected: stash.id === selectedId }"
             @click="selectedId = stash.id"
+            @contextmenu.prevent="showMenu(stash)"
           >
             <span class="ref">{{ stashName(stash) }}</span>
             <span class="text">{{ stash.message }}</span>
@@ -135,6 +219,12 @@ const { ratio: listRatio, startResize } = useSplitRatio("split", "moongit.stashe
   flex-direction: column;
   height: 100%;
   min-height: 0;
+}
+
+.stash-toolbar {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 6px;
 }
 
 .split {

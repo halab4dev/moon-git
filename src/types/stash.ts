@@ -14,3 +14,6 @@ export interface StashEntry {
   /** "On main: <message>", or "WIP on main: <commit>" without a message. */
   message: string;
 }
+
+/** Mirrors StashAction in models.rs. */
+export type StashAction = "apply" | "pop" | "drop";

@@ -34,8 +34,10 @@ const statusVersion = ref(0);
 const busy = ref(false);
 // Set by SyncButtons while a pull may change files.
 const syncLocked = ref(false);
-// Staging and committing must wait for both.
-const working = computed(() => busy.value || syncLocked.value);
+// Set by StashView while a stash is applied, popped or dropped.
+const stashLocked = ref(false);
+// Staging and committing must wait for all of them.
+const working = computed(() => busy.value || syncLocked.value || stashLocked.value);
 const error = ref<AppError | null>(null);
 const selectedPaths = ref<string[]>([]);
 
@@ -143,6 +145,13 @@ function applyStatus(next: RepoStatus) {
   status.value = next;
   statusVersion.value++;
   error.value = null;
+}
+
+// A stash action failed: it may still have changed files (conflicts), so
+// reload, then show the error (same order as onSyncFinished).
+async function onStashFailed(stashError: AppError) {
+  await refresh();
+  error.value = stashError;
 }
 
 const branchCallbacks: BranchCallbacks = {
@@ -306,7 +315,16 @@ onUnmounted(() => {
       :version="statusVersion"
       @status-changed="applyStatus"
     />
-    <StashView v-if="tab === 'stashes'" class="pane" :repo-id="repo.id" :version="statusVersion" />
+    <StashView
+      v-if="tab === 'stashes'"
+      v-model:locked="stashLocked"
+      class="pane"
+      :repo-id="repo.id"
+      :version="statusVersion"
+      :busy="working"
+      @status-changed="applyStatus"
+      @failed="onStashFailed"
+    />
   </section>
 </template>
 

@@ -3,7 +3,7 @@ use tauri::State;
 use super::run_blocking;
 use crate::error::AppError;
 use crate::git;
-use crate::models::{RepoStatus, StashEntry};
+use crate::models::{RepoStatus, StashAction, StashEntry};
 use crate::storage::repos::RepoStore;
 
 /// Returns the new status: the stashed changes are gone from the working tree.
@@ -29,4 +29,21 @@ pub async fn list_stashes(
 ) -> Result<Vec<StashEntry>, AppError> {
     let repo = store.repo_path(&repo_id)?;
     run_blocking(move || git::stash::list(&repo)).await
+}
+
+/// Apply, pop or drop the stash with commit `id` (not its position, which
+/// shifts). Returns the new status; on conflicts, fails with kind "conflict".
+#[tauri::command]
+pub async fn run_stash_action(
+    repo_id: String,
+    id: String,
+    action: StashAction,
+    store: State<'_, RepoStore>,
+) -> Result<RepoStatus, AppError> {
+    let repo = store.repo_path(&repo_id)?;
+    run_blocking(move || {
+        git::stash::run(&repo, &id, action)?;
+        git::status::read_status(&repo)
+    })
+    .await
 }

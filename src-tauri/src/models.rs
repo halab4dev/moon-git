@@ -261,3 +261,15 @@ pub struct StashEntry {
     /// "On main: <message>", or "WIP on main: <commit>" without a message.
     pub message: String,
 }
+
+/// What to do with a stash (step 20b). Sent by the frontend.
+#[derive(Debug, Clone, Copy, PartialEq, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub enum StashAction {
+    /// Put the changes back into the working tree; keep the stash.
+    Apply,
+    /// Apply, then drop the stash, but only if applying went without conflicts.
+    Pop,
+    /// Delete the stash. Its changes are lost (the UI asks first).
+    Drop,
+}
