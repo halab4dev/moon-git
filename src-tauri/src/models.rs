@@ -417,3 +417,37 @@ pub enum CherryPickAction {
     /// Undo the cherry-pick.
     Abort,
 }
+
+/// How to resolve a conflicted file (step 24a). Sent by the frontend.
+#[derive(Debug, Clone, Copy, PartialEq, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub enum ConflictChoice {
+    /// The whole file as on our side (the current branch; during a rebase:
+    /// the branch rebased onto).
+    Ours,
+    /// The whole file as on their side (the merged branch, the picked
+    /// commit; during a rebase: your commit being replayed).
+    Theirs,
+    /// Fixed by hand: stage the file as it is now.
+    Resolved,
+}
+
+/// What the conflict solver window shows for one file (step 24b). The texts
+/// are None when that version does not exist, or the file can't be edited
+/// as text (binary, not UTF-8, too large).
+#[derive(Debug, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ConflictVersions {
+    /// The common ancestor (stage 1); None if both sides added the file.
+    pub base: Option<String>,
+    /// Our version (stage 2).
+    pub ours: Option<String>,
+    /// Their version (stage 3).
+    pub theirs: Option<String>,
+    /// The file in the working tree, with git's conflict markers.
+    pub merged: Option<String>,
+    pub binary: bool,
+    pub too_large: bool,
+    /// One side deleted the file: nothing to merge line by line.
+    pub missing_side: bool,
+}

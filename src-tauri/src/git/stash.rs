@@ -130,9 +130,8 @@ fn explain_apply_error(repo: &Path, err: AppError) -> AppError {
             return AppError::new(
                 ErrorKind::Conflict,
                 format!(
-                    "The stash was applied, but {count} file(s) have conflicts. Fix them in your \
-                     editor, then stage them. The stash was kept, so nothing is lost. \
-                     Resolving conflicts inside MoonGit comes in a later step."
+                    "The stash was applied, but {count} file(s) have conflicts. Double-click a file \
+                     to resolve it. The stash was kept, so nothing is lost."
                 ),
             );
         }

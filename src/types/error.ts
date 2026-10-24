@@ -17,6 +17,7 @@ export type ErrorKind =
   | "conflict"
   | "pushRejected"
   | "notMerged"
+  | "conflictMarkers"
   | "unknown";
 
 export interface AppError {

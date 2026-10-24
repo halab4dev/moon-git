@@ -87,19 +87,14 @@ fn explain_pull_error(repo: &Path, mode: PullMode, err: AppError) -> AppError {
         let count = status.conflicted.len();
         if count > 0 {
             let next = match mode {
-                PullMode::Rebase => {
-                    "stage them, then run `git rebase --continue` in a terminal \
-                     (or `git rebase --abort` to undo the pull)"
-                }
-                _ => {
-                    "stage them and commit (or run `git merge --abort` in a terminal to undo the pull)"
-                }
+                PullMode::Rebase => "then Continue in the Rebasing bar (Abort undoes the pull)",
+                _ => "then commit (Abort Merge undoes the pull)",
             };
             return AppError::new(
                 ErrorKind::Conflict,
                 format!(
-                    "The pull stopped because {count} file(s) have conflicts. Fix them in your editor, \
-                     {next}. Resolving conflicts inside MoonGit comes in a later step."
+                    "The pull stopped because {count} file(s) have conflicts. Double-click a file to \
+                     resolve it, {next}."
                 ),
             );
         }

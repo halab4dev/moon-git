@@ -22,8 +22,8 @@ const MAX_FILE_SIZE: u64 = 5 * 1024 * 1024;
 /// git's own rule: a NUL byte in the first 8000 bytes means "binary".
 const BINARY_CHECK_LEN: usize = 8000;
 
-/// One version of the file.
-enum Version {
+/// One version of the file. (Also used by conflict.rs.)
+pub(crate) enum Version {
     Missing,
     TooLarge,
     Content(Vec<u8>),
@@ -124,7 +124,7 @@ fn make_diff(old: Version, new: Version, old_label: &str, new_label: &str) -> Fi
     diff
 }
 
-fn is_binary(version: &Version) -> bool {
+pub(crate) fn is_binary(version: &Version) -> bool {
     match version {
         Version::Content(bytes) => {
             let checked = &bytes[..bytes.len().min(BINARY_CHECK_LEN)];
@@ -143,7 +143,7 @@ fn to_text(version: Version) -> Option<String> {
 }
 
 /// Reads a file version stored in git, e.g. "HEAD:src/a.rs".
-fn read_blob(repo: &Path, spec: &str) -> Result<Version, AppError> {
+pub(crate) fn read_blob(repo: &Path, spec: &str) -> Result<Version, AppError> {
     // `cat-file -s` prints the size, and fails when that version does not exist
     // (new file, deleted file, no commit yet). That failure just means "Missing".
     let size = match run_git(repo, &["cat-file", "-s", spec]) {
@@ -159,7 +159,7 @@ fn read_blob(repo: &Path, spec: &str) -> Result<Version, AppError> {
     )?))
 }
 
-fn read_working_file(repo: &Path, path: &str) -> Result<Version, AppError> {
+pub(crate) fn read_working_file(repo: &Path, path: &str) -> Result<Version, AppError> {
     let full = repo.join(path);
     // symlink_metadata looks at the link itself instead of following it.
     let meta = match fs::symlink_metadata(&full) {

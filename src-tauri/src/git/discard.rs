@@ -89,7 +89,7 @@ fn plan(status: &RepoStatus, paths: &[String], has_commits: bool) -> Result<Plan
     for path in paths {
         if status.conflicted.iter().any(|f| &f.path == path) {
             return Err(invalid(format!(
-                "\"{path}\" has conflicts. Resolving conflicts (keep ours / theirs) comes in a later step."
+                "\"{path}\" has conflicts. Double-click it to resolve the conflict instead."
             )));
         }
         if status.untracked.iter().any(|f| &f.path == path) {

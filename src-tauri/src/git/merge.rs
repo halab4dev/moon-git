@@ -183,9 +183,8 @@ fn explain_merge_error(repo: &Path, err: AppError) -> AppError {
             return AppError::new(
                 ErrorKind::Conflict,
                 format!(
-                    "The merge stopped because {count} file(s) have conflicts. Fix them in your \
-                     editor, stage them and commit (or run `git merge --abort` in a terminal to \
-                     undo the merge). Resolving conflicts inside MoonGit comes in a later step."
+                    "The merge stopped because {count} file(s) have conflicts. Double-click a file \
+                     to resolve it, then commit. Abort Merge undoes the merge."
                 ),
             );
         }

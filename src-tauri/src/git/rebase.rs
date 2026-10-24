@@ -164,7 +164,7 @@ pub fn run(repo: &Path, action: RebaseAction) -> Result<(), AppError> {
         RebaseAction::Continue => {
             if !status.conflicted.is_empty() {
                 return Err(invalid(format!(
-                    "{} file(s) still have conflicts. Fix them and stage them, then continue.",
+                    "{} file(s) still have conflicts. Double-click each one to resolve it, then continue.",
                     status.conflicted.len()
                 )));
             }
@@ -198,7 +198,7 @@ fn explain_continue_error(repo: &Path, err: AppError) -> AppError {
                 ErrorKind::Conflict,
                 format!(
                     "The rebase stopped again: {count} file(s) of the next commit have conflicts. \
-                     Fix them, stage them, then continue."
+                     Resolve them, then continue."
                 ),
             );
         }
@@ -235,10 +235,8 @@ fn explain_rebase_error(repo: &Path, err: AppError) -> AppError {
             return AppError::new(
                 ErrorKind::Conflict,
                 format!(
-                    "The rebase stopped because {count} file(s) have conflicts. Fix them in your \
-                     editor and stage them (for now with `git add` in a terminal; staging \
-                     conflicted files in MoonGit comes with conflict handling), then click \
-                     Continue. Abort undoes the rebase."
+                    "The rebase stopped because {count} file(s) have conflicts. Double-click a file \
+                     to resolve it, then Continue. Abort undoes the rebase."
                 ),
             );
         }

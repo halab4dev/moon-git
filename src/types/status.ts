@@ -67,3 +67,19 @@ export interface MergeState {
   /** The message git prepared for the merge commit; may be empty. */
   message: string;
 }
+
+/** Mirrors ConflictChoice in models.rs. */
+export type ConflictChoice = "ours" | "theirs" | "resolved";
+
+/** Mirrors ConflictVersions in models.rs. Texts are null when missing or not editable as text. */
+export interface ConflictVersions {
+  base: string | null;
+  ours: string | null;
+  theirs: string | null;
+  /** The file with git's conflict markers. */
+  merged: string | null;
+  binary: boolean;
+  tooLarge: boolean;
+  /** One side deleted the file. */
+  missingSide: boolean;
+}

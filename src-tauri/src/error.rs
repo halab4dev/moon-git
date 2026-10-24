@@ -30,6 +30,8 @@ pub enum ErrorKind {
     PushRejected,
     /// A branch to delete has commits that no other branch contains.
     NotMerged,
+    /// A file to mark as resolved still contains <<<<<<< / ======= / >>>>>>>.
+    ConflictMarkers,
 }
 
 #[derive(Debug, Serialize)]

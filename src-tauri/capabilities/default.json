@@ -1,10 +1,11 @@
 {
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "default",
-  "description": "Capability for the main window and the diff windows",
+  "description": "Capability for the main window, the diff windows and the conflict windows",
   "windows": [
     "main",
-    "diff-*"
+    "diff-*",
+    "conflict-*"
   ],
   "permissions": [
     "core:default",
@@ -13,6 +14,8 @@
     "core:window:allow-unminimize",
     "dialog:allow-open",
     "dialog:allow-ask",
-    "dialog:allow-message"
+    "dialog:allow-message",
+    "core:window:allow-close",
+    "core:window:allow-destroy"
   ]
 }

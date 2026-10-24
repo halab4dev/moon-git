@@ -74,7 +74,7 @@ pub fn run(repo: &Path, action: CherryPickAction) -> Result<(), AppError> {
     let status = read_status(repo)?;
     if !status.conflicted.is_empty() {
         return Err(invalid(format!(
-            "{} file(s) still have conflicts. Fix them and stage them, then continue.",
+            "{} file(s) still have conflicts. Double-click each one to resolve it, then continue.",
             status.conflicted.len()
         )));
     }
@@ -107,14 +107,13 @@ fn explain_pick_error(repo: &Path, mode: CherryPickMode, err: AppError) -> AppEr
         if count > 0 {
             let next = match mode {
                 CherryPickMode::Commit => {
-                    "Fix them, stage them (for now with `git add` in a terminal), then click \
-                     Continue. Abort undoes the cherry-pick."
+                    "Double-click a file to resolve it, then Continue. Abort undoes the \
+                     cherry-pick."
                 }
                 // No CHERRY_PICK_HEAD with --no-commit: there is nothing to
                 // continue or abort, only files to fix.
                 CherryPickMode::WorkingTree => {
-                    "Fix them and stage them; the changes stay uncommitted. To undo instead, \
-                     run `git reset --merge` in a terminal."
+                    "Double-click a file to resolve it; the changes stay uncommitted. To undo instead, run `git reset --merge` in a terminal."
                 }
             };
             return AppError::new(

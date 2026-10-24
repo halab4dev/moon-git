@@ -10,11 +10,11 @@ import OperationBanner from "../components/OperationBanner.vue";
 import StashView from "./StashView.vue";
 import SyncButtons from "../components/SyncButtons.vue";
 import { buildRows, type FileRow } from "../components/fileRows";
-import { openDiffWindow } from "../windows";
+import { openConflictWindow, openDiffWindow } from "../windows";
 import { useSplitRatio } from "../composables/useSplitRatio";
 import { showBranchMenu, type BranchCallbacks } from "../components/branchMenus";
 import { getStatus } from "../api/status";
-import { discardChanges, stageFiles, unstageFiles } from "../api/stage";
+import { discardChanges, resolveConflicts, stageFiles, unstageFiles } from "../api/stage";
 import { commitChanges } from "../api/commit";
 import { createStash } from "../api/stash";
 import { abortMerge } from "../api/merge";
@@ -27,7 +27,7 @@ import { useDialogStore } from "../stores/dialogs";
 import { toAppError } from "../api/errors";
 import type { AppError } from "../types/error";
 import type { RepoEntry } from "../types/repo";
-import type { RepoStatus } from "../types/status";
+import type { ConflictChoice, RepoStatus } from "../types/status";
 
 const props = defineProps<{
   repo: RepoEntry;
@@ -80,6 +80,14 @@ const merge = computed(() => status.value?.merge ?? null);
 const rebase = computed(() => status.value?.rebase ?? null);
 const conflictCount = computed(() => status.value?.conflicted.length ?? 0);
 const cherryPick = computed(() => status.value?.cherryPick ?? null);
+
+// A conflict error says the same as the coloured bar (Merging / Rebasing /
+// Cherry-picking), so don't repeat it below the bar. Without a bar (stash
+// apply, cherry-pick to the working tree) the error line is the only notice.
+const shownError = computed(() => {
+  const hasBar = merge.value !== null || rebase.value !== null || cherryPick.value !== null;
+  return error.value?.kind === "conflict" && hasBar ? null : error.value;
+});
 // e.g. `"main" onto 1234abcd, commit 1 of 2 (5678ef90 Fix login)`
 const rebaseTitle = computed(() => {
   const state = rebase.value;
@@ -122,7 +130,7 @@ const stagedCount = computed(() => status.value?.staged.length ?? 0);
 const diffRow = computed(() => (selectedRows.value.length === 1 ? selectedRows.value[0] : null));
 
 // Conflicted files are left out on purpose: `git add` on them means
-// "conflict resolved", which belongs to conflict handling (step 15).
+// "conflict resolved", which goes through Mark Resolved (step 24a).
 const pathsToStage = computed(() =>
   selectedRows.value.filter((row) => row.hasUnstaged && row.state !== "conflicted").map((row) => row.path),
 );
@@ -159,7 +167,76 @@ function refresh() {
   return run(() => getStatus(props.repo.id));
 }
 
-// Conflicted files are left out, as for staging (ours/theirs comes in step 24).
+// ---- conflicts (step 24a) ----
+
+const conflictedPaths = computed(() =>
+  selectedRows.value.filter((row) => row.state === "conflicted").map((row) => row.path),
+);
+
+// What "ours" and "theirs" are right now, in words. Careful with rebase:
+// there "ours" is the branch rebased onto, and "theirs" your own commit.
+const sides = computed(() => {
+  const s = status.value;
+  if (s?.rebase) {
+    return {
+      ours: `${s.rebase.onto.slice(0, 8)} (rebasing onto)`,
+      theirs: s.rebase.stoppedAt ? `your commit ${s.rebase.stoppedAt.slice(0, 8)}` : "your commit",
+    };
+  }
+  const branch = s?.branch.name ?? "HEAD";
+  if (s?.cherryPick) {
+    return { ours: branch, theirs: s.cherryPick.commit.slice(0, 8) };
+  }
+  if (s?.merge) {
+    // "Merge branch 'feature' into main" → feature
+    const merged = /'([^']+)'/.exec(s.merge.message)?.[1];
+    return { ours: branch, theirs: merged ?? "the merged branch" };
+  }
+  // A stash apply or a cherry-pick to the working tree: no state to name it.
+  return { ours: branch, theirs: "the other side" };
+});
+
+// Buttons stay short: long names are cut.
+function short(name: string): string {
+  return name.length > 24 ? `${name.slice(0, 23)}…` : name;
+}
+
+async function resolveSelected(choice: ConflictChoice) {
+  const paths = conflictedPaths.value;
+  if (working.value || paths.length === 0) {
+    return;
+  }
+  const list = paths.length === 1 ? `"${paths[0]}"` : `${paths.length} files`;
+  // Taking a side replaces the whole file: edits made to it are lost.
+  if (choice !== "resolved") {
+    const side = choice === "ours" ? sides.value.ours : sides.value.theirs;
+    const confirmed = await ask(
+      `Replace ${list} with the version from ${side}?\n\nThe changes from the other side, and any edits you made to the file, are lost.`,
+      { title: choice === "ours" ? "Take Ours" : "Take Theirs", kind: "warning", okLabel: "Replace", cancelLabel: "Cancel" },
+    );
+    if (!confirmed) {
+      return;
+    }
+  }
+  const resolve = (force: boolean) => () => resolveConflicts(props.repo.id, paths, choice, force);
+  if (await run(resolve(false))) {
+    return;
+  }
+  // Markers left: maybe on purpose (e.g. a file that documents them); ask.
+  if (error.value?.kind === "conflictMarkers") {
+    const confirmed = await ask(`${error.value.message}\n\nMark as resolved anyway?`, {
+      title: "Conflict Markers Left",
+      kind: "warning",
+      okLabel: "Mark Resolved",
+      cancelLabel: "Keep Editing",
+    });
+    if (confirmed) {
+      await run(resolve(true));
+    }
+  }
+}
+
+// Conflicted files are left out, as for staging (resolve them instead).
 const rowsToDiscard = computed(() => selectedRows.value.filter((row) => row.state !== "conflicted"));
 
 // States whose file HEAD doesn't have: discarding moves it to the Trash.
@@ -357,17 +434,45 @@ async function showRowMenu() {
       { text: "Unstage", enabled: pathsToUnstage.value.length > 0, action: () => void unstageSelected() },
       { item: "Separator" },
       { text: "Discard…", enabled: rowsToDiscard.value.length > 0, action: () => void discardSelected() },
+      ...(conflictedPaths.value.length > 0
+        ? [
+            { item: "Separator" as const },
+            { text: "Resolve…", enabled: conflictRow.value !== null, action: () => void openSolver() },
+            // Whole-file choices stay here for files the solver can't show
+            // (binary, or deleted on one side).
+            { text: `Take Ours (${short(sides.value.ours)})…`, action: () => void resolveSelected("ours") },
+            { text: `Take Theirs (${short(sides.value.theirs)})…`, action: () => void resolveSelected("theirs") },
+            { text: "Mark Resolved", action: () => void resolveSelected("resolved") },
+          ]
+        : []),
     ],
   });
   await menu.popup();
 }
 
-// Double-click: the whole file with its changes in a separate, resizable window.
+// Double-click: the whole file with its changes in a separate, resizable
+// window; for a conflicted file, the conflict solver (three columns).
 async function openInWindow(row: FileRow) {
   try {
-    await openDiffWindow(props.repo.id, props.repo.name, row);
+    if (row.state === "conflicted") {
+      await openConflictWindow(props.repo.id, props.repo.name, row, sides.value.ours, sides.value.theirs);
+    } else {
+      await openDiffWindow(props.repo.id, props.repo.name, row);
+    }
   } catch (err) {
     error.value = toAppError(err);
+  }
+}
+
+// "Resolve…" works on one conflicted file at a time.
+const conflictRow = computed(() => {
+  const rows = selectedRows.value.filter((row) => row.state === "conflicted");
+  return rows.length === 1 ? rows[0] : null;
+});
+
+function openSolver() {
+  if (conflictRow.value !== null) {
+    void openInWindow(conflictRow.value);
   }
 }
 
@@ -416,6 +521,25 @@ onUnmounted(() => {
         >
           Discard…
         </button>
+        <!-- Only when conflicted files are selected. -->
+        <template v-if="conflictedPaths.length > 0">
+          <span class="separator"></span>
+          <button
+            class="primary"
+            :disabled="conflictRow === null"
+            title="Open the conflict solver for this file (or double-click it)"
+            @click="openSolver"
+          >
+            Resolve…
+          </button>
+          <button
+            :disabled="working"
+            title="You fixed the file by hand: stage it as it is now"
+            @click="resolveSelected('resolved')"
+          >
+            Mark Resolved
+          </button>
+        </template>
       </template>
       <button
         v-if="tab !== 'history'"
@@ -440,7 +564,7 @@ onUnmounted(() => {
     <!-- Blue while the merge just waits for its commit, red while files conflict. -->
     <OperationBanner v-if="merge" label="Merging:" :conflicts="conflictCount > 0">
       {{ mergeTitle }}.
-      <template v-if="conflictCount > 0">{{ conflictCount }} file(s) have conflicts: fix them, then stage them.</template>
+      <template v-if="conflictCount > 0">{{ conflictCount }} file(s) have conflicts: double-click a file to resolve it.</template>
       <template v-else>Review the changes, then commit to finish.</template>
       <template #actions>
         <button :disabled="working" title="Undo the merge (git merge --abort)" @click="confirmAbortMerge">
@@ -451,7 +575,7 @@ onUnmounted(() => {
 
     <OperationBanner v-if="rebase" label="Rebasing:" :conflicts="conflictCount > 0">
       {{ rebaseTitle }}.
-      <template v-if="conflictCount > 0">{{ conflictCount }} file(s) have conflicts: fix them, stage them, then Continue.</template>
+      <template v-if="conflictCount > 0">{{ conflictCount }} file(s) have conflicts: double-click a file to resolve it, then Continue.</template>
       <template v-else>Stage your fixes, then Continue to replay the remaining commits.</template>
       <template #actions>
         <button
@@ -473,7 +597,7 @@ onUnmounted(() => {
 
     <OperationBanner v-if="cherryPick" label="Cherry-picking:" :conflicts="conflictCount > 0">
       {{ cherryPick.commit.slice(0, 8) }} "{{ cherryPick.subject }}".
-      <template v-if="conflictCount > 0">{{ conflictCount }} file(s) have conflicts: fix them, stage them, then Continue.</template>
+      <template v-if="conflictCount > 0">{{ conflictCount }} file(s) have conflicts: double-click a file to resolve it, then Continue.</template>
       <template v-else>Stage your fixes, then Continue to commit it.</template>
       <template #actions>
         <button
@@ -490,7 +614,7 @@ onUnmounted(() => {
       </template>
     </OperationBanner>
 
-    <p v-if="error" class="err message">{{ error.message }}</p>
+    <p v-if="shownError" class="err message">{{ shownError.message }}</p>
 
     <!-- v-show, not v-if: switching tabs keeps the selection and the diff. -->
     <div v-show="tab === 'changes'" class="pane">
@@ -578,6 +702,12 @@ h1 {
 
 .spacer {
   flex: 1;
+}
+
+.separator {
+  width: 1px;
+  align-self: stretch;
+  background: var(--border);
 }
 
 .muted {
