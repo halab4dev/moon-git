@@ -41,6 +41,14 @@ export interface RepoStatus {
   merge: MergeState | null;
   /** Set while a rebase waits halfway; null otherwise. */
   rebase: RebaseState | null;
+  /** Set while a cherry-pick waits after conflicts; null otherwise. */
+  cherryPick: CherryPickState | null;
+}
+
+export interface CherryPickState {
+  /** Full id of the commit being picked. */
+  commit: string;
+  subject: string;
 }
 
 export interface RebaseState {

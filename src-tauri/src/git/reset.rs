@@ -10,6 +10,7 @@
 use std::path::Path;
 
 use crate::error::{AppError, ErrorKind};
+use crate::git::cherry_pick::cherry_pick_in_progress;
 use crate::git::merge::{commit_of, current_branch, merge_in_progress, resolve_source};
 use crate::git::rebase::rebase_in_progress;
 use crate::git::runner::run_git;
@@ -42,9 +43,9 @@ pub fn preview(repo: &Path, target: &str) -> Result<ResetPreview, AppError> {
 pub fn reset(repo: &Path, target: &str, mode: ResetMode) -> Result<(), AppError> {
     let source = resolve_source(repo, target)?;
     current_branch(repo)?;
-    if merge_in_progress(repo) || rebase_in_progress(repo) {
+    if merge_in_progress(repo) || rebase_in_progress(repo) || cherry_pick_in_progress(repo) {
         return Err(invalid(
-            "A merge or rebase is in progress. Finish it or abort it before resetting.",
+            "A merge, rebase or cherry-pick is in progress. Finish it or abort it before resetting.",
         ));
     }
     if !read_status(repo)?.conflicted.is_empty() {

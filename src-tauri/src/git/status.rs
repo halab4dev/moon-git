@@ -16,14 +16,15 @@ use std::path::Path;
 use crate::error::{AppError, ErrorKind};
 use crate::git::rebase::read_rebase_state;
 use crate::git::runner::run_git;
-use crate::models::{BranchInfo, ChangeKind, FileChange, MergeState, RepoStatus};
+use crate::models::{BranchInfo, ChangeKind, CherryPickState, FileChange, MergeState, RepoStatus};
 
 // Not part of `git status --porcelain`: git keeps the state of a merge or
 // rebase that waits halfway in files inside .git:
 // - MERGE_HEAD = the commit being merged, MERGE_MSG = its message (step 21b);
-// - the folder rebase-merge (or rebase-apply) during a rebase (step 22b).
+// - the folder rebase-merge (or rebase-apply) during a rebase (step 22b);
+// - CHERRY_PICK_HEAD while a cherry-pick waits (step 23).
 // --git-path: where those are, also for worktrees and custom git dirs.
-// One git call for all four paths.
+// One git call for all the paths.
 fn add_operation_state(repo: &Path, status: &mut RepoStatus) -> Result<(), AppError> {
     let output = run_git(
         repo,
@@ -37,17 +38,25 @@ fn add_operation_state(repo: &Path, status: &mut RepoStatus) -> Result<(), AppEr
             "rebase-merge",
             "--git-path",
             "rebase-apply",
+            "--git-path",
+            "CHERRY_PICK_HEAD",
         ],
     )?;
     let lines: Vec<&str> = output.lines().collect();
-    let [head, msg, rebase_merge, rebase_apply] = lines[..] else {
+    let [head, msg, rebase_merge, rebase_apply, pick_head] = lines[..] else {
         return Err(unexpected(&output));
     };
     // The paths are relative to the repo folder (or absolute; join keeps those).
+    // MERGE_MSG holds the prepared message for a merge and for a cherry-pick.
+    let message = || clean_message(&fs::read_to_string(repo.join(msg)).unwrap_or_default());
     if repo.join(head).is_file() {
-        let raw = fs::read_to_string(repo.join(msg)).unwrap_or_default();
-        status.merge = Some(MergeState {
-            message: clean_message(&raw),
+        status.merge = Some(MergeState { message: message() });
+    }
+    // CHERRY_PICK_HEAD (step 23): the id of the commit being picked.
+    if let Ok(commit) = fs::read_to_string(repo.join(pick_head)) {
+        status.cherry_pick = Some(CherryPickState {
+            commit: commit.trim().to_string(),
+            subject: message().lines().next().unwrap_or("").to_string(),
         });
     }
     status.rebase = read_rebase_state(&repo.join(rebase_merge))

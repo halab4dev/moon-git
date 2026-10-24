@@ -19,6 +19,8 @@ import { commitChanges } from "../api/commit";
 import { createStash } from "../api/stash";
 import { abortMerge } from "../api/merge";
 import { runRebaseAction } from "../api/rebase";
+import { runCherryPickAction } from "../api/cherryPick";
+import type { CherryPickAction } from "../types/cherryPick";
 import type { RebaseAction } from "../types/rebase";
 import { ask } from "@tauri-apps/plugin-dialog";
 import { useDialogStore } from "../stores/dialogs";
@@ -77,6 +79,7 @@ const simpleCommit = ref(false);
 const merge = computed(() => status.value?.merge ?? null);
 const rebase = computed(() => status.value?.rebase ?? null);
 const conflictCount = computed(() => status.value?.conflicted.length ?? 0);
+const cherryPick = computed(() => status.value?.cherryPick ?? null);
 // e.g. `"main" onto 1234abcd, commit 1 of 2 (5678ef90 Fix login)`
 const rebaseTitle = computed(() => {
   const state = rebase.value;
@@ -289,6 +292,28 @@ async function runRebase(action: RebaseAction) {
   }
 }
 
+// Continue right away; abort asks first.
+async function runCherryPick(action: CherryPickAction) {
+  const state = cherryPick.value;
+  if (working.value || state === null) {
+    return;
+  }
+  if (action === "abort") {
+    const confirmed = await ask(
+      `Abort the cherry-pick of ${state.commit.slice(0, 8)} "${state.subject}"?\n\nIts changes leave the working tree, including any conflict fixes you made.`,
+      { title: "Abort Cherry-Pick", kind: "warning", okLabel: "Abort Cherry-Pick", cancelLabel: "Cancel" },
+    );
+    if (!confirmed) {
+      return;
+    }
+  }
+  if (!(await run(() => runCherryPickAction(props.repo.id, action)))) {
+    const failure = error.value;
+    await refresh();
+    error.value = failure;
+  }
+}
+
 // "Stash…": message (optional) and whether to include untracked files.
 // Errors are shown inside the dialog, which stays open.
 function askStash() {
@@ -446,6 +471,25 @@ onUnmounted(() => {
       </template>
     </OperationBanner>
 
+    <OperationBanner v-if="cherryPick" label="Cherry-picking:" :conflicts="conflictCount > 0">
+      {{ cherryPick.commit.slice(0, 8) }} "{{ cherryPick.subject }}".
+      <template v-if="conflictCount > 0">{{ conflictCount }} file(s) have conflicts: fix them, stage them, then Continue.</template>
+      <template v-else>Stage your fixes, then Continue to commit it.</template>
+      <template #actions>
+        <button
+          class="primary"
+          :disabled="working || conflictCount > 0"
+          title="Commit the result with the original message (git cherry-pick --continue)"
+          @click="runCherryPick('continue')"
+        >
+          Continue
+        </button>
+        <button :disabled="working" title="Undo the cherry-pick (git cherry-pick --abort)" @click="runCherryPick('abort')">
+          Abort…
+        </button>
+      </template>
+    </OperationBanner>
+
     <p v-if="error" class="err message">{{ error.message }}</p>
 
     <!-- v-show, not v-if: switching tabs keeps the selection and the diff. -->
@@ -477,7 +521,7 @@ onUnmounted(() => {
         :repo-id="repo.id"
         :merging="merge !== null"
         :staged-count="stagedCount"
-        :busy="working || rebase !== null"
+        :busy="working || rebase !== null || cherryPick !== null"
         @commit="commitStaged"
       />
     </div>

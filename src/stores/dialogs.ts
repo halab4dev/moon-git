@@ -2,6 +2,7 @@ import { acceptHMRUpdate, defineStore } from "pinia";
 import { ref } from "vue";
 import type { MergeMode, MergePreview } from "../types/merge";
 import type { ResetMode, ResetPreview } from "../types/reset";
+import type { CherryPickMode } from "../types/cherryPick";
 
 // App-wide dialogs live here so any code (e.g. a native menu action) can open
 // them. The dialog components themselves are mounted once, in App.vue.
@@ -36,6 +37,15 @@ export interface ResetRequest {
   submit: (mode: ResetMode) => Promise<string | null>;
 }
 
+export interface CherryPickRequest {
+  commitId: string;
+  subject: string;
+  /** Picked relative to its first parent. */
+  isMerge: boolean;
+  /** Returns an error message to show in the dialog, or null to close it. */
+  submit: (mode: CherryPickMode) => Promise<string | null>;
+}
+
 export interface CloneRequest {
   /** Group the cloned repo goes into; null = top level. */
   groupId: string | null;
@@ -46,6 +56,7 @@ export const useDialogStore = defineStore("dialogs", () => {
   const cloneRequest = ref<CloneRequest | null>(null);
   const mergeRequest = ref<MergeRequest | null>(null);
   const resetRequest = ref<ResetRequest | null>(null);
+  const cherryPickRequest = ref<CherryPickRequest | null>(null);
 
   function askName(request: NameRequest) {
     nameRequest.value = request;
@@ -79,11 +90,20 @@ export const useDialogStore = defineStore("dialogs", () => {
     resetRequest.value = null;
   }
 
+  function askCherryPick(request: CherryPickRequest) {
+    cherryPickRequest.value = request;
+  }
+
+  function closeCherryPick() {
+    cherryPickRequest.value = null;
+  }
+
   return {
     nameRequest,
     cloneRequest,
     mergeRequest,
     resetRequest,
+    cherryPickRequest,
     askName,
     closeName,
     openClone,
@@ -92,6 +112,8 @@ export const useDialogStore = defineStore("dialogs", () => {
     closeMerge,
     askReset,
     closeReset,
+    askCherryPick,
+    closeCherryPick,
   };
 });
 

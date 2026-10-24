@@ -74,6 +74,8 @@ pub fn run() {
             commands::rebase::run_rebase_action,
             commands::reset::get_reset_preview,
             commands::reset::reset_current,
+            commands::cherry_pick::cherry_pick_commit,
+            commands::cherry_pick::run_cherry_pick_action,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

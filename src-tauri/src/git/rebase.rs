@@ -7,6 +7,7 @@ use std::fs;
 use std::path::Path;
 
 use crate::error::{AppError, ErrorKind};
+use crate::git::cherry_pick::cherry_pick_in_progress;
 use crate::git::commit::explain_commit_error;
 use crate::git::merge::{commit_of, current_branch, merge_in_progress, resolve_source};
 use crate::git::runner::{run_git, run_git_without_editor};
@@ -60,9 +61,10 @@ pub fn rebase(repo: &Path, onto: &str) -> Result<(), AppError> {
             "A merge is in progress. Commit it or abort it before rebasing.".to_string(),
         ));
     }
-    if rebase_in_progress(repo) {
+    if rebase_in_progress(repo) || cherry_pick_in_progress(repo) {
         return Err(invalid(
-            "A rebase is already in progress. Finish it or abort it first.".to_string(),
+            "A rebase or cherry-pick is already in progress. Finish it or abort it first."
+                .to_string(),
         ));
     }
     // git refuses too ("cannot rebase: You have unstaged changes"); this

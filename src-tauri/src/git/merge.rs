@@ -11,6 +11,7 @@
 use std::path::Path;
 
 use crate::error::{AppError, ErrorKind};
+use crate::git::cherry_pick::cherry_pick_in_progress;
 use crate::git::commit::explain_commit_error;
 use crate::git::rebase::rebase_in_progress;
 use crate::git::refs::list_refs;
@@ -60,9 +61,9 @@ pub fn merge(repo: &Path, source: &str, mode: MergeMode) -> Result<(), AppError>
             "A merge is already in progress. Commit it or abort it first.".to_string(),
         ));
     }
-    if rebase_in_progress(repo) {
+    if rebase_in_progress(repo) || cherry_pick_in_progress(repo) {
         return Err(invalid(
-            "A rebase is in progress. Finish it or abort it first.".to_string(),
+            "A rebase or cherry-pick is in progress. Finish it or abort it first.".to_string(),
         ));
     }
 

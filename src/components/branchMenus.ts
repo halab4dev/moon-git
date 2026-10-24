@@ -13,6 +13,7 @@ import { listRefs } from "../api/log";
 import { getMergePreview, mergeIntoCurrent } from "../api/merge";
 import { getRebasePreview, rebaseCurrent } from "../api/rebase";
 import { getResetPreview, resetCurrent } from "../api/reset";
+import { cherryPickCommit } from "../api/cherryPick";
 import { getStatus } from "../api/status";
 import { useDialogStore } from "../stores/dialogs";
 import { renameInSavedSelection } from "./refSelection";
@@ -217,6 +218,10 @@ export async function showCommitMenu(repoId: string, commit: CommitSummary, call
       ...mergeItems(repoId, commit, callbacks),
       ...rebaseItems(repoId, commit, callbacks),
       SEPARATOR,
+      {
+        text: "Cherry-Pick…",
+        action: () => askCherryPick(repoId, commit, callbacks),
+      },
       {
         text: "Reset Current Branch to Here…",
         action: () => void askReset(repoId, commit.id, callbacks),
@@ -433,6 +438,30 @@ async function confirmRebase(repoId: string, onto: string, callbacks: BranchCall
     }
     callbacks.onError(error);
   }
+}
+
+// Cherry-pick dialog (Commit / Apply to Working Tree).
+function askCherryPick(repoId: string, commit: CommitSummary, callbacks: BranchCallbacks) {
+  useDialogStore().askCherryPick({
+    commitId: commit.id,
+    subject: commit.subject,
+    isMerge: commit.parents.length > 1,
+    submit: async (mode) => {
+      try {
+        callbacks.onStatus(await cherryPickCommit(repoId, commit.id, mode));
+        return null;
+      } catch (err) {
+        const error = toAppError(err);
+        if (error.kind !== "conflict") {
+          return error.message;
+        }
+        // As for merge: files changed, so close, show the new status, then explain.
+        await perform(() => getStatus(repoId), callbacks);
+        callbacks.onError(error);
+        return null;
+      }
+    },
+  });
 }
 
 // Reset dialog (Soft / Mixed / Hard). `target`: the commit id.

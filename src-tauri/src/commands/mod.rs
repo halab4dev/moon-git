@@ -2,6 +2,7 @@
 // call into git/ or storage/, and return a model.
 
 pub mod branch;
+pub mod cherry_pick;
 pub mod clone;
 pub mod commit;
 pub mod diff;

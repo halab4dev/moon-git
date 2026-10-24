@@ -93,6 +93,17 @@ pub struct RepoStatus {
     pub merge: Option<MergeState>,
     /// Set while a rebase waits halfway, e.g. on conflicts (step 22b).
     pub rebase: Option<RebaseState>,
+    /// Set while a cherry-pick waits after conflicts (step 23).
+    pub cherry_pick: Option<CherryPickState>,
+}
+
+#[derive(Debug, Default, Clone, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CherryPickState {
+    /// Full id of the commit being picked.
+    pub commit: String,
+    /// Its subject (first line of the prepared message).
+    pub subject: String,
 }
 
 #[derive(Debug, Default, Clone, PartialEq, Serialize)]
@@ -385,4 +396,24 @@ pub struct ResetPreview {
     pub pushed: u32,
     /// Files with staged or unstaged changes: Hard throws those changes away.
     pub changed_files: u32,
+}
+
+/// How to cherry-pick (step 23). Sent by the frontend.
+#[derive(Debug, Clone, Copy, PartialEq, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub enum CherryPickMode {
+    /// A new commit with the same changes, message and author.
+    Commit,
+    /// Only the changes, staged, without committing (--no-commit).
+    WorkingTree,
+}
+
+/// What to do with a cherry-pick that waits after conflicts. Sent by the frontend.
+#[derive(Debug, Clone, Copy, PartialEq, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub enum CherryPickAction {
+    /// Commit the resolved result.
+    Continue,
+    /// Undo the cherry-pick.
+    Abort,
 }
