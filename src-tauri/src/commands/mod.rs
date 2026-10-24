@@ -13,6 +13,7 @@ pub mod pull;
 pub mod push;
 pub mod rebase;
 pub mod repo;
+pub mod reset;
 pub mod stage;
 pub mod stash;
 pub mod status;

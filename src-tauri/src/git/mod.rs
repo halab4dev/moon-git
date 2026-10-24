@@ -14,6 +14,7 @@ pub mod push;
 pub mod rebase;
 pub mod refs;
 pub mod repo;
+pub mod reset;
 pub mod runner;
 pub mod search;
 pub mod show;

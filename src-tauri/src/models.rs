@@ -356,3 +356,33 @@ pub enum RebaseAction {
     /// Undo the whole rebase: the branch goes back to where it was.
     Abort,
 }
+
+/// How far a reset goes (step 22c). Sent by the frontend.
+#[derive(Debug, Clone, Copy, PartialEq, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub enum ResetMode {
+    /// Move the branch; keep index and working tree.
+    Soft,
+    /// Move the branch and reset the index; keep the working tree.
+    Mixed,
+    /// Move the branch and reset index and working tree.
+    Hard,
+}
+
+/// What a reset would do, shown in the reset dialog.
+#[derive(Debug, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ResetPreview {
+    /// The current branch, which is moved.
+    pub branch: String,
+    /// Short name of the target: "1234abcd", "feature", "origin/x", "v1.0".
+    pub target: String,
+    /// The target is the current commit (only the files can change).
+    pub is_head: bool,
+    /// Commits on the branch now that it no longer contains afterwards.
+    pub left_behind: u32,
+    /// How many of those are already pushed (the next push would need --force).
+    pub pushed: u32,
+    /// Files with staged or unstaged changes: Hard throws those changes away.
+    pub changed_files: u32,
+}

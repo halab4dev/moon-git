@@ -12,6 +12,7 @@ import { toAppError } from "../api/errors";
 import { listRefs } from "../api/log";
 import { getMergePreview, mergeIntoCurrent } from "../api/merge";
 import { getRebasePreview, rebaseCurrent } from "../api/rebase";
+import { getResetPreview, resetCurrent } from "../api/reset";
 import { getStatus } from "../api/status";
 import { useDialogStore } from "../stores/dialogs";
 import { renameInSavedSelection } from "./refSelection";
@@ -215,6 +216,11 @@ export async function showCommitMenu(repoId: string, commit: CommitSummary, call
       SEPARATOR,
       ...mergeItems(repoId, commit, callbacks),
       ...rebaseItems(repoId, commit, callbacks),
+      SEPARATOR,
+      {
+        text: "Reset Current Branch to Here…",
+        action: () => void askReset(repoId, commit.id, callbacks),
+      },
     ],
   });
   await menu.popup();
@@ -427,6 +433,28 @@ async function confirmRebase(repoId: string, onto: string, callbacks: BranchCall
     }
     callbacks.onError(error);
   }
+}
+
+// Reset dialog (Soft / Mixed / Hard). `target`: the commit id.
+async function askReset(repoId: string, target: string, callbacks: BranchCallbacks) {
+  let preview;
+  try {
+    preview = await getResetPreview(repoId, target);
+  } catch (err) {
+    callbacks.onError(toAppError(err));
+    return;
+  }
+  useDialogStore().askReset({
+    preview,
+    submit: async (mode) => {
+      try {
+        callbacks.onStatus(await resetCurrent(repoId, target, mode));
+        return null;
+      } catch (err) {
+        return toAppError(err).message;
+      }
+    },
+  });
 }
 
 async function confirmDeleteRemote(repoId: string, branch: RefInfo, callbacks: BranchCallbacks) {

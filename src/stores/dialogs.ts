@@ -1,6 +1,7 @@
 import { acceptHMRUpdate, defineStore } from "pinia";
 import { ref } from "vue";
 import type { MergeMode, MergePreview } from "../types/merge";
+import type { ResetMode, ResetPreview } from "../types/reset";
 
 // App-wide dialogs live here so any code (e.g. a native menu action) can open
 // them. The dialog components themselves are mounted once, in App.vue.
@@ -29,6 +30,12 @@ export interface MergeRequest {
   submit: (mode: MergeMode) => Promise<string | null>;
 }
 
+export interface ResetRequest {
+  preview: ResetPreview;
+  /** Returns an error message to show in the dialog, or null to close it. */
+  submit: (mode: ResetMode) => Promise<string | null>;
+}
+
 export interface CloneRequest {
   /** Group the cloned repo goes into; null = top level. */
   groupId: string | null;
@@ -38,6 +45,7 @@ export const useDialogStore = defineStore("dialogs", () => {
   const nameRequest = ref<NameRequest | null>(null);
   const cloneRequest = ref<CloneRequest | null>(null);
   const mergeRequest = ref<MergeRequest | null>(null);
+  const resetRequest = ref<ResetRequest | null>(null);
 
   function askName(request: NameRequest) {
     nameRequest.value = request;
@@ -63,16 +71,27 @@ export const useDialogStore = defineStore("dialogs", () => {
     mergeRequest.value = null;
   }
 
+  function askReset(request: ResetRequest) {
+    resetRequest.value = request;
+  }
+
+  function closeReset() {
+    resetRequest.value = null;
+  }
+
   return {
     nameRequest,
     cloneRequest,
     mergeRequest,
+    resetRequest,
     askName,
     closeName,
     openClone,
     closeClone,
     askMerge,
     closeMerge,
+    askReset,
+    closeReset,
   };
 });
 

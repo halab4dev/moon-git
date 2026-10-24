@@ -71,6 +71,8 @@ pub fn run() {
             commands::rebase::get_rebase_preview,
             commands::rebase::rebase_current,
             commands::rebase::run_rebase_action,
+            commands::reset::get_reset_preview,
+            commands::reset::reset_current,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
