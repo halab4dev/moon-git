@@ -5,6 +5,7 @@ pub mod branch;
 pub mod clone;
 pub mod commit;
 pub mod diff;
+pub mod discard;
 pub mod fetch;
 pub mod log;
 pub mod merge;

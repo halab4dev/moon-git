@@ -2,7 +2,7 @@
 
 Cập nhật lần cuối: 2026-10-24
 
-**Đang ở:** Giai đoạn 3, bước 22c (reset) đã code, chờ bạn thử; tiếp theo bước 23 (cherry-pick). Bước 12–15 tạm hoãn theo yêu cầu của bạn.
+**Đang ở:** Giai đoạn 3, bước 22d (discard) đã code, chờ bạn thử; tiếp theo bước 23 (cherry-pick). Bước 12–15 tạm hoãn theo yêu cầu của bạn.
 
 Ký hiệu: ✅ xong · 🟡 đang làm / chờ xác nhận · ⏸ tạm hoãn · ⬜ chưa làm
 
@@ -54,6 +54,7 @@ Giải thích chi tiết từng bước: [docs/learning/](learning/README.md)
 | 22a | Rebase (không interactive) lên branch/tag/commit, xác nhận trước (cảnh báo khi commit đã push) | ✅ 161 Rust + 17 Vitest |
 | 22b | Đang rebase: dòng báo, Continue / Skip / Abort | ✅ 166 Rust + 17 Vitest |
 | 22c | Reset branch về một commit (History → chuột phải): Soft / Mixed / Hard; Hard xác nhận 2 lần, cảnh báo khi bỏ commit đã push. *Thêm vào lộ trình theo yêu cầu của bạn (2026-10-23), CLAUDE.md không có* | ✅ 173 Rust + 17 Vitest |
+| 22d | Discard thay đổi của file (tab Changes): về HEAD, file mới vào Thùng rác (crate `trash`). *Thêm theo yêu cầu của bạn (2026-10-24), CLAUDE.md không có* | ✅ 179 Rust + 17 Vitest |
 | 23 | Cherry-pick: giữ commit hoặc `-n` | ⬜ |
 | 24 | Xử lý conflict: phát hiện trạng thái, ours/theirs, công cụ ngoài, Continue/Abort | ⬜ |
 
@@ -94,6 +95,7 @@ Giải thích chi tiết từng bước: [docs/learning/](learning/README.md)
 - Merge làm giống SmartGit (bạn chọn, 2026-10-23): ba lựa chọn Fast-Forward / Create Merge-Commit / Merge to Working Tree; mặc định luôn là Create Merge-Commit (bạn chọn). Trạng thái merge đọc từ `MERGE_HEAD`/`MERGE_MSG` (qua `--git-path`) trong `read_status`; Simple commit = xóa `MERGE_HEAD` rồi commit. App tự viết message merge (truyền tên ref đầy đủ cho git).
 - Rebase: luôn hỏi trước (đếm commit sẽ replay và commit đã push); từ chối khi có thay đổi chưa commit, `--no-autostash`; không merge/rebase/commit khi đang rebase dở. Continue chạy với `GIT_EDITOR=true` (giữ message cũ); Skip / Abort luôn hỏi trước. Thanh trạng thái dùng chung `OperationBanner`.
 - Reset được thêm vào lộ trình (bước 22c, bạn yêu cầu 2026-10-23): ba kiểu như SmartGit; Hard luôn hỏi lại lần hai. Mặc định Mixed; truyền commit id đầy đủ cho `git reset` (git 2.33 không nhận `--end-of-options` ở lệnh này).
+- Discard (bước 22d, bạn yêu cầu 2026-10-24): làm giống SmartGit, về HEAD cả staged lẫn unstaged; file HEAD không có thì chuyển vào Thùng rác (bạn chọn, crate `trash`), không xóa hẳn. Chỉ xử lý đường dẫn có trong status; không discard file conflict.
 - Graph: làn không dịch ngang, cột trống được dùng lại; `LaneLayout` tính dần theo trang; vẽ SVG mỗi dòng, tối đa 20 làn hiển thị.
 
 ## Việc còn treo
@@ -121,4 +123,5 @@ Giải thích chi tiết từng bước: [docs/learning/](learning/README.md)
 - [x] Bước 22a đã xác nhận và commit.
 - [x] Bước 22b đã xác nhận và commit.
 - [x] Bước 22c đã commit (2026-10-24, khi bạn chuyển sang 22d).
+- [x] Bước 22d đã xác nhận và commit.
 - [ ] Bước 12–15 (credential, account + keyring, user.name/email theo repo, SSH key) **tạm hoãn** (2026-10-21), làm lại sau giai đoạn 2 hoặc khi bạn yêu cầu.

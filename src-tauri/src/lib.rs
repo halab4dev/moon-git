@@ -43,6 +43,7 @@ pub fn run() {
             commands::status::get_status,
             commands::stage::stage_files,
             commands::stage::unstage_files,
+            commands::stage::discard_changes,
             commands::diff::get_file_diff,
             commands::commit::commit_changes,
             commands::commit::get_head_commit,

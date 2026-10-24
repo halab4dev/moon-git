@@ -14,7 +14,7 @@ import { openDiffWindow } from "../windows";
 import { useSplitRatio } from "../composables/useSplitRatio";
 import { showBranchMenu, type BranchCallbacks } from "../components/branchMenus";
 import { getStatus } from "../api/status";
-import { stageFiles, unstageFiles } from "../api/stage";
+import { discardChanges, stageFiles, unstageFiles } from "../api/stage";
 import { commitChanges } from "../api/commit";
 import { createStash } from "../api/stash";
 import { abortMerge } from "../api/merge";
@@ -156,6 +156,43 @@ function refresh() {
   return run(() => getStatus(props.repo.id));
 }
 
+// Conflicted files are left out, as for staging (ours/theirs comes in step 24).
+const rowsToDiscard = computed(() => selectedRows.value.filter((row) => row.state !== "conflicted"));
+
+// States whose file HEAD doesn't have: discarding moves it to the Trash.
+const NEW_FILE_STATES = new Set(["untracked", "added", "addedModified", "intentToAdd", "renamed", "renamedModified", "copied"]);
+
+async function discardSelected() {
+  const rows = rowsToDiscard.value;
+  if (working.value || rows.length === 0) {
+    return;
+  }
+  // The file list in the question, shortened for long selections.
+  const SHOWN = 10;
+  const names = rows.slice(0, SHOWN).map((row) => `• ${row.path}`);
+  if (rows.length > SHOWN) {
+    names.push(`… and ${rows.length - SHOWN} more`);
+  }
+  const toTrash = rows.filter((row) => NEW_FILE_STATES.has(row.state)).length;
+  const lost = rows.length - toTrash;
+  const notes = [];
+  if (lost > 0) {
+    notes.push(`The changes to ${lost} tracked file(s) are lost for good.`);
+  }
+  if (toTrash > 0) {
+    notes.push(`${toTrash} new or untracked file(s) are moved to the Trash.`);
+  }
+  const confirmed = await ask(`Discard the changes of ${rows.length} file(s)?\n\n${names.join("\n")}\n\n${notes.join(" ")}`, {
+    title: "Discard Changes",
+    kind: "warning",
+    okLabel: "Discard",
+    cancelLabel: "Cancel",
+  });
+  if (confirmed) {
+    await run(() => discardChanges(props.repo.id, rows.map((row) => row.path)));
+  }
+}
+
 function stageSelected() {
   const paths = pathsToStage.value;
   return paths.length === 0 ? Promise.resolve() : run(() => stageFiles(props.repo.id, paths));
@@ -293,6 +330,8 @@ async function showRowMenu() {
     items: [
       { text: "Stage", enabled: pathsToStage.value.length > 0, action: () => void stageSelected() },
       { text: "Unstage", enabled: pathsToUnstage.value.length > 0, action: () => void unstageSelected() },
+      { item: "Separator" },
+      { text: "Discard…", enabled: rowsToDiscard.value.length > 0, action: () => void discardSelected() },
     ],
   });
   await menu.popup();
@@ -344,6 +383,13 @@ onUnmounted(() => {
         </button>
         <button :disabled="working || pathsToUnstage.length === 0" title="Unstage selected files" @click="unstageSelected">
           Unstage
+        </button>
+        <button
+          :disabled="working || rowsToDiscard.length === 0"
+          title="Throw away the changes of the selected files (new files go to the Trash)"
+          @click="discardSelected"
+        >
+          Discard…
         </button>
       </template>
       <button
