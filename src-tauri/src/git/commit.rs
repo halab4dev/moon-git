@@ -39,8 +39,8 @@ pub fn commit(repo: &Path, message: &str, amend: bool, simple: bool) -> Result<(
     // commit made now would not end up where the user expects.
     if rebase_in_progress(repo) {
         return Err(invalid(
-            "A rebase is in progress. Finish it with `git rebase --continue` (or undo it with \
-             `git rebase --abort`) in a terminal.",
+            "A rebase is in progress. Use Continue (or Abort) in the Rebasing bar instead of \
+             committing.",
         ));
     }
     if amend && status.merge.is_some() {

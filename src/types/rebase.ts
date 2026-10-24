@@ -12,3 +12,6 @@ export interface RebasePreview {
   /** How many of those are already pushed (the next push would need --force). */
   pushed: number;
 }
+
+/** Mirrors RebaseAction in models.rs. */
+export type RebaseAction = "continue" | "skip" | "abort";

@@ -14,13 +14,17 @@ use std::fs;
 use std::path::Path;
 
 use crate::error::{AppError, ErrorKind};
+use crate::git::rebase::read_rebase_state;
 use crate::git::runner::run_git;
 use crate::models::{BranchInfo, ChangeKind, FileChange, MergeState, RepoStatus};
 
-// Not part of `git status --porcelain`: git keeps the merge state in files
-// inside .git (MERGE_HEAD = the commit being merged, MERGE_MSG = its message).
-// --git-path: where those files are, also for worktrees and custom git dirs.
-fn merge_state(repo: &Path) -> Result<Option<MergeState>, AppError> {
+// Not part of `git status --porcelain`: git keeps the state of a merge or
+// rebase that waits halfway in files inside .git:
+// - MERGE_HEAD = the commit being merged, MERGE_MSG = its message (step 21b);
+// - the folder rebase-merge (or rebase-apply) during a rebase (step 22b).
+// --git-path: where those are, also for worktrees and custom git dirs.
+// One git call for all four paths.
+fn add_operation_state(repo: &Path, status: &mut RepoStatus) -> Result<(), AppError> {
     let output = run_git(
         repo,
         &[
@@ -29,20 +33,26 @@ fn merge_state(repo: &Path) -> Result<Option<MergeState>, AppError> {
             "MERGE_HEAD",
             "--git-path",
             "MERGE_MSG",
+            "--git-path",
+            "rebase-merge",
+            "--git-path",
+            "rebase-apply",
         ],
     )?;
-    let mut lines = output.lines();
-    let (Some(head), Some(msg)) = (lines.next(), lines.next()) else {
+    let lines: Vec<&str> = output.lines().collect();
+    let [head, msg, rebase_merge, rebase_apply] = lines[..] else {
         return Err(unexpected(&output));
     };
     // The paths are relative to the repo folder (or absolute; join keeps those).
-    if !repo.join(head).is_file() {
-        return Ok(None);
+    if repo.join(head).is_file() {
+        let raw = fs::read_to_string(repo.join(msg)).unwrap_or_default();
+        status.merge = Some(MergeState {
+            message: clean_message(&raw),
+        });
     }
-    let raw = fs::read_to_string(repo.join(msg)).unwrap_or_default();
-    Ok(Some(MergeState {
-        message: clean_message(&raw),
-    }))
+    status.rebase = read_rebase_state(&repo.join(rebase_merge))
+        .or_else(|| read_rebase_state(&repo.join(rebase_apply)));
+    Ok(())
 }
 
 // git adds hints as "#" lines (e.g. "# Conflicts:" with the file names);
@@ -73,7 +83,7 @@ pub fn read_status(repo: &Path) -> Result<RepoStatus, AppError> {
         ],
     )?;
     let mut status = parse_status(&output)?;
-    status.merge = merge_state(repo)?;
+    add_operation_state(repo, &mut status)?;
     Ok(status)
 }
 

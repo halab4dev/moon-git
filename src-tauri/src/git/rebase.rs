@@ -3,13 +3,15 @@
 // of the target. The replayed commits are new commits (new ids); the old ones
 // disappear from the branch.
 
+use std::fs;
 use std::path::Path;
 
 use crate::error::{AppError, ErrorKind};
+use crate::git::commit::explain_commit_error;
 use crate::git::merge::{commit_of, current_branch, merge_in_progress, resolve_source};
-use crate::git::runner::run_git;
+use crate::git::runner::{run_git, run_git_without_editor};
 use crate::git::status::read_status;
-use crate::models::RebasePreview;
+use crate::models::{RebaseAction, RebasePreview, RebaseState};
 
 /// What rebasing the current branch onto `onto` (full ref name or commit
 /// id) would do; shown in the confirmation before starting.
@@ -106,6 +108,111 @@ pub fn rebase_in_progress(repo: &Path) -> bool {
     output.lines().any(|path| repo.join(path).is_dir())
 }
 
+/// Reads the state of a waiting rebase from git's folder for it
+/// (`dir` = .git/rebase-merge or .git/rebase-apply); None if there is none.
+/// Called by read_status, which finds the folder.
+pub(crate) fn read_rebase_state(dir: &Path) -> Option<RebaseState> {
+    if !dir.is_dir() {
+        return None;
+    }
+    // Small text files, one value each. rebase-merge and rebase-apply name
+    // the step counters differently.
+    let read = |name: &str| {
+        fs::read_to_string(dir.join(name))
+            .ok()
+            .map(|text| text.trim().to_string())
+    };
+    let number = |a: &str, b: &str| {
+        read(a)
+            .or_else(|| read(b))
+            .and_then(|text| text.parse().ok())
+            .unwrap_or(0)
+    };
+    let head_name = read("head-name").unwrap_or_default();
+    Some(RebaseState {
+        branch: head_name
+            .strip_prefix("refs/heads/")
+            .unwrap_or("HEAD")
+            .to_string(),
+        onto: read("onto").unwrap_or_default(),
+        step: number("msgnum", "next"),
+        total: number("end", "last"),
+        // "done" lists the commits replayed so far, the stopped one last:
+        // "pick 1234abcd… subject".
+        stopped_at: read("done").and_then(|done| stopped_commit(&done)),
+    })
+}
+
+fn stopped_commit(done: &str) -> Option<String> {
+    let last = done.lines().rev().find(|line| !line.trim().is_empty())?;
+    let mut parts = last.splitn(3, ' ');
+    let (_command, id) = (parts.next()?, parts.next()?);
+    let subject = parts.next().unwrap_or("");
+    let short: String = id.chars().take(8).collect();
+    Some(format!("{short} {subject}").trim_end().to_string())
+}
+
+/// Continues, skips or aborts the rebase that waits halfway.
+pub fn run(repo: &Path, action: RebaseAction) -> Result<(), AppError> {
+    if !rebase_in_progress(repo) {
+        return Err(invalid("There is no rebase in progress.".to_string()));
+    }
+    let status = read_status(repo)?;
+    let args: &[&str] = match action {
+        RebaseAction::Continue => {
+            if !status.conflicted.is_empty() {
+                return Err(invalid(format!(
+                    "{} file(s) still have conflicts. Fix them and stage them, then continue.",
+                    status.conflicted.len()
+                )));
+            }
+            // git refuses too, but its message does not say which files.
+            if !status.unstaged.is_empty() {
+                let files: Vec<&str> = status.unstaged.iter().map(|f| f.path.as_str()).collect();
+                return Err(invalid(format!(
+                    "Stage your changes before continuing (or undo them): {}.",
+                    files.join(", ")
+                )));
+            }
+            &["rebase", "--continue"]
+        }
+        RebaseAction::Skip => &["rebase", "--skip"],
+        RebaseAction::Abort => &["rebase", "--abort"],
+    };
+    // --continue commits the resolved commit and may want an editor for its
+    // message: keep the original message instead.
+    match run_git_without_editor(repo, args) {
+        Ok(_) => Ok(()),
+        Err(err) => Err(explain_continue_error(repo, err)),
+    }
+}
+
+fn explain_continue_error(repo: &Path, err: AppError) -> AppError {
+    // The next commit conflicted: the rebase waits again.
+    if let Ok(status) = read_status(repo) {
+        let count = status.conflicted.len();
+        if count > 0 {
+            return AppError::new(
+                ErrorKind::Conflict,
+                format!(
+                    "The rebase stopped again: {count} file(s) of the next commit have conflicts. \
+                     Fix them, stage them, then continue."
+                ),
+            );
+        }
+    }
+    // After resolving, the commit may change nothing any more (e.g. the
+    // target already had the same change).
+    if err.message.contains("No changes") || err.message.contains("nothing to commit") {
+        return invalid(
+            "After resolving, this commit changes nothing any more (the target probably has \
+             the same change already). Skip it."
+                .to_string(),
+        );
+    }
+    explain_commit_error(err)
+}
+
 fn count(repo: &Path, range: &[&str]) -> Result<u32, AppError> {
     let mut args = vec!["rev-list", "--count"];
     args.extend_from_slice(range);
@@ -127,9 +234,9 @@ fn explain_rebase_error(repo: &Path, err: AppError) -> AppError {
                 ErrorKind::Conflict,
                 format!(
                     "The rebase stopped because {count} file(s) have conflicts. Fix them in your \
-                     editor, stage them, then run `git rebase --continue` in a terminal (or \
-                     `git rebase --abort` to undo the rebase). Continue and Abort in MoonGit \
-                     come in the next step."
+                     editor and stage them (for now with `git add` in a terminal; staging \
+                     conflicted files in MoonGit comes with conflict handling), then click \
+                     Continue. Abort undoes the rebase."
                 ),
             );
         }
@@ -277,5 +384,101 @@ mod tests {
             assert!(rebase(root, bad).is_err(), "{bad}");
         }
         assert_eq!(subjects(root), "init.txt m1.txt m2.txt ");
+    }
+
+    // main: init ── "main side" (changes init.txt) ── m2      feature: init ── "feature side"
+    // Rebasing main onto feature stops at "main side" (step 1 of 2).
+    fn stopped_rebase() -> TempDir {
+        let dir = TempDir::new().unwrap();
+        let root = dir.path();
+        git(root, &["init", "--quiet", "--initial-branch=main"]);
+        git(root, &["config", "user.name", "Test"]);
+        git(root, &["config", "user.email", "test@example.com"]);
+        commit_file(root, "init.txt");
+        git(root, &["switch", "--quiet", "--create", "feature"]);
+        fs::write(root.join("init.txt"), "feature\n").unwrap();
+        git(root, &["commit", "--quiet", "-am", "feature side"]);
+        git(root, &["switch", "--quiet", "main"]);
+        fs::write(root.join("init.txt"), "main\n").unwrap();
+        git(root, &["commit", "--quiet", "-am", "main side"]);
+        commit_file(root, "m2.txt");
+        rebase(root, "refs/heads/feature").unwrap_err();
+        dir
+    }
+
+    #[test]
+    fn status_shows_where_the_rebase_stopped() {
+        let dir = stopped_rebase();
+        let root = dir.path();
+        let state = read_status(root).unwrap().rebase.unwrap();
+        assert_eq!(state.branch, "main");
+        assert_eq!(state.onto, git(root, &["rev-parse", "feature"]).trim());
+        assert_eq!((state.step, state.total), (1, 2));
+        let stopped = state.stopped_at.unwrap();
+        assert!(stopped.ends_with(" main side"), "{stopped}");
+        assert_eq!(stopped.split(' ').next().unwrap().len(), 8);
+    }
+
+    #[test]
+    fn continue_needs_resolved_and_staged_files_then_finishes() {
+        let dir = stopped_rebase();
+        let root = dir.path();
+        let err = run(root, RebaseAction::Continue).unwrap_err();
+        assert_eq!(err.kind, ErrorKind::InvalidInput);
+
+        // Fixed and staged, then changed again: that change is not staged.
+        fs::write(root.join("init.txt"), "both\n").unwrap();
+        git(root, &["add", "--", "init.txt"]);
+        fs::write(root.join("init.txt"), "both, edited again\n").unwrap();
+        let err = run(root, RebaseAction::Continue).unwrap_err();
+        assert_eq!(err.kind, ErrorKind::InvalidInput);
+        assert!(
+            err.message.starts_with("Stage your changes"),
+            "{}",
+            err.message
+        );
+        assert!(err.message.contains("init.txt"), "{}", err.message);
+        fs::write(root.join("init.txt"), "both\n").unwrap();
+
+        run(root, RebaseAction::Continue).unwrap();
+
+        let status = read_status(root).unwrap();
+        assert_eq!(status.rebase, None);
+        assert_eq!(status.branch.name.as_deref(), Some("main"));
+        assert_eq!(subjects(root), "init.txt feature side main side m2.txt ");
+        assert_eq!(fs::read_to_string(root.join("init.txt")).unwrap(), "both\n");
+    }
+
+    #[test]
+    fn skip_leaves_the_stopped_commit_out() {
+        let dir = stopped_rebase();
+        let root = dir.path();
+        run(root, RebaseAction::Skip).unwrap();
+        assert_eq!(read_status(root).unwrap().rebase, None);
+        assert_eq!(subjects(root), "init.txt feature side m2.txt ");
+    }
+
+    #[test]
+    fn abort_goes_back_to_before_the_rebase() {
+        let dir = stopped_rebase();
+        let root = dir.path();
+        run(root, RebaseAction::Abort).unwrap();
+        let status = read_status(root).unwrap();
+        assert_eq!(status.rebase, None);
+        assert!(status.conflicted.is_empty());
+        assert_eq!(subjects(root), "init.txt main side m2.txt ");
+        assert_eq!(
+            run(root, RebaseAction::Abort).unwrap_err().kind,
+            ErrorKind::InvalidInput
+        );
+    }
+
+    #[test]
+    fn reads_the_stopped_commit_line() {
+        assert_eq!(
+            stopped_commit("pick 1234567890abcdef first\npick abcdef1234567890 the subject\n"),
+            Some("abcdef12 the subject".to_string())
+        );
+        assert_eq!(stopped_commit(""), None);
     }
 }

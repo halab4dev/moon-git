@@ -21,6 +21,19 @@ pub fn run_git_bytes(cwd: &Path, args: &[&str]) -> Result<Vec<u8>, AppError> {
     check_output(output, args)
 }
 
+/// Like `run_git`, for commands that may want to open an editor for a
+/// commit message (`rebase --continue`, later `cherry-pick --continue`).
+/// GIT_EDITOR=true: an "editor" that accepts the prepared message as it is,
+/// instead of git waiting forever for an editor window that never comes.
+pub fn run_git_without_editor(cwd: &Path, args: &[&str]) -> Result<String, AppError> {
+    let output = git_command(cwd, args)?
+        .env("GIT_EDITOR", "true")
+        .output()
+        .map_err(spawn_error)?;
+    let stdout = check_output(output, args)?;
+    Ok(String::from_utf8_lossy(&stdout).to_string())
+}
+
 /// Like `run_git`, but also writes `input` to git's stdin, e.g. a commit
 /// message for `git commit -F -`. Text sent this way can never be mistaken
 /// for an option, and has no command-line length limit.

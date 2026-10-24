@@ -3,7 +3,7 @@ use tauri::State;
 use super::run_blocking;
 use crate::error::AppError;
 use crate::git;
-use crate::models::{RebasePreview, RepoStatus};
+use crate::models::{RebaseAction, RebasePreview, RepoStatus};
 use crate::storage::repos::RepoStore;
 
 /// `onto`: full ref name ("refs/heads/x", "refs/remotes/origin/x",
@@ -29,6 +29,23 @@ pub async fn rebase_current(
     let repo = store.repo_path(&repo_id)?;
     run_blocking(move || {
         git::rebase::rebase(&repo, &onto)?;
+        git::status::read_status(&repo)
+    })
+    .await
+}
+
+/// Continue / skip / abort the rebase that waits halfway (the UI asks
+/// before skip and abort). Returns the new status; if the next commit
+/// conflicts too, fails with kind "conflict".
+#[tauri::command]
+pub async fn run_rebase_action(
+    repo_id: String,
+    action: RebaseAction,
+    store: State<'_, RepoStore>,
+) -> Result<RepoStatus, AppError> {
+    let repo = store.repo_path(&repo_id)?;
+    run_blocking(move || {
+        git::rebase::run(&repo, action)?;
         git::status::read_status(&repo)
     })
     .await

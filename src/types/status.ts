@@ -39,6 +39,20 @@ export interface RepoStatus {
   conflicted: FileChange[];
   /** Set while a merge waits for its commit; null otherwise. */
   merge: MergeState | null;
+  /** Set while a rebase waits halfway; null otherwise. */
+  rebase: RebaseState | null;
+}
+
+export interface RebaseState {
+  /** The branch being rebased; "HEAD" if it started detached. */
+  branch: string;
+  /** Full id of the commit it is rebased onto. */
+  onto: string;
+  /** Which commit is being replayed (1-based), of how many. */
+  step: number;
+  total: number;
+  /** "1234abcd subject" of the commit where it stopped. */
+  stoppedAt: string | null;
 }
 
 export interface MergeState {

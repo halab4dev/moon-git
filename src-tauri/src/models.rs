@@ -91,6 +91,22 @@ pub struct RepoStatus {
     /// Set while a merge waits for its commit (step 21b): after "Merge to
     /// Working Tree", or after a merge stopped on conflicts.
     pub merge: Option<MergeState>,
+    /// Set while a rebase waits halfway, e.g. on conflicts (step 22b).
+    pub rebase: Option<RebaseState>,
+}
+
+#[derive(Debug, Default, Clone, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RebaseState {
+    /// The branch being rebased ("main"); "HEAD" if it started detached.
+    pub branch: String,
+    /// The commit the branch is rebased onto (full id).
+    pub onto: String,
+    /// Which commit is being replayed (1-based), of how many.
+    pub step: u32,
+    pub total: u32,
+    /// The commit where it stopped: "1234abcd subject". None if unknown.
+    pub stopped_at: Option<String>,
 }
 
 #[derive(Debug, Default, Clone, PartialEq, Serialize)]
@@ -327,4 +343,16 @@ pub struct RebasePreview {
     /// How many of those are already on a remote branch. Rewriting them
     /// means the next push needs --force.
     pub pushed: u32,
+}
+
+/// What to do with a rebase that waits halfway (step 22b). Sent by the frontend.
+#[derive(Debug, Clone, Copy, PartialEq, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub enum RebaseAction {
+    /// Commit the resolved commit and replay the rest.
+    Continue,
+    /// Leave the stopped commit out, and replay the rest.
+    Skip,
+    /// Undo the whole rebase: the branch goes back to where it was.
+    Abort,
 }

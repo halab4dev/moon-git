@@ -6,6 +6,7 @@ import CommitBox from "../components/CommitBox.vue";
 import DiffPanel from "../components/DiffPanel.vue";
 import FileTable from "../components/FileTable.vue";
 import HistoryView from "./HistoryView.vue";
+import OperationBanner from "../components/OperationBanner.vue";
 import StashView from "./StashView.vue";
 import SyncButtons from "../components/SyncButtons.vue";
 import { buildRows, type FileRow } from "../components/fileRows";
@@ -17,6 +18,8 @@ import { stageFiles, unstageFiles } from "../api/stage";
 import { commitChanges } from "../api/commit";
 import { createStash } from "../api/stash";
 import { abortMerge } from "../api/merge";
+import { runRebaseAction } from "../api/rebase";
+import type { RebaseAction } from "../types/rebase";
 import { ask } from "@tauri-apps/plugin-dialog";
 import { useDialogStore } from "../stores/dialogs";
 import { toAppError } from "../api/errors";
@@ -72,6 +75,17 @@ const amend = ref(false);
 const simpleCommit = ref(false);
 
 const merge = computed(() => status.value?.merge ?? null);
+const rebase = computed(() => status.value?.rebase ?? null);
+const conflictCount = computed(() => status.value?.conflicted.length ?? 0);
+// e.g. `"main" onto 1234abcd, commit 1 of 2 (5678ef90 Fix login)`
+const rebaseTitle = computed(() => {
+  const state = rebase.value;
+  if (state === null) {
+    return "";
+  }
+  const where = `"${state.branch}" onto ${state.onto.slice(0, 8)}, commit ${state.step} of ${state.total}`;
+  return state.stoppedAt ? `${where} (${state.stoppedAt})` : where;
+});
 // First line of git's prepared message, e.g. "Merge branch 'feature' into main".
 const mergeTitle = computed(() => merge.value?.message.split("\n")[0] || "Merge");
 
@@ -205,6 +219,39 @@ async function confirmAbortMerge() {
   }
 }
 
+// Continue right away; skip and abort throw work away, so they ask first.
+async function runRebase(action: RebaseAction) {
+  const state = rebase.value;
+  if (working.value || state === null) {
+    return;
+  }
+  if (action === "skip") {
+    const confirmed = await ask(
+      `Skip ${state.stoppedAt ?? "this commit"}?\n\nIts changes are left out of "${state.branch}", including any conflict fixes you made. The remaining commits are replayed.`,
+      { title: "Skip Commit", kind: "warning", okLabel: "Skip Commit", cancelLabel: "Cancel" },
+    );
+    if (!confirmed) {
+      return;
+    }
+  }
+  if (action === "abort") {
+    const confirmed = await ask(
+      `Abort the rebase of "${state.branch}"?\n\nThe branch goes back to where it was before the rebase. Conflict fixes you made are lost.`,
+      { title: "Abort Rebase", kind: "warning", okLabel: "Abort Rebase", cancelLabel: "Cancel" },
+    );
+    if (!confirmed) {
+      return;
+    }
+  }
+  if (!(await run(() => runRebaseAction(props.repo.id, action)))) {
+    // The next commit may have conflicted: the files changed, so reload
+    // (keeping the explanation, like after a failed sync).
+    const failure = error.value;
+    await refresh();
+    error.value = failure;
+  }
+}
+
 // "Stash…": message (optional) and whether to include untracked files.
 // Errors are shown inside the dialog, which stays open.
 function askStash() {
@@ -320,17 +367,38 @@ onUnmounted(() => {
     </div>
 
     <!-- Blue while the merge just waits for its commit, red while files conflict. -->
-    <div v-if="merge" class="merge-banner" :class="{ conflicts: status && status.conflicted.length > 0 }">
-      <span>
-        <strong>Merging:</strong> {{ mergeTitle }}.
-        <template v-if="status && status.conflicted.length > 0">
-          {{ status.conflicted.length }} file(s) have conflicts: fix them, then stage them.
-        </template>
-        <template v-else>Review the changes, then commit to finish.</template>
-      </span>
-      <span class="spacer"></span>
-      <button :disabled="working" title="Undo the merge (git merge --abort)" @click="confirmAbortMerge">Abort Merge</button>
-    </div>
+    <OperationBanner v-if="merge" label="Merging:" :conflicts="conflictCount > 0">
+      {{ mergeTitle }}.
+      <template v-if="conflictCount > 0">{{ conflictCount }} file(s) have conflicts: fix them, then stage them.</template>
+      <template v-else>Review the changes, then commit to finish.</template>
+      <template #actions>
+        <button :disabled="working" title="Undo the merge (git merge --abort)" @click="confirmAbortMerge">
+          Abort Merge
+        </button>
+      </template>
+    </OperationBanner>
+
+    <OperationBanner v-if="rebase" label="Rebasing:" :conflicts="conflictCount > 0">
+      {{ rebaseTitle }}.
+      <template v-if="conflictCount > 0">{{ conflictCount }} file(s) have conflicts: fix them, stage them, then Continue.</template>
+      <template v-else>Stage your fixes, then Continue to replay the remaining commits.</template>
+      <template #actions>
+        <button
+          class="primary"
+          :disabled="working || conflictCount > 0"
+          title="Commit the fixed commit and replay the rest (git rebase --continue)"
+          @click="runRebase('continue')"
+        >
+          Continue
+        </button>
+        <button :disabled="working" title="Leave this commit out (git rebase --skip)" @click="runRebase('skip')">
+          Skip…
+        </button>
+        <button :disabled="working" title="Undo the whole rebase (git rebase --abort)" @click="runRebase('abort')">
+          Abort…
+        </button>
+      </template>
+    </OperationBanner>
 
     <p v-if="error" class="err message">{{ error.message }}</p>
 
@@ -363,7 +431,7 @@ onUnmounted(() => {
         :repo-id="repo.id"
         :merging="merge !== null"
         :staged-count="stagedCount"
-        :busy="working"
+        :busy="working || rebase !== null"
         @commit="commitStaged"
       />
     </div>
@@ -420,31 +488,6 @@ h1 {
 
 .spacer {
   flex: 1;
-}
-
-.merge-banner {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-bottom: 8px;
-  padding: 6px 10px;
-  border: 1px solid var(--accent);
-  border-left-width: 4px;
-  border-radius: 6px;
-  background: var(--info-bg);
-}
-
-.merge-banner.conflicts {
-  border-color: var(--danger);
-  background: var(--danger-bg);
-}
-
-.merge-banner strong {
-  color: var(--accent);
-}
-
-.merge-banner.conflicts strong {
-  color: var(--danger);
 }
 
 .muted {
