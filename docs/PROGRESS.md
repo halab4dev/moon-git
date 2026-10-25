@@ -1,141 +1,121 @@
-# MoonGit — Kế hoạch và tiến độ
+# MoonGit — Plan and progress
 
-Cập nhật lần cuối: 2026-10-26
+Last updated: 2026-10-26
 
-**Đang ở:** Giai đoạn 3 đã xong. Bước 25 (danh sách branch ở sidebar) đã xong. Bước 26 (thêm remote, hiện / sửa URL) đã xong. Bước 12–15 tạm hoãn theo yêu cầu của bạn.
+**Current state:** Phase 3 is done. Step 25 (branch list in the sidebar) is done. Step 26 (add a remote, show / edit its URL) is done. Steps 12–15 are on hold, as requested.
 
-Ký hiệu: ✅ xong · 🟡 đang làm / chờ xác nhận · ⏸ tạm hoãn · ⬜ chưa làm
+Legend: ✅ done · 🟡 in progress / waiting for confirmation · ⏸ on hold · ⬜ not started
 
-Giải thích chi tiết từng bước: [docs/learning/](learning/README.md)
+Detailed notes for each step (in Vietnamese): [docs/learning/](learning/README.md)
 
 ---
 
-## Giai đoạn 1 — dùng được hằng ngày
+## Phase 1 — usable every day
 
-| # | Bước | Trạng thái | Ghi chú |
+| # | Step | Status | Notes |
 |---|---|---|---|
-| 0 | Chuẩn bị môi trường | ✅ | Rust 1.99.1, Node 24, pnpm 10, git 2.33, CLT (SDK 13.1). Còn cần `sudo xcode-select --switch /Library/Developer/CommandLineTools` |
-| 1 | Khung Tauri v2 + Vue 3 + TS, layout sidebar \| nội dung, command `greet` | ✅ | Đã xác nhận giao diện (2026-10-21) |
-| 2 | Lớp chạy git + kiểu lỗi chung | ✅ | `git/runner.rs`, `error.rs`, command `check_repo`. 7 test pass, clippy sạch. Đã xác nhận 4 trường hợp trên giao diện (2026-10-21) |
-| 3 | Danh sách repo + thêm repo local | ✅ | `storage/repos.rs` (`repos.json`, ghi qua file tạm + rename), plugin dialog, Pinia store. 13 test pass, clippy sạch. Đã xác nhận trên giao diện (2026-10-21) |
-| 4 | Nhóm / nhóm con repo | ✅ | `storage/repo_list.rs`, `repos.json` v2, menu chuột phải native, `NameDialog`. 23 test pass. Đã xác nhận (2026-10-21), thêm icon folder SVG. Chưa có: kéo-thả, di chuyển nhóm |
-| 5 | Clone có tiến trình + hủy | ✅ | `git/operations.rs` (thread worker + Tauri event + hủy cả process group), `git/clone.rs`, `CloneDialog`. 36 test pass. Đã xác nhận (2026-10-21). Fetch/pull/push sẽ dùng lại `operations.rs` |
-| 6 | Danh sách file thay đổi | ✅ | `git/status.rs` (porcelain v2 -z, `--no-optional-locks`), bảng `FileTable.vue` (Name/State/Location, sắp xếp theo cột, giống SmartGit), tự làm mới khi focus. 45 test pass. Đã xác nhận (2026-10-21) |
-| 7 | Stage / unstage | ✅ | `git/stage.rs` (`--literal-pathspecs`, chia lô 100, repo chưa có commit), chọn dòng kiểu desktop, nút + menu chuột phải. 52 test pass. State đặt tên theo SmartGit. Đã xác nhận (2026-10-21) |
-| 8 | Diff side-by-side | ✅ | Monaco (bạn chọn, so với CodeMirror / tự vẽ), tải lười; `git/diff.rs` (HEAD / Index / Working Tree, nhị phân, >5 MB, chặn đường dẫn ngoài repo); bố cục trên/dưới có thanh kéo; double-click → cửa sổ diff riêng (không chặn cửa sổ chính). 61 test pass |
-| 9 | Commit + amend | ✅ | Message qua stdin (`-F -`), `--cleanup=whitespace`; kiểm tra trước (chưa stage / conflict / chưa có commit); lỗi thiếu danh tính → `IdentityUnknown`; xác nhận khi amend commit đã push. 71 test pass |
-| 10 | Branch hiện tại + ahead/behind + fetch | ✅ | Header `status --branch` (không thêm lệnh git), `fetch --all --progress` có tiến trình/hủy, không `--prune`; fetch không chặn stage/commit; hủy gửi SIGTERM + SIGCONT. 77 test pass |
-| 11 | Pull, push | ✅ | Pull = fetch (tiến trình/hủy) + `merge --ff-only` / hỏi Rebase–Merge khi tách nhánh (chọn sẵn theo `pull.rebase`); push không force, branch mới hỏi rồi `--set-upstream`; `Conflict` / `PushRejected`. 90 test pass |
-| 12 | Thiết kế cách cấp credential | ⏸ | Chỉ đề xuất `GIT_ASKPASS` hay credential helper, chờ bạn chọn rồi mới code |
-| 13 | Account theo server + keyring | ⏸ | Token chỉ lưu trong keyring, gắn account cho từng repo |
-| 14 | `user.name` / `user.email` riêng cho từng repo | ⏸ | `git config --local` |
-| 15 | Chọn SSH key theo server/repo | ⏸ | `GIT_SSH_COMMAND` |
+| 0 | Set up the environment | ✅ | Rust 1.99.1, Node 24, pnpm 10, git 2.33, Command Line Tools (SDK 13.1); `xcode-select` points to `/Library/Developer/CommandLineTools` |
+| 1 | Tauri v2 + Vue 3 + TS skeleton, sidebar \| content layout, `greet` command | ✅ | UI confirmed (2026-10-21) |
+| 2 | Layer that runs git + shared error type | ✅ | `git/runner.rs`, `error.rs`, `check_repo` command. 7 tests pass, clippy clean. 4 cases confirmed in the UI (2026-10-21) |
+| 3 | Repository list + add a local repository | ✅ | `storage/repos.rs` (`repos.json`, written via a temp file + rename), dialog plugin, Pinia store. 13 tests pass, clippy clean. Confirmed in the UI (2026-10-21) |
+| 4 | Repository groups / subgroups | ✅ | `storage/repo_list.rs`, `repos.json` v2, native context menus, `NameDialog`. 23 tests pass. Confirmed (2026-10-21), SVG folder icon added. Not yet: drag and drop, moving groups |
+| 5 | Clone with progress + cancel | ✅ | `git/operations.rs` (worker thread + Tauri event + cancelling the whole process group), `git/clone.rs`, `CloneDialog`. 36 tests pass. Confirmed (2026-10-21). Fetch/pull/push reuse `operations.rs` |
+| 6 | List of changed files | ✅ | `git/status.rs` (porcelain v2 -z, `--no-optional-locks`), `FileTable.vue` table (Name/State/Location, sortable columns, like SmartGit), refreshes on focus. 45 tests pass. Confirmed (2026-10-21) |
+| 7 | Stage / unstage | ✅ | `git/stage.rs` (`--literal-pathspecs`, batches of 100, repositories without commits), desktop-style row selection, buttons + context menu. 52 tests pass. States named as in SmartGit. Confirmed (2026-10-21) |
+| 8 | Side-by-side diff | ✅ | Monaco (your choice, over CodeMirror / a hand-made view), lazy-loaded; `git/diff.rs` (HEAD / Index / Working Tree, binary, >5 MB, paths outside the repo refused); top/bottom layout with a splitter; double-click → separate diff window (doesn't block the main window). 61 tests pass |
+| 9 | Commit + amend | ✅ | Message through stdin (`-F -`), `--cleanup=whitespace`; checks first (nothing staged / conflicts / no commit yet); missing identity → `IdentityUnknown`; asks before amending a pushed commit. 71 tests pass |
+| 10 | Current branch + ahead/behind + fetch | ✅ | Header from `status --branch` (no extra git command), `fetch --all --progress` with progress/cancel, no `--prune`; fetch doesn't block stage/commit; cancel sends SIGTERM + SIGCONT. 77 tests pass |
+| 11 | Pull, push | ✅ | Pull = fetch (progress/cancel) + `merge --ff-only` / asks Rebase or Merge when diverged (preselected from `pull.rebase`); push never forces, a new branch asks first then uses `--set-upstream`; `Conflict` / `PushRejected`. 90 tests pass |
+| 12 | Design how credentials are provided | ⏸ | Only a proposal (`GIT_ASKPASS` or a credential helper), waiting for your choice before coding |
+| 13 | Per-server accounts + keyring | ⏸ | Tokens only in the keyring, an account attached to each repository |
+| 14 | Per-repository `user.name` / `user.email` | ⏸ | `git config --local` |
+| 15 | Choose an SSH key per server/repository | ⏸ | `GIT_SSH_COMMAND` |
 
-## Giai đoạn 2 — lịch sử và branch
+## Phase 2 — history and branches
 
-| # | Tính năng | Trạng thái |
+| # | Feature | Status |
 |---|---|---|
-| 16a | Lịch sử commit: `git/log.rs` (parser + test), tab History, danh sách ảo hóa tự viết + tải dần theo trang, nhãn branch/tag | ✅ 98 test pass |
-| 16b | Graph: thuật toán xếp làn (lane layout) bằng TS, module riêng có test (thêm Vitest), vẽ cột graph | ✅ 11 test Vitest + 98 test Rust |
-| 16c | Chọn branch/remote/tag hiển thị trong graph | ✅ Lần đầu = branch hiện tại, sau đó nhớ theo repo. 104 Rust + 15 Vitest |
-| 17 | Filter theo hash / message, chế độ highlight (mặc định) và ẩn | ✅ 111 Rust + 15 Vitest |
-| 18 | Bấm vào commit: thông tin, danh sách file, diff | ✅ 117 Rust + 15 Vitest |
-| 19a | Branch: checkout (local / remote → tạo branch theo dõi), tạo branch mới (từ HEAD hoặc từ commit trong History) | ✅ 123 Rust + 15 Vitest |
-| 19b | Branch: đổi tên, xóa local / remote (có xác nhận), đặt / bỏ upstream | ✅ 129 Rust + 17 Vitest |
+| 16a | Commit history: `git/log.rs` (parser + tests), History tab, hand-written virtualized list + paged loading, branch/tag labels | ✅ 98 tests pass |
+| 16b | Graph: lane layout algorithm in TS, separate module with tests (Vitest added), graph column drawing | ✅ 11 Vitest + 98 Rust tests |
+| 16c | Choose the branches/remotes/tags shown in the graph | ✅ First time = current branch, then remembered per repository. 104 Rust + 15 Vitest |
+| 17 | Filter by hash / message, highlight (default) and hide modes | ✅ 111 Rust + 15 Vitest |
+| 18 | Click a commit: details, file list, diff | ✅ 117 Rust + 15 Vitest |
+| 19a | Branches: checkout (local / remote → creates a tracking branch), create a new branch (from HEAD or from a commit in History) | ✅ 123 Rust + 15 Vitest |
+| 19b | Branches: rename, delete local / remote (with confirmation), set / unset upstream | ✅ 129 Rust + 17 Vitest |
 
-## Giai đoạn 3 — thao tác nâng cao (sẽ chia nhỏ khi tới nơi)
+## Phase 3 — advanced operations (split into smaller steps when reached)
 
-| # | Tính năng | Trạng thái |
+| # | Feature | Status |
 |---|---|---|
-| 20a | Stash: tạo (message, tùy chọn gồm untracked), tab Stashes (danh sách + nội dung) | ✅ 136 Rust + 17 Vitest |
-| 20b | Stash: apply, pop, drop (xác nhận), conflict khi apply | ✅ 141 Rust + 17 Vitest |
-| 21a | Merge giống SmartGit: Fast-Forward / Create Merge-Commit (`--no-ff`) / Merge to Working Tree (`--no-ff --no-commit`) | ✅ 149 Rust + 17 Vitest |
-| 21b | Đang merge: dòng báo + Abort (xác nhận), message điền sẵn, chọn merge commit / commit thường khi commit | ✅ 155 Rust + 17 Vitest |
-| 22a | Rebase (không interactive) lên branch/tag/commit, xác nhận trước (cảnh báo khi commit đã push) | ✅ 161 Rust + 17 Vitest |
-| 22b | Đang rebase: dòng báo, Continue / Skip / Abort | ✅ 166 Rust + 17 Vitest |
-| 22c | Reset branch về một commit (History → chuột phải): Soft / Mixed / Hard; Hard xác nhận 2 lần, cảnh báo khi bỏ commit đã push. *Thêm vào lộ trình theo yêu cầu của bạn (2026-10-23), CLAUDE.md không có* | ✅ 173 Rust + 17 Vitest |
-| 22d | Discard thay đổi của file (tab Changes): về HEAD, file mới vào Thùng rác (crate `trash`). *Thêm theo yêu cầu của bạn (2026-10-24), CLAUDE.md không có* | ✅ 179 Rust + 17 Vitest |
-| 23 | Cherry-pick: Commit hoặc Apply to Working Tree (`--no-commit`); đang chờ sau conflict: Continue / Abort | ✅ 186 Rust + 17 Vitest |
-| 24a | Conflict: Take Ours / Take Theirs (tên thật của từng phía), Mark Resolved (kiểm tra dấu conflict). Phát hiện trạng thái + Continue/Abort đã có từ 21b/22b/23 | ✅ 191 Rust + 17 Vitest; Take Ours/Theirs chỉ còn trong menu chuột phải (sau 24b) |
-| 24b | Cửa sổ Conflict Solver 3 cột giống SmartGit (double-click file conflict): ours / kết quả sửa được / theirs, Take Left/Right/Both từng khối, Save & Mark Resolved. *Thay cho "công cụ so sánh ngoài", theo yêu cầu của bạn* | ✅ 193 Rust + 28 Vitest |
+| 20a | Stash: create (message, optionally including untracked), Stashes tab (list + content) | ✅ 136 Rust + 17 Vitest |
+| 20b | Stash: apply, pop, drop (confirmed), conflicts on apply | ✅ 141 Rust + 17 Vitest |
+| 21a | Merge like SmartGit: Fast-Forward / Create Merge-Commit (`--no-ff`) / Merge to Working Tree (`--no-ff --no-commit`) | ✅ 149 Rust + 17 Vitest |
+| 21b | Merge in progress: banner + Abort (confirmed), prefilled message, choose merge commit / simple commit when committing | ✅ 155 Rust + 17 Vitest |
+| 22a | Rebase (non-interactive) onto a branch/tag/commit, confirmed first (warns about pushed commits) | ✅ 161 Rust + 17 Vitest |
+| 22b | Rebase in progress: banner, Continue / Skip / Abort | ✅ 166 Rust + 17 Vitest |
+| 22c | Reset the branch to a commit (History → right-click): Soft / Mixed / Hard; Hard is confirmed twice, warns when dropping pushed commits. *Added to the roadmap at your request (2026-10-23), not in CLAUDE.md* | ✅ 173 Rust + 17 Vitest |
+| 22d | Discard file changes (Changes tab): back to HEAD, new files go to the Trash (crate `trash`). *Added at your request (2026-10-24), not in CLAUDE.md* | ✅ 179 Rust + 17 Vitest |
+| 23 | Cherry-pick: Commit or Apply to Working Tree (`--no-commit`); waiting after a conflict: Continue / Abort | ✅ 186 Rust + 17 Vitest |
+| 24a | Conflicts: Take Ours / Take Theirs (with the real name of each side), Mark Resolved (checks for conflict markers). State detection + Continue/Abort already came with 21b/22b/23 | ✅ 191 Rust + 17 Vitest; Take Ours/Theirs is only in the context menu (since 24b) |
+| 24b | 3-column Conflict Solver window like SmartGit (double-click a conflicted file): ours / editable result / theirs, Take Left/Right/Both per block, Save & Mark Resolved. *Replaces the "external compare tool", at your request* | ✅ 193 Rust + 28 Vitest |
 
-## Thêm theo yêu cầu (sau Giai đoạn 3)
+## Added on request (after Phase 3)
 
-| # | Tính năng | Trạng thái |
+| # | Feature | Status |
 |---|---|---|
-| 25 | Danh sách branch ở sidebar giống SmartGit: Local (✓, ↑↓, gone) / Remotes chia theo từng remote; double-click checkout, chuột phải: checkout / merge / rebase / new / rename / delete | ✅ 196 Rust + 28 Vitest |
-| 26 | Thêm remote (Add Remote…): nút + / chuột phải "Remotes" trong panel Branches; tên + URL, kiểm tra trước khi `git remote add --`. URL mờ cạnh tên remote (che token), chuột phải → Edit URL | ✅ 203 Rust + 30 Vitest |
+| 25 | Branch list in the sidebar like SmartGit: Local (✓, ↑↓, gone) / Remotes grouped by remote; double-click checks out, right-click: checkout / merge / rebase / new / rename / delete | ✅ 196 Rust + 28 Vitest |
+| 26 | Add a remote (Add Remote…): + button / right-click "Remotes" in the Branches panel; name + URL, checked before `git remote add --`. Muted URL next to the remote name (tokens masked), right-click → Edit URL | ✅ 203 Rust + 30 Vitest |
 
 ---
 
-## Quyết định đã chốt
-- Tên app **MoonGit**, identifier `com.github.halab4dev.moongit`.
+## Decisions made
+- App name **MoonGit**, identifier `com.github.halab4dev.moongit`.
 - Package manager: **pnpm**.
-- Bỏ plugin `opener` của template (chưa cần).
-- Pinia v4, dùng kiểu "setup store" (`ref`/`computed`/hàm).
-- Danh sách repo lưu ở `<app data>/repos.json` (`{ version, repos }`); file hỏng được đổi tên thành `repos.json.broken`.
-- Id repo sinh từ thời gian (hex), không dùng crate `uuid`.
-- Bỏ repo khỏi danh sách không đụng tới thư mục trên ổ đĩa.
-- Nhóm lưu phẳng (`parentId`); xóa nhóm → nội dung lên một cấp. Tên nhóm cùng cha không trùng (không phân biệt hoa thường).
-- Thao tác trên sidebar dùng menu native của Tauri; nút × ở bước 3 được thay bằng "Remove from List".
-- Thao tác dài: thread worker (`spawn_blocking`) + đọc stderr, thay vì `tokio::process` (dễ đọc hơn, không thêm thư viện). Mỗi thao tác có `opId`; tiến trình qua event `git-progress`.
-- Hủy = SIGTERM cho cả process group (crate `rustix`, chỉ unix). Windows tạm chỉ dừng `git`.
-- Clone lỗi/hủy → xóa thư mục đích chỉ khi nó không tồn tại trước khi clone.
-- Command thao tác trên repo nhận `repo_id` (Rust tự tra đường dẫn), chạy nền qua `run_blocking`.
-- Status làm mới khi cửa sổ được focus + nút Refresh (chưa dùng file watcher).
-- Stage/unstage luôn dùng `--literal-pathspecs`; file conflict chưa cho stage (để bước 15).
-- `vite.config.ts` dịch JS về mức `safari15` / `chrome105` (webview macOS 12 = WebKit hệ thống ≈ Safari 15.6, dù Safari app mới hơn). Kiểm tra bằng `jsc` của hệ thống.
-- Fetch = `git fetch --all --progress`, không `--prune` (dọn branch đã xóa trên server sẽ là tùy chọn riêng sau).
-- Pull: hỏi Rebase/Merge mỗi lần khi branch tách nhánh (bạn chọn), chọn sẵn theo git config; chỉ thiếu commit thì fast-forward không hỏi. Thực hiện bằng fetch + merge/rebase cục bộ với `@{upstream}`, không dùng `git pull`.
-- Push không bao giờ force.
-- Lịch sử: `git log --date-order` từ `--branches --remotes --tags HEAD` (không `--all`, để không kéo stash vào), trang 500 commit qua `--skip`; danh sách ảo hóa tự viết (không thêm thư viện).
-- Diff dùng Monaco, chỉ nạp lõi + tô màu cú pháp + worker, tải khi mở diff lần đầu. Ba chế độ: Working Tree (Index→WT), Staged (HEAD→Index), Conflict (HEAD→WT).
-- Cột State đặt tên theo trạng thái file của SmartGit (Staged, Added, Modified, Missing…); sắp theo mức quan trọng, Conflicted đầu tiên.
-- Bỏ ví dụ `greet` ở bước 2, thay bằng form thử `check_repo` (form này sẽ được thay bằng "Add repository" ở bước 3).
-- `AppError` là struct `{ kind, message }`; git chạy với `GIT_TERMINAL_PROMPT=0` và `LC_ALL=C`.
-- Test dùng crate `tempfile` (chỉ dev-dependency).
-- Test TypeScript dùng **Vitest** (devDependency), chạy `pnpm test`.
-- Chọn ref cho History: lần đầu = branch hiện tại + upstream (bạn yêu cầu), sau đó lưu theo repo trong localStorage (`null` = tất cả, kể cả branch mới); Rust chỉ nhận ref đang tồn tại + `--end-of-options`.
-- Filter lịch sử: một ô cho cả tiền tố id (khi toàn hex) lẫn message đầy đủ, không phân biệt hoa thường; tìm ở Rust trên toàn lịch sử; chế độ Hide viết lại cha về tổ tiên khớp gần nhất.
-- Chi tiết commit: merge so với cha thứ nhất (như SmartGit); chỉ nhận commit id dạng hex.
-- Branch: dùng `git switch` (không `checkout`), `--no-guess`, không bao giờ `--force`; checkout remote = tạo branch local cùng tên theo dõi nó. Xóa branch chưa merge: hỏi lần 2 rồi mới `--force`. Xóa trên server dùng `refs/heads/<tên>` để không trúng tag.
-- Stash: kiểm tra trước khi stash (git báo thành công cả khi không có gì); nhận diện stash bằng id, không bằng số thứ tự; xem nội dung bằng `CommitDetails` (W so với HEAD lúc stash, U cho file untracked). Apply không dùng `--index` (mọi thay đổi về dạng chưa stage); pop bị conflict thì stash được giữ.
-- Merge làm giống SmartGit (bạn chọn, 2026-10-23): ba lựa chọn Fast-Forward / Create Merge-Commit / Merge to Working Tree; mặc định luôn là Create Merge-Commit (bạn chọn). Trạng thái merge đọc từ `MERGE_HEAD`/`MERGE_MSG` (qua `--git-path`) trong `read_status`; Simple commit = xóa `MERGE_HEAD` rồi commit. App tự viết message merge (truyền tên ref đầy đủ cho git).
-- Rebase: luôn hỏi trước (đếm commit sẽ replay và commit đã push); từ chối khi có thay đổi chưa commit, `--no-autostash`; không merge/rebase/commit khi đang rebase dở. Continue chạy với `GIT_EDITOR=true` (giữ message cũ); Skip / Abort luôn hỏi trước. Thanh trạng thái dùng chung `OperationBanner`.
-- Reset được thêm vào lộ trình (bước 22c, bạn yêu cầu 2026-10-23): ba kiểu như SmartGit; Hard luôn hỏi lại lần hai. Mặc định Mixed; truyền commit id đầy đủ cho `git reset` (git 2.33 không nhận `--end-of-options` ở lệnh này).
-- Discard (bước 22d, bạn yêu cầu 2026-10-24): làm giống SmartGit, về HEAD cả staged lẫn unstaged; file HEAD không có thì chuyển vào Thùng rác (bạn chọn, crate `trash`), không xóa hẳn. Chỉ xử lý đường dẫn có trong status; không discard file conflict.
-- Cherry-pick: một commit từ History; merge commit lấy theo cha thứ nhất (`--mainline 1`); cherry-pick rỗng (đã có) tự hủy và báo; trạng thái chờ đọc từ `CHERRY_PICK_HEAD`.
-- Conflict: nút ghi tên thật của ours/theirs (rebase đảo nghĩa); Take side = `checkout --ours/--theirs` + `add`, phía đã xóa file = `rm`; Mark Resolved kiểm tra đủ 3 loại dấu, hỏi lần 2 nếu còn.
-- Conflict Solver (bạn yêu cầu 2026-10-24): cửa sổ riêng 3 cột như SmartGit thay cho nút Take Ours/Theirs trên thanh công cụ và thay cho công cụ ngoài; Myers diff tự viết (`src/conflict/lineDiff.ts`) để tô thay đổi và cuộn cột bên; file không phải UTF-8 coi như nhị phân (không cho sửa).
-- Branch panel (bước 25): sidebar chia trên (repo) / dưới (branch) có thanh kéo; store `repoActivity` nối sidebar với RepoView (RepoView vẫn là nơi duy nhất giữ status).
-- Graph: làn không dịch ngang, cột trống được dùng lại; `LaneLayout` tính dần theo trang; vẽ SVG mỗi dòng, tối đa 20 làn hiển thị.
+- Removed the template's `opener` plugin (not needed yet).
+- Pinia v4, "setup store" style (`ref`/`computed`/functions).
+- The repository list is stored in `<app data>/repos.json` (`{ version, repos }`); a broken file is renamed to `repos.json.broken`.
+- Repository ids are generated from the time (hex), without the `uuid` crate.
+- Removing a repository from the list never touches its folder on disk.
+- Groups are stored flat (`parentId`); deleting a group moves its content up one level. Group names under the same parent are unique (case-insensitive).
+- Sidebar actions use Tauri's native menus; the × button of step 3 was replaced by "Remove from List".
+- Long operations: worker thread (`spawn_blocking`) + reading stderr, instead of `tokio::process` (easier to read, no extra library). Each operation has an `opId`; progress goes through the `git-progress` event.
+- Cancel = SIGTERM to the whole process group (crate `rustix`, unix only). On Windows, only `git` itself is stopped for now.
+- A failed/cancelled clone deletes the target folder only if it didn't exist before the clone.
+- Commands working on a repository take a `repo_id` (Rust looks up the path) and run in the background through `run_blocking`.
+- Status refreshes when the window gets the focus + a Refresh button (no file watcher yet).
+- Stage/unstage always uses `--literal-pathspecs`; conflicted files couldn't be staged until the conflict step.
+- `vite.config.ts` transpiles JS down to `safari15` / `chrome105` (the macOS 12 webview = system WebKit ≈ Safari 15.6, even if the Safari app is newer). Checked with the system's `jsc`.
+- Fetch = `git fetch --all --progress`, without `--prune` (pruning branches deleted on the server will be a separate option later).
+- Pull: asks Rebase/Merge every time the branch has diverged (your choice), preselected from git config; when only behind, fast-forwards without asking. Done with fetch + a local merge/rebase against `@{upstream}`, not `git pull`.
+- Push never forces.
+- History: `git log --date-order` from `--branches --remotes --tags HEAD` (not `--all`, to keep stashes out), pages of 500 commits via `--skip`; hand-written virtualized list (no extra library).
+- Diffs use Monaco, loading only the core + syntax highlighting + workers, on the first diff opened. Three modes: Working Tree (Index→WT), Staged (HEAD→Index), Conflict (HEAD→WT).
+- The State column uses SmartGit's file state names (Staged, Added, Modified, Missing…); sorted by importance, Conflicted first.
+- Dropped the `greet` example in step 2, replaced by a `check_repo` test form (itself replaced by "Add repository" in step 3).
+- `AppError` is a struct `{ kind, message }`; git runs with `GIT_TERMINAL_PROMPT=0` and `LC_ALL=C`.
+- Tests use the `tempfile` crate (dev-dependency only).
+- TypeScript tests use **Vitest** (devDependency), run with `pnpm test`.
+- History ref selection: first time = current branch + its upstream (your request), then saved per repository in localStorage (`null` = all, including new branches); Rust only accepts existing refs + `--end-of-options`.
+- History filter: one box for both an id prefix (when all hex) and the full message, case-insensitive; searched in Rust over the whole history; Hide mode rewrites parents to the nearest matching ancestor.
+- Commit details: merges are compared with their first parent (like SmartGit); only hex commit ids are accepted.
+- Branches: `git switch` (not `checkout`), `--no-guess`, never `--force`; checking out a remote branch = creating a local branch of the same name that tracks it. Deleting an unmerged branch: asks a second time, then `--force`. Deleting on the server uses `refs/heads/<name>` so a tag is never hit.
+- Stash: checked before stashing (git reports success even when there is nothing to stash); stashes are identified by id, not by index; content shown with `CommitDetails` (W against HEAD at stash time, U for untracked files). Apply doesn't use `--index` (every change comes back unstaged); a pop with conflicts keeps the stash.
+- Merge works like SmartGit (your choice, 2026-10-23): three options Fast-Forward / Create Merge-Commit / Merge to Working Tree; the default is always Create Merge-Commit (your choice). Merge state is read from `MERGE_HEAD`/`MERGE_MSG` (via `--git-path`) in `read_status`; Simple commit = delete `MERGE_HEAD`, then commit. The app writes the merge message itself (full ref names are passed to git).
+- Rebase: always asks first (counts the commits to replay and the pushed ones); refused with uncommitted changes, `--no-autostash`; no merge/rebase/commit while a rebase is in progress. Continue runs with `GIT_EDITOR=true` (keeps the original message); Skip / Abort always ask first. The status banner is the shared `OperationBanner`.
+- Reset added to the roadmap (step 22c, your request 2026-10-23): the three modes of SmartGit; Hard always asks a second time. Mixed by default; the full commit id is passed to `git reset` (git 2.33 doesn't accept `--end-of-options` for this command).
+- Discard (step 22d, your request 2026-10-24): like SmartGit, back to HEAD for both staged and unstaged changes; files not in HEAD go to the Trash (your choice, crate `trash`) instead of being deleted. Only paths present in the status are handled; conflicted files can't be discarded.
+- Cherry-pick: one commit from History; a merge commit is taken relative to its first parent (`--mainline 1`); an empty cherry-pick (already applied) is aborted automatically and reported; the waiting state is read from `CHERRY_PICK_HEAD`.
+- Conflicts: buttons show the real names of ours/theirs (a rebase swaps them); Take side = `checkout --ours/--theirs` + `add`, the side that deleted the file = `rm`; Mark Resolved checks for all 3 kinds of markers, asks again if any are left.
+- Conflict Solver (your request 2026-10-24): a separate 3-column window like SmartGit, replacing the Take Ours/Theirs toolbar buttons and the external tool; hand-written Myers diff (`src/conflict/lineDiff.ts`) to highlight changes and scroll the side columns; non-UTF-8 files are treated as binary (not editable).
+- Branch panel (step 25): the sidebar is split into a top (repositories) / bottom (branches) part with a splitter; the `repoActivity` store connects the sidebar with RepoView (RepoView stays the only owner of the status).
+- Remotes (step 26): URLs are read with `git config --get-regexp` (the raw value, before `insteadOf`); a password/token inside a URL is masked in the list; names and URLs starting with `-` are refused.
+- Graph: lanes never shift sideways, free columns are reused; `LaneLayout` is computed incrementally per page; one SVG per row, at most 20 lanes shown.
 
-## Việc còn treo
-- [ ] Bạn chạy `sudo xcode-select --switch /Library/Developer/CommandLineTools`.
-- [x] Commit đầu tiên `dd92830` (bước 1–2).
-- [x] Bước 3 đã xác nhận và commit.
-- [x] Bước 4, 5 đã xác nhận.
-- [x] Bước 6 đã xác nhận và commit.
-- [x] Bước 7 đã xác nhận và commit.
-- [x] Bước 8 đã xác nhận và commit.
-- [x] Bước 9 đã xác nhận và commit.
-- [x] Bước 10 đã xác nhận và commit.
-- [x] Bước 11 đã xác nhận và commit.
-- [x] Bước 16a đã xác nhận và commit.
-- [x] Bước 16b đã xác nhận và commit.
-- [x] Bước 16c đã xác nhận và commit.
-- [x] Bước 17 đã xác nhận và commit.
-- [x] Bước 18 đã xác nhận và commit.
-- [x] Bước 19a đã xác nhận và commit.
-- [x] Bước 19b đã xác nhận và commit.
-- [x] Bước 20a đã xác nhận và commit.
-- [x] Bước 20b đã xác nhận và commit.
-- [x] Bước 21a đã xác nhận và commit.
-- [x] Bước 21b đã xác nhận và commit.
-- [x] Bước 22a đã xác nhận và commit.
-- [x] Bước 22b đã xác nhận và commit.
-- [x] Bước 22c đã commit (2026-10-24, khi bạn chuyển sang 22d).
-- [x] Bước 22d đã xác nhận và commit.
-- [x] Bước 23 đã xác nhận và commit.
-- [x] Bước 24a + 24b đã xác nhận và commit. Giai đoạn 3 xong.
-- [ ] Bước 12–15 (credential, account + keyring, user.name/email theo repo, SSH key) **tạm hoãn** (2026-10-21), làm lại sau giai đoạn 2 hoặc khi bạn yêu cầu.
+## Open items
+- [x] `sudo xcode-select --switch /Library/Developer/CommandLineTools` (checked 2026-10-26: points to the Command Line Tools).
+- [x] First commit `dd92830` (steps 1–2).
+- [x] Steps 3–11 confirmed and committed.
+- [x] Steps 16a–19b confirmed and committed.
+- [x] Steps 20a–24b confirmed and committed (22c was committed on 2026-10-24, when moving on to 22d). Phase 3 done.
+- [x] Steps 25 and 26 confirmed and committed. README and MIT license added.
+- [ ] Steps 12–15 (credentials, accounts + keyring, per-repository user.name/email, SSH key) **on hold** (2026-10-21), to be resumed after phase 2 or when you ask.
