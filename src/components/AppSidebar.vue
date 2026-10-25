@@ -1,14 +1,21 @@
 <script setup lang="ts">
 import { useRepoStore } from "../stores/repos";
+import { useSplitRatio } from "../composables/useSplitRatio";
 import { showAddMenu } from "./sidebarMenus";
+import BranchPanel from "./BranchPanel.vue";
 import GroupItem from "./GroupItem.vue";
 import RepoItem from "./RepoItem.vue";
 
 const store = useRepoStore();
+
+// Repositories on top, the selected repo's branches below (step 25), with
+// a draggable divider; the share of the top part is remembered.
+const { ratio, startResize } = useSplitRatio("sidebar", "moongit.sidebar.reposRatio", 0.5);
 </script>
 
 <template>
-  <aside class="sidebar">
+  <aside ref="sidebar" class="sidebar">
+    <section class="repos" :style="store.selected ? { flexBasis: `${ratio * 100}%` } : { flex: '1' }">
     <header class="sidebar-header">
       <span>Repositories</span>
       <button class="icon-btn" title="Add repository or group" @click="showAddMenu(null)">+</button>
@@ -27,6 +34,13 @@ const store = useRepoStore();
       </ul>
       <p v-else class="empty">No repositories yet. Click + to add one.</p>
     </div>
+    </section>
+
+    <template v-if="store.selected">
+      <div class="splitter" title="Drag to resize" @mousedown="startResize"></div>
+      <!-- :key: a fresh panel (and fresh branch list) for each repo. -->
+      <BranchPanel :key="store.selected.id" class="branches" :repo-id="store.selected.id" />
+    </template>
   </aside>
 </template>
 
@@ -67,6 +81,28 @@ const store = useRepoStore();
 
 .error span {
   flex: 1;
+}
+
+.repos {
+  display: flex;
+  flex-direction: column;
+  flex-grow: 0;
+  flex-shrink: 0;
+  min-height: 0;
+}
+
+.splitter {
+  flex: 0 0 5px;
+  cursor: row-resize;
+}
+
+.splitter:hover {
+  background: var(--border);
+}
+
+.branches {
+  flex: 1;
+  min-height: 0;
 }
 
 .sidebar-body {

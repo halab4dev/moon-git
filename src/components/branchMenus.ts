@@ -182,6 +182,58 @@ function rebaseMenu(repoId: string, current: RefInfo, targets: RefInfo[], callba
   ];
 }
 
+/** A branch in the sidebar's branch panel. */
+export interface BranchItem {
+  /** "refs/heads/main" or "refs/remotes/origin/main". */
+  fullName: string;
+  /** Shown name: "main", or "origin/main" for a remote branch. */
+  name: string;
+  kind: "branch" | "remote";
+  current: boolean;
+}
+
+/**
+ * Right-click on a branch in the sidebar (step 25): the same actions as the
+ * header menu and the History menu, for this one branch.
+ */
+export async function showBranchItemMenu(repoId: string, item: BranchItem, callbacks: BranchCallbacks) {
+  const info: RefInfo = { fullName: item.fullName, name: item.name, kind: item.kind, current: item.current, upstream: null };
+  const isLocal = item.kind === "branch";
+  const others = item.current
+    ? []
+    : [
+        { text: `Check Out ${item.name}`, action: () => void perform(() => checkoutBranch(repoId, item.fullName), callbacks) },
+        SEPARATOR,
+        { text: `Merge ${item.name} into Current Branch…`, action: () => void askMerge(repoId, item.fullName, callbacks) },
+        {
+          text: `Rebase Current Branch onto ${item.name}…`,
+          action: () => void confirmRebase(repoId, item.fullName, callbacks),
+        },
+      ];
+  const menu = await Menu.new({
+    items: [
+      ...others,
+      ...(others.length > 0 ? [SEPARATOR] : []),
+      { text: "New Branch from Here…", action: () => askNewBranch(repoId, item.fullName, item.name, callbacks) },
+      ...(isLocal ? [{ text: `Rename ${item.name}…`, action: () => askRename(repoId, info, callbacks) }] : []),
+      ...(isLocal && !item.current
+        ? [SEPARATOR, { text: `Delete ${item.name}…`, action: () => void confirmDeleteLocal(repoId, info, callbacks) }]
+        : []),
+      ...(isLocal
+        ? []
+        : [SEPARATOR, { text: `Delete ${item.name} on the Server…`, action: () => void confirmDeleteRemote(repoId, info, callbacks) }]),
+    ],
+  });
+  await menu.popup();
+}
+
+/** Double-click on a branch in the sidebar: check it out (a remote one gets a tracking branch). */
+export function checkOutItem(repoId: string, item: BranchItem, callbacks: BranchCallbacks) {
+  if (!item.current) {
+    void perform(() => checkoutBranch(repoId, item.fullName), callbacks);
+  }
+}
+
 /** Right-click on a commit in the History tab. */
 export async function showCommitMenu(repoId: string, commit: CommitSummary, callbacks: BranchCallbacks) {
   const local = commit.refs.filter((r) => r.kind === "branch");

@@ -1,4 +1,5 @@
 import { invoke } from "@tauri-apps/api/core";
+import type { BranchList } from "../types/branches";
 import type { RepoStatus } from "../types/status";
 
 // Both resolve with the new status (the current branch changed).
@@ -36,4 +37,9 @@ export function deleteRemoteBranch(opId: string, repoId: string, fullName: strin
 /** `upstream`: "refs/remotes/origin/x", or null to stop tracking. */
 export function setBranchUpstream(repoId: string, fullName: string, upstream: string | null): Promise<RepoStatus> {
   return invoke<RepoStatus>("set_branch_upstream", { repoId, fullName, upstream });
+}
+
+/** Local branches, and remote branches grouped by remote (for the sidebar). */
+export function listBranches(repoId: string): Promise<BranchList> {
+  return invoke<BranchList>("list_branches", { repoId });
 }

@@ -451,3 +451,46 @@ pub struct ConflictVersions {
     /// One side deleted the file: nothing to merge line by line.
     pub missing_side: bool,
 }
+
+/// The sidebar's branch list (step 25).
+#[derive(Debug, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct BranchList {
+    pub local: Vec<LocalBranch>,
+    /// One group per remote, in the order of `git remote` (by name).
+    pub remotes: Vec<RemoteGroup>,
+}
+
+#[derive(Debug, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct LocalBranch {
+    /// "main", "feature/x".
+    pub name: String,
+    /// "refs/heads/main".
+    pub full_name: String,
+    pub current: bool,
+    /// The branch it tracks, e.g. "origin/main"; None when it tracks nothing.
+    pub upstream: Option<String>,
+    /// Commits here and not on the upstream, and the other way round.
+    pub ahead: u32,
+    pub behind: u32,
+    /// The upstream is configured but was deleted on the server.
+    pub upstream_gone: bool,
+}
+
+#[derive(Debug, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RemoteGroup {
+    /// "origin", "upstream".
+    pub name: String,
+    pub branches: Vec<RemoteBranch>,
+}
+
+#[derive(Debug, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RemoteBranch {
+    /// Without the remote: "main", "feature/x".
+    pub name: String,
+    /// "refs/remotes/origin/main".
+    pub full_name: String,
+}

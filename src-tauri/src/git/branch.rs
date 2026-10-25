@@ -215,7 +215,7 @@ pub fn delete_remote(
 
 /// "origin/feature/x" -> ("origin", "feature/x"). The longest remote name that
 /// fits wins, because remote names may contain "/" too ("team/origin").
-fn split_remote_name(remotes: &[String], short_name: &str) -> Option<(String, String)> {
+pub(crate) fn split_remote_name(remotes: &[String], short_name: &str) -> Option<(String, String)> {
     remotes
         .iter()
         .filter_map(|remote| {
@@ -284,8 +284,40 @@ fn check_branch_name(repo: &Path, name: &str) -> Result<String, AppError> {
 fn switch(repo: &Path, args: &[&str]) -> Result<(), AppError> {
     let mut all = vec!["switch", "--quiet"];
     all.extend_from_slice(args);
-    run_git(repo, &all)?;
+    run_git(repo, &all).map_err(explain_switch_error)?;
     Ok(())
+}
+
+// git's "Your local changes to the following files would be overwritten by
+// checkout:\n\ta.txt\n…\nPlease commit … Aborting" in the app's words: what
+// is in the way and what to do, without the file list (the Changes tab shows
+// the files; a long list would only make the message hard to read).
+fn explain_switch_error(err: AppError) -> AppError {
+    if !err.message.contains("would be overwritten") {
+        return err;
+    }
+    // The files are the lines starting with a tab.
+    let count = err
+        .message
+        .lines()
+        .filter(|line| line.starts_with('\t'))
+        .count();
+    let files = if count == 1 {
+        "1 file".to_string()
+    } else {
+        format!("{count} files")
+    };
+    invalid(if err.message.contains("untracked working tree files") {
+        format!(
+            "The branch can't be checked out: it contains {files} that already exist here as \
+             untracked files. Move or delete them first."
+        )
+    } else {
+        format!(
+            "The branch can't be checked out: it changes {files} that you have uncommitted \
+             changes in. Commit, stash or discard your changes first."
+        )
+    })
 }
 
 fn find<'a>(refs: &'a [RefInfo], full_name: &str) -> Result<&'a RefInfo, AppError> {
@@ -394,8 +426,14 @@ mod tests {
         fs::write(root.join("first.txt"), "my unsaved work\n").unwrap();
 
         let err = checkout(root, "refs/heads/other").unwrap_err();
-        assert_eq!(err.kind, ErrorKind::GitFailed);
-        assert!(err.message.contains("local changes"), "{}", err.message);
+        assert_eq!(err.kind, ErrorKind::InvalidInput);
+        assert!(
+            err.message.starts_with(
+                "The branch can't be checked out: it changes 1 file that you have uncommitted changes in."
+            ),
+            "{}",
+            err.message
+        );
         // Nothing lost.
         assert_eq!(
             fs::read_to_string(root.join("first.txt")).unwrap(),

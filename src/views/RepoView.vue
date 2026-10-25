@@ -24,6 +24,7 @@ import type { CherryPickAction } from "../types/cherryPick";
 import type { RebaseAction } from "../types/rebase";
 import { ask } from "@tauri-apps/plugin-dialog";
 import { useDialogStore } from "../stores/dialogs";
+import { useRepoActivity } from "../stores/repoActivity";
 import { toAppError } from "../api/errors";
 import type { AppError } from "../types/error";
 import type { RepoEntry } from "../types/repo";
@@ -45,6 +46,22 @@ const syncLocked = ref(false);
 const stashLocked = ref(false);
 // Staging and committing must wait for all of them.
 const working = computed(() => busy.value || syncLocked.value || stashLocked.value);
+
+// The branch panel in the sidebar (step 25) follows this view: it reloads
+// when the status changes, waits while we work, and hands us the status of
+// its own actions (checkout…).
+const activity = useRepoActivity();
+watch(statusVersion, () => activity.statusChanged());
+watch(working, (value) => (activity.busy = value), { immediate: true });
+watch(
+  () => activity.incomingStatus,
+  (incoming) => {
+    if (incoming !== null) {
+      activity.incomingStatus = null;
+      applyStatus(incoming);
+    }
+  },
+);
 const error = ref<AppError | null>(null);
 const selectedPaths = ref<string[]>([]);
 

@@ -4,7 +4,7 @@ use super::{emit_progress, run_blocking};
 use crate::error::AppError;
 use crate::git;
 use crate::git::operations::Operations;
-use crate::models::RepoStatus;
+use crate::models::{BranchList, RepoStatus};
 use crate::storage::repos::RepoStore;
 
 // All return the new status (the branch shown in the header may have changed).
@@ -107,4 +107,14 @@ pub async fn set_branch_upstream(
         git::status::read_status(&repo)
     })
     .await
+}
+
+/// Local branches and remote branches grouped by remote, for the sidebar.
+#[tauri::command]
+pub async fn list_branches(
+    repo_id: String,
+    store: State<'_, RepoStore>,
+) -> Result<BranchList, AppError> {
+    let repo = store.repo_path(&repo_id)?;
+    run_blocking(move || git::branches::list_branches(&repo)).await
 }

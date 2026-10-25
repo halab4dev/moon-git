@@ -2,7 +2,7 @@
 
 Cập nhật lần cuối: 2026-10-24
 
-**Đang ở:** Giai đoạn 3 đã xong (2026-10-24). Còn lại: bước 12–15 (credential, account + keyring, user.name/email theo repo, SSH key) đang tạm hoãn theo yêu cầu của bạn.
+**Đang ở:** Giai đoạn 3 đã xong. Bước 25 (danh sách branch ở sidebar, bạn yêu cầu thêm) đã xong. Bước 12–15 tạm hoãn theo yêu cầu của bạn.
 
 Ký hiệu: ✅ xong · 🟡 đang làm / chờ xác nhận · ⏸ tạm hoãn · ⬜ chưa làm
 
@@ -59,6 +59,12 @@ Giải thích chi tiết từng bước: [docs/learning/](learning/README.md)
 | 24a | Conflict: Take Ours / Take Theirs (tên thật của từng phía), Mark Resolved (kiểm tra dấu conflict). Phát hiện trạng thái + Continue/Abort đã có từ 21b/22b/23 | ✅ 191 Rust + 17 Vitest; Take Ours/Theirs chỉ còn trong menu chuột phải (sau 24b) |
 | 24b | Cửa sổ Conflict Solver 3 cột giống SmartGit (double-click file conflict): ours / kết quả sửa được / theirs, Take Left/Right/Both từng khối, Save & Mark Resolved. *Thay cho "công cụ so sánh ngoài", theo yêu cầu của bạn* | ✅ 193 Rust + 28 Vitest |
 
+## Thêm theo yêu cầu (sau Giai đoạn 3)
+
+| # | Tính năng | Trạng thái |
+|---|---|---|
+| 25 | Danh sách branch ở sidebar giống SmartGit: Local (✓, ↑↓, gone) / Remotes chia theo từng remote; double-click checkout, chuột phải: checkout / merge / rebase / new / rename / delete | ✅ 196 Rust + 28 Vitest |
+
 ---
 
 ## Quyết định đã chốt
@@ -100,6 +106,7 @@ Giải thích chi tiết từng bước: [docs/learning/](learning/README.md)
 - Cherry-pick: một commit từ History; merge commit lấy theo cha thứ nhất (`--mainline 1`); cherry-pick rỗng (đã có) tự hủy và báo; trạng thái chờ đọc từ `CHERRY_PICK_HEAD`.
 - Conflict: nút ghi tên thật của ours/theirs (rebase đảo nghĩa); Take side = `checkout --ours/--theirs` + `add`, phía đã xóa file = `rm`; Mark Resolved kiểm tra đủ 3 loại dấu, hỏi lần 2 nếu còn.
 - Conflict Solver (bạn yêu cầu 2026-10-24): cửa sổ riêng 3 cột như SmartGit thay cho nút Take Ours/Theirs trên thanh công cụ và thay cho công cụ ngoài; Myers diff tự viết (`src/conflict/lineDiff.ts`) để tô thay đổi và cuộn cột bên; file không phải UTF-8 coi như nhị phân (không cho sửa).
+- Branch panel (bước 25): sidebar chia trên (repo) / dưới (branch) có thanh kéo; store `repoActivity` nối sidebar với RepoView (RepoView vẫn là nơi duy nhất giữ status).
 - Graph: làn không dịch ngang, cột trống được dùng lại; `LaneLayout` tính dần theo trang; vẽ SVG mỗi dòng, tối đa 20 làn hiển thị.
 
 ## Việc còn treo
