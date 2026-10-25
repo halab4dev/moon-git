@@ -1,8 +1,8 @@
 # MoonGit — Kế hoạch và tiến độ
 
-Cập nhật lần cuối: 2026-10-24
+Cập nhật lần cuối: 2026-10-26
 
-**Đang ở:** Giai đoạn 3 đã xong. Bước 25 (danh sách branch ở sidebar, bạn yêu cầu thêm) đã xong. Bước 12–15 tạm hoãn theo yêu cầu của bạn.
+**Đang ở:** Giai đoạn 3 đã xong. Bước 25 (danh sách branch ở sidebar) đã xong. Bước 26 (thêm remote, hiện / sửa URL) đã xong. Bước 12–15 tạm hoãn theo yêu cầu của bạn.
 
 Ký hiệu: ✅ xong · 🟡 đang làm / chờ xác nhận · ⏸ tạm hoãn · ⬜ chưa làm
 
@@ -64,6 +64,7 @@ Giải thích chi tiết từng bước: [docs/learning/](learning/README.md)
 | # | Tính năng | Trạng thái |
 |---|---|---|
 | 25 | Danh sách branch ở sidebar giống SmartGit: Local (✓, ↑↓, gone) / Remotes chia theo từng remote; double-click checkout, chuột phải: checkout / merge / rebase / new / rename / delete | ✅ 196 Rust + 28 Vitest |
+| 26 | Thêm remote (Add Remote…): nút + / chuột phải "Remotes" trong panel Branches; tên + URL, kiểm tra trước khi `git remote add --`. URL mờ cạnh tên remote (che token), chuột phải → Edit URL | ✅ 203 Rust + 30 Vitest |
 
 ---
 

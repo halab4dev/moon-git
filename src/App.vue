@@ -6,6 +6,7 @@ import MergeDialog from "./components/MergeDialog.vue";
 import ResetDialog from "./components/ResetDialog.vue";
 import CherryPickDialog from "./components/CherryPickDialog.vue";
 import NameDialog from "./components/NameDialog.vue";
+import AddRemoteDialog from "./components/AddRemoteDialog.vue";
 import RepoView from "./views/RepoView.vue";
 import WelcomeView from "./views/WelcomeView.vue";
 import { useRepoStore } from "./stores/repos";
@@ -31,6 +32,7 @@ onMounted(() => {
   <MergeDialog />
   <ResetDialog />
   <CherryPickDialog />
+  <AddRemoteDialog />
 </template>
 
 <style scoped>

@@ -118,3 +118,27 @@ pub async fn list_branches(
     let repo = store.repo_path(&repo_id)?;
     run_blocking(move || git::branches::list_branches(&repo)).await
 }
+
+/// Adds remote `name` with `url` (step 26). Nothing is fetched yet.
+#[tauri::command]
+pub async fn add_remote(
+    repo_id: String,
+    name: String,
+    url: String,
+    store: State<'_, RepoStore>,
+) -> Result<(), AppError> {
+    let repo = store.repo_path(&repo_id)?;
+    run_blocking(move || git::remote::add(&repo, &name, &url)).await
+}
+
+/// Changes the URL of remote `name`.
+#[tauri::command]
+pub async fn set_remote_url(
+    repo_id: String,
+    name: String,
+    url: String,
+    store: State<'_, RepoStore>,
+) -> Result<(), AppError> {
+    let repo = store.repo_path(&repo_id)?;
+    run_blocking(move || git::remote::set_url(&repo, &name, &url)).await
+}

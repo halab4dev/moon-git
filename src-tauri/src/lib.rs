@@ -67,6 +67,8 @@ pub fn run() {
             commands::branch::delete_remote_branch,
             commands::branch::set_branch_upstream,
             commands::branch::list_branches,
+            commands::branch::add_remote,
+            commands::branch::set_remote_url,
             commands::stash::create_stash,
             commands::stash::list_stashes,
             commands::stash::run_stash_action,

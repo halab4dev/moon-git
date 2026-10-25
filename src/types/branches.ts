@@ -23,6 +23,8 @@ export interface RemoteBranch {
 export interface RemoteGroup {
   /** "origin", "upstream". */
   name: string;
+  /** As written in the config; null for refs left over from a removed remote. */
+  url: string | null;
   branches: RemoteBranch[];
 }
 

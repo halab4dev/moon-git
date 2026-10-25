@@ -46,6 +46,15 @@ export interface CherryPickRequest {
   submit: (mode: CherryPickMode) => Promise<string | null>;
 }
 
+export interface RemoteRequest {
+  /** null: add a new remote. Otherwise: change the URL of this one (the name is fixed). */
+  existing: { name: string; url: string } | null;
+  /** When adding: suggested name, e.g. "origin" when the repo has no remote yet. */
+  initialName: string;
+  /** Returns an error message to show in the dialog, or null to close it. */
+  submit: (name: string, url: string) => Promise<string | null>;
+}
+
 export interface CloneRequest {
   /** Group the cloned repo goes into; null = top level. */
   groupId: string | null;
@@ -57,6 +66,7 @@ export const useDialogStore = defineStore("dialogs", () => {
   const mergeRequest = ref<MergeRequest | null>(null);
   const resetRequest = ref<ResetRequest | null>(null);
   const cherryPickRequest = ref<CherryPickRequest | null>(null);
+  const remoteRequest = ref<RemoteRequest | null>(null);
 
   function askName(request: NameRequest) {
     nameRequest.value = request;
@@ -98,12 +108,21 @@ export const useDialogStore = defineStore("dialogs", () => {
     cherryPickRequest.value = null;
   }
 
+  function askRemote(request: RemoteRequest) {
+    remoteRequest.value = request;
+  }
+
+  function closeRemote() {
+    remoteRequest.value = null;
+  }
+
   return {
     nameRequest,
     cloneRequest,
     mergeRequest,
     resetRequest,
     cherryPickRequest,
+    remoteRequest,
     askName,
     closeName,
     openClone,
@@ -114,6 +133,8 @@ export const useDialogStore = defineStore("dialogs", () => {
     closeReset,
     askCherryPick,
     closeCherryPick,
+    askRemote,
+    closeRemote,
   };
 });
 

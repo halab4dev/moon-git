@@ -1,12 +1,15 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from "vue";
+import { Menu } from "@tauri-apps/api/menu";
 import { message } from "@tauri-apps/plugin-dialog";
-import { listBranches } from "../api/branch";
+import { addRemote, listBranches, setRemoteUrl } from "../api/branch";
 import { toAppError } from "../api/errors";
+import { displayUrl } from "./remoteUrl";
 import { checkOutItem, showBranchItemMenu, type BranchCallbacks, type BranchItem } from "./branchMenus";
+import { useDialogStore } from "../stores/dialogs";
 import { useRepoActivity } from "../stores/repoActivity";
 import type { AppError } from "../types/error";
-import type { BranchList, LocalBranch } from "../types/branches";
+import type { BranchList, LocalBranch, RemoteGroup } from "../types/branches";
 
 // Lower part of the sidebar (step 25): the branches of the selected repo,
 // like SmartGit's Branches view. Local branches first, then the remote
@@ -72,6 +75,65 @@ function menu(item: BranchItem) {
   if (!activity.busy) {
     void showBranchItemMenu(props.repoId, item, callbacks);
   }
+}
+
+// ---- adding a remote, changing its URL (step 26) ----
+
+const dialogs = useDialogStore();
+
+function askAddRemote() {
+  const names = branches.value?.remotes.map((group) => group.name) ?? [];
+  dialogs.askRemote({
+    existing: null,
+    // The usual name for the first one; a second one needs its own name.
+    initialName: names.length === 0 ? "origin" : "",
+    submit: async (name, url) => {
+      try {
+        await addRemote(props.repoId, name, url);
+      } catch (err) {
+        return toAppError(err).message;
+      }
+      await load();
+      return null;
+    },
+  });
+}
+
+function askEditUrl(name: string, url: string) {
+  dialogs.askRemote({
+    existing: { name, url },
+    initialName: name,
+    submit: async (_name, newUrl) => {
+      try {
+        await setRemoteUrl(props.repoId, name, newUrl);
+      } catch (err) {
+        return toAppError(err).message;
+      }
+      await load();
+      return null;
+    },
+  });
+}
+
+/** Right-click on a remote's group: change its URL (not for leftovers of a removed remote). */
+async function remoteMenu(group: RemoteGroup) {
+  const url = group.url;
+  if (url === null) {
+    return;
+  }
+  const menu = await Menu.new({
+    items: [
+      { text: `Edit URL of ${group.name}…`, action: () => askEditUrl(group.name, url) },
+      { item: "Separator" },
+      { text: "Add Remote…", action: askAddRemote },
+    ],
+  });
+  await menu.popup();
+}
+
+async function remotesMenu() {
+  const menu = await Menu.new({ items: [{ text: "Add Remote…", action: askAddRemote }] });
+  await menu.popup();
 }
 
 // ---- sorting by name, A→Z or Z→A, remembered for all repos ----
@@ -211,16 +273,23 @@ function localTitle(branch: LocalBranch): string {
         </li>
 
         <li>
-          <div class="group" @click="toggle('remotes')">
+          <div class="group" @click="toggle('remotes')" @contextmenu.prevent="remotesMenu">
             <span class="chevron">{{ collapsed.has("remotes") ? "▸" : "▾" }}</span>
             Remotes
             <span class="count">{{ shown.remotes.length }}</span>
+            <button class="icon-btn add" title="Add Remote…" @click.stop="askAddRemote">+</button>
           </div>
           <ul v-if="!collapsed.has('remotes')">
             <li v-for="remote in shown.remotes" :key="remote.name">
-              <div class="group nested" @click="toggle(`remote:${remote.name}`)">
+              <div
+                class="group nested"
+                :title="remote.url === null ? remote.name : `${remote.name}: ${displayUrl(remote.url)}`"
+                @click="toggle(`remote:${remote.name}`)"
+                @contextmenu.prevent="remoteMenu(remote)"
+              >
                 <span class="chevron">{{ collapsed.has(`remote:${remote.name}`) ? "▸" : "▾" }}</span>
-                {{ remote.name }}
+                <span class="remote-name">{{ remote.name }}</span>
+                <span v-if="remote.url !== null" class="url">{{ displayUrl(remote.url) }}</span>
                 <span class="count">{{ remote.branches.length }}</span>
               </div>
               <ul v-if="!collapsed.has(`remote:${remote.name}`)">
@@ -240,7 +309,9 @@ function localTitle(branch: LocalBranch): string {
                 <li v-if="remote.branches.length === 0" class="muted branch nested">No branches (not fetched yet?).</li>
               </ul>
             </li>
-            <li v-if="shown.remotes.length === 0" class="muted branch">No remotes.</li>
+            <li v-if="shown.remotes.length === 0" class="muted branch">
+              No remotes. <a href="#" @click.prevent="askAddRemote">Add Remote…</a>
+            </li>
           </ul>
         </li>
       </ul>
@@ -327,6 +398,32 @@ ul {
 .group.nested {
   padding-left: 22px;
   font-weight: 500;
+}
+
+.icon-btn.add {
+  width: 16px;
+  height: 16px;
+  line-height: 14px;
+  font-weight: 400;
+}
+
+.muted a {
+  color: var(--accent);
+}
+
+.remote-name {
+  flex-shrink: 0;
+}
+
+/* Muted, and cut with "…" when the sidebar is narrow (full URL in the tooltip). */
+.url {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--text-muted);
+  font-weight: 400;
+  font-size: 11px;
 }
 
 .chevron {

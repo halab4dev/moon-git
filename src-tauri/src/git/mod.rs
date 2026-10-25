@@ -17,6 +17,7 @@ pub mod pull;
 pub mod push;
 pub mod rebase;
 pub mod refs;
+pub mod remote;
 pub mod repo;
 pub mod reset;
 pub mod runner;

@@ -483,6 +483,8 @@ pub struct LocalBranch {
 pub struct RemoteGroup {
     /// "origin", "upstream".
     pub name: String,
+    /// As written in the config; None for refs left over from a removed remote.
+    pub url: Option<String>,
     pub branches: Vec<RemoteBranch>,
 }
 

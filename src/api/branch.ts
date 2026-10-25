@@ -43,3 +43,13 @@ export function setBranchUpstream(repoId: string, fullName: string, upstream: st
 export function listBranches(repoId: string): Promise<BranchList> {
   return invoke<BranchList>("list_branches", { repoId });
 }
+
+/** Adds remote `name` → `url` (nothing is fetched yet). */
+export function addRemote(repoId: string, name: string, url: string): Promise<void> {
+  return invoke<void>("add_remote", { repoId, name, url });
+}
+
+/** Changes the URL of remote `name`. */
+export function setRemoteUrl(repoId: string, name: string, url: string): Promise<void> {
+  return invoke<void>("set_remote_url", { repoId, name, url });
+}

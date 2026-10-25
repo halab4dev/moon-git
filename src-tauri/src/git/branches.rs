@@ -8,6 +8,7 @@ use crate::error::AppError;
 use crate::git::branch::split_remote_name;
 use crate::git::push::list_remotes;
 use crate::git::refs::ref_info;
+use crate::git::remote;
 use crate::git::runner::run_git;
 use crate::models::{BranchList, LocalBranch, RefKind, RemoteBranch, RemoteGroup};
 
@@ -24,6 +25,7 @@ pub fn list_branches(repo: &Path) -> Result<BranchList, AppError> {
         ],
     )?;
     let remotes = list_remotes(repo)?;
+    let mut urls = remote::urls(repo)?;
     let mut list = BranchList {
         local: Vec::new(),
         // Every remote gets a group, even one without branches (not fetched yet).
@@ -31,6 +33,7 @@ pub fn list_branches(repo: &Path) -> Result<BranchList, AppError> {
             .iter()
             .map(|name| RemoteGroup {
                 name: name.clone(),
+                url: urls.remove(name),
                 branches: Vec::new(),
             })
             .collect(),
@@ -76,6 +79,7 @@ pub fn list_branches(repo: &Path) -> Result<BranchList, AppError> {
                     Some(group) => group.branches.push(branch),
                     None => list.remotes.push(RemoteGroup {
                         name: remote,
+                        url: None,
                         branches: vec![branch],
                     }),
                 }
@@ -170,6 +174,8 @@ mod tests {
                 ("upstream", vec!["feature/x", "main"]),
             ]
         );
+        assert_eq!(list.remotes[0].url.as_deref(), Some("/nowhere"));
+        assert_eq!(list.remotes[2].url.as_deref(), Some(other_url.as_str()));
         assert_eq!(
             list.remotes[2].branches[0].full_name,
             "refs/remotes/upstream/feature/x"
