@@ -2,7 +2,7 @@
 
 Last updated: 2026-10-26
 
-**Current state:** Phase 3 is done. Step 25 (branch list in the sidebar) is done. Step 26 (add a remote, show / edit its URL) is done. Steps 12–15 are on hold, as requested.
+**Current state:** Phase 3 is done. Step 25 (branch list in the sidebar) is done. Step 26 (add a remote, show / edit its URL) is done. Step 27 (force push with lease) is done. Steps 12–15 are on hold, as requested.
 
 Legend: ✅ done · 🟡 in progress / waiting for confirmation · ⏸ on hold · ⬜ not started
 
@@ -65,6 +65,7 @@ Detailed notes for each step (in Vietnamese): [docs/learning/](learning/README.m
 |---|---|---|
 | 25 | Branch list in the sidebar like SmartGit: Local (✓, ↑↓, gone) / Remotes grouped by remote; double-click checks out, right-click: checkout / merge / rebase / new / rename / delete | ✅ 196 Rust + 28 Vitest |
 | 26 | Add a remote (Add Remote…): + button / right-click "Remotes" in the Branches panel; name + URL, checked before `git remote add --`. Muted URL next to the remote name (tokens masked), right-click → Edit URL | ✅ 203 Rust + 30 Vitest |
+| 27 | Force push: ▾ next to Push → Force Push…; preview of the commits the server loses, confirmation, `--force-with-lease=<ref>:<id seen at the last fetch>`; refused (nothing lost) if someone pushed since | ✅ 208 Rust + 30 Vitest |
 
 ---
 
@@ -87,7 +88,7 @@ Detailed notes for each step (in Vietnamese): [docs/learning/](learning/README.m
 - `vite.config.ts` transpiles JS down to `safari15` / `chrome105` (the macOS 12 webview = system WebKit ≈ Safari 15.6, even if the Safari app is newer). Checked with the system's `jsc`.
 - Fetch = `git fetch --all --progress`, without `--prune` (pruning branches deleted on the server will be a separate option later).
 - Pull: asks Rebase/Merge every time the branch has diverged (your choice), preselected from git config; when only behind, fast-forwards without asking. Done with fetch + a local merge/rebase against `@{upstream}`, not `git pull`.
-- Push never forces.
+- The Push button never forces. Force push (step 27) is a separate menu action, always confirmed with the list of commits the server loses, and always `--force-with-lease=<remote ref>:<id from the last fetch>` (never plain `--force`, never the bare `--force-with-lease`).
 - History: `git log --date-order` from `--branches --remotes --tags HEAD` (not `--all`, to keep stashes out), pages of 500 commits via `--skip`; hand-written virtualized list (no extra library).
 - Diffs use Monaco, loading only the core + syntax highlighting + workers, on the first diff opened. Three modes: Working Tree (Index→WT), Staged (HEAD→Index), Conflict (HEAD→WT).
 - The State column uses SmartGit's file state names (Staged, Added, Modified, Missing…); sorted by importance, Conflicted first.
@@ -117,5 +118,5 @@ Detailed notes for each step (in Vietnamese): [docs/learning/](learning/README.m
 - [x] Steps 3–11 confirmed and committed.
 - [x] Steps 16a–19b confirmed and committed.
 - [x] Steps 20a–24b confirmed and committed (22c was committed on 2026-10-24, when moving on to 22d). Phase 3 done.
-- [x] Steps 25 and 26 confirmed and committed. README and MIT license added.
+- [x] Steps 25, 26 and 27 confirmed and committed. README and MIT license added.
 - [ ] Steps 12–15 (credentials, accounts + keyring, per-repository user.name/email, SSH key) **on hold** (2026-10-21), to be resumed after phase 2 or when you ask.

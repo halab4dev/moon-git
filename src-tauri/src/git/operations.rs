@@ -202,6 +202,20 @@ fn failure(messages: &[String], args: &[&str], status: ExitStatus) -> AppError {
         );
     }
 
+    // Force push with lease: the server branch is not where it was at the
+    // last fetch (someone pushed since). " ! [rejected]  main -> main (stale info)"
+    if messages
+        .iter()
+        .any(|m| m.contains("[rejected]") && m.contains("stale info"))
+    {
+        return AppError::new(
+            ErrorKind::PushRejected,
+            "The server branch has changed since your last fetch (someone else pushed). Nothing was \
+             overwritten. Fetch, look at the new commits, then decide again."
+                .to_string(),
+        );
+    }
+
     // " ! [rejected]  main -> main (fetch first)" or "(non-fast-forward)".
     let rejected = messages.iter().any(|m| {
         m.contains("[rejected]") && (m.contains("fetch first") || m.contains("non-fast-forward"))

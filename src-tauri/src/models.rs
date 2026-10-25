@@ -496,3 +496,31 @@ pub struct RemoteBranch {
     /// "refs/remotes/origin/main".
     pub full_name: String,
 }
+
+/// What a force push of the current branch would do (step 27), shown in the
+/// confirmation before anything is sent.
+#[derive(Debug, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ForcePushPreview {
+    /// The current branch, e.g. "main".
+    pub branch: String,
+    /// Where it goes, e.g. "origin/main".
+    pub upstream: String,
+    /// Local commits that the server branch doesn't have.
+    pub ahead: u32,
+    /// Commits on the server branch (as of the last fetch) that the push
+    /// removes from it.
+    pub lost_count: u32,
+    /// The newest of those, at most 10.
+    pub lost: Vec<LostCommit>,
+    /// Full id of the server branch as of the last fetch. The push only
+    /// succeeds if the server still has exactly this (--force-with-lease).
+    pub expected: String,
+}
+
+#[derive(Debug, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct LostCommit {
+    pub id: String,
+    pub subject: String,
+}

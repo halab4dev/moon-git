@@ -54,6 +54,8 @@ pub fn run() {
             commands::pull::pull_repo,
             commands::pull::get_pull_default,
             commands::push::push_repo,
+            commands::push::force_push_preview,
+            commands::push::force_push_repo,
             commands::push::list_remotes,
             commands::log::get_log,
             commands::log::list_refs,

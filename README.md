@@ -24,7 +24,7 @@ MoonGit is a thin GUI over the **git command line** installed on your machine. I
 - **Fetch** (all remotes), **pull** and **push**, with live progress and a Cancel button.
 - Ahead / behind counts for the current branch.
 - When a branch has diverged, pull asks whether to rebase or merge.
-- Push never forces.
+- **Force push** from the ▾ next to Push. It shows the commits the server branch would lose and asks first. It always uses `--force-with-lease` against what you last fetched: if someone pushed since, it is refused and nothing is overwritten. The normal Push never forces.
 
 ### History
 - **Commit graph** with lanes. Choose which local branches, remote branches and tags to show.
@@ -52,7 +52,7 @@ MoonGit is a thin GUI over the **git command line** installed on your machine. I
   - A **3-column Conflict Solver** window: your side, an editable result and their side. Jump between conflicts, take left / right / both, then *Save & Mark Resolved*.
 
 ### Safety
-- Destructive actions (hard reset, deleting branches, discarding changes, aborting operations…) always ask for confirmation first.
+- Destructive actions (hard reset, force push, deleting branches, discarding changes, aborting operations…) always ask for confirmation first.
 - git is always called with argument arrays, never through a shell string.
 - `GIT_TERMINAL_PROMPT=0` is set, so git never hangs waiting for a password.
 - git's error messages are turned into readable messages, never swallowed.

@@ -1,6 +1,6 @@
 import { invoke } from "@tauri-apps/api/core";
 import type { RepoStatus } from "../types/status";
-import type { PullMode } from "../types/sync";
+import type { ForcePushPreview, PullMode } from "../types/sync";
 
 // Pull and push. Fetch is in fetch.ts; progress/cancel in operations.ts.
 
@@ -20,6 +20,16 @@ export function getPullDefault(repoId: string): Promise<PullMode> {
 /** `newUpstream`: remote to create and track the branch on (first push only), else null. */
 export function pushRepo(opId: string, repoId: string, newUpstream: string | null): Promise<void> {
   return invoke<void>("push_repo", { opId, repoId, newUpstream });
+}
+
+/** What force pushing the current branch would remove from the server. */
+export function forcePushPreview(repoId: string): Promise<ForcePushPreview> {
+  return invoke<ForcePushPreview>("force_push_preview", { repoId });
+}
+
+/** Force push, only if the server branch is still at `expected` (from the preview). */
+export function forcePushRepo(opId: string, repoId: string, expected: string): Promise<void> {
+  return invoke<void>("force_push_repo", { opId, repoId, expected });
 }
 
 export function listRemotes(repoId: string): Promise<string[]> {

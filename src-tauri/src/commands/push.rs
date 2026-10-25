@@ -4,6 +4,7 @@ use super::{emit_progress, run_blocking};
 use crate::error::AppError;
 use crate::git;
 use crate::git::operations::Operations;
+use crate::models::ForcePushPreview;
 use crate::storage::repos::RepoStore;
 
 /// Pushes the current branch, with "git-progress" events tagged `op_id`.
@@ -32,4 +33,33 @@ pub async fn list_remotes(
 ) -> Result<Vec<String>, AppError> {
     let repo = store.repo_path(&repo_id)?;
     run_blocking(move || git::push::list_remotes(&repo)).await
+}
+
+/// What a force push of the current branch would remove from the server.
+#[tauri::command]
+pub async fn force_push_preview(
+    repo_id: String,
+    store: State<'_, RepoStore>,
+) -> Result<ForcePushPreview, AppError> {
+    let repo = store.repo_path(&repo_id)?;
+    run_blocking(move || git::push::force_push_preview(&repo)).await
+}
+
+/// Force pushes the current branch, only if the server branch is still at
+/// `expected` (from the preview). "git-progress" events tagged `op_id`.
+#[tauri::command]
+pub async fn force_push_repo(
+    app: AppHandle,
+    op_id: String,
+    repo_id: String,
+    expected: String,
+) -> Result<(), AppError> {
+    let repo = app.state::<RepoStore>().repo_path(&repo_id)?;
+    run_blocking(move || {
+        let ops = app.state::<Operations>();
+        git::push::force_push(&ops, &op_id, &repo, &expected, |line| {
+            emit_progress(&app, &op_id, line)
+        })
+    })
+    .await
 }

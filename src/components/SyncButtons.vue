@@ -1,14 +1,15 @@
 <script setup lang="ts">
 import { computed, ref } from "vue";
-import { ask } from "@tauri-apps/plugin-dialog";
+import { Menu } from "@tauri-apps/api/menu";
+import { ask, message } from "@tauri-apps/plugin-dialog";
 import { fetchRepo } from "../api/fetch";
 import { cancelOperation, onGitProgress } from "../api/operations";
 import { getStatus } from "../api/status";
-import { getPullDefault, listRemotes, pullRepo, pushRepo } from "../api/sync";
+import { forcePushPreview, forcePushRepo, getPullDefault, listRemotes, pullRepo, pushRepo } from "../api/sync";
 import { toAppError } from "../api/errors";
 import type { AppError } from "../types/error";
 import type { BranchInfo } from "../types/status";
-import type { PullMode } from "../types/sync";
+import type { ForcePushPreview, PullMode } from "../types/sync";
 
 // Fetch / Pull / Push. One at a time; while one runs, the buttons turn into
 // a progress line (+ Cancel while git talks to the server).
@@ -48,6 +49,14 @@ const pushBlocker = computed(() => {
   if (props.branch.name === null) return "HEAD is detached";
   if (props.branch.commit === null) return "Nothing committed yet";
   if (tracking.value && props.branch.ahead === 0) return "Nothing to push";
+  return null;
+});
+
+// Force push replaces the server branch, so it needs one to replace.
+const forcePushBlocker = computed(() => {
+  if (props.branch.name === null) return "HEAD is detached";
+  if (props.branch.upstream === null) return "This branch is not on the server yet: use Push";
+  if (props.branch.upstreamGone) return "The upstream branch was deleted on the server: use Push";
   return null;
 });
 
@@ -176,6 +185,68 @@ function push() {
   });
 }
 
+// ---- force push (step 27) ----
+
+async function pushMenu() {
+  if (running.value) {
+    return;
+  }
+  const blocker = forcePushBlocker.value;
+  const menu = await Menu.new({
+    items: [
+      {
+        text: blocker === null ? "Force Push…" : `Force Push… (${blocker})`,
+        enabled: blocker === null,
+        action: () => void forcePush(),
+      },
+    ],
+  });
+  await menu.popup();
+}
+
+function forcePush() {
+  return perform(async () => {
+    // Based on the last fetch; the lease makes git check it on the server.
+    const preview = await forcePushPreview(props.repoId);
+    if (preview.lostCount === 0) {
+      await message(
+        `${preview.upstream} has no commits that "${preview.branch}" doesn't have, so nothing would be overwritten. Use Push instead.`,
+        { title: "Force Push Not Needed", kind: "info" },
+      );
+      return;
+    }
+    const confirmed = await ask(forcePushQuestion(preview), {
+      title: "Force Push",
+      kind: "warning",
+      okLabel: "Force Push",
+      cancelLabel: "Cancel",
+    });
+    if (!confirmed) {
+      return;
+    }
+    if (await withProgress("Force pushing…", (id) => forcePushRepo(id, props.repoId, preview.expected))) {
+      note.value = "Force pushed";
+    }
+  });
+}
+
+function forcePushQuestion(preview: ForcePushPreview): string {
+  const lines = preview.lost.map((commit) => `  • ${commit.id.slice(0, 8)} ${commit.subject}`);
+  const more = preview.lostCount - preview.lost.length;
+  if (more > 0) {
+    lines.push(`  … and ${more} more`);
+  }
+  return [
+    `Replace ${preview.upstream} with your local "${preview.branch}"?`,
+    "",
+    `${preview.lostCount} commit(s) on ${preview.upstream} will be removed from it:`,
+    ...lines,
+    "",
+    "Anyone who already pulled them will have to repair their copy.",
+    "If someone pushed after your last fetch, the push is refused and nothing is overwritten.",
+  ].join("\n");
+}
+
 // ---- "Merge or rebase?" dialog ----
 
 const choice = ref<{ ahead: number; behind: number } | null>(null);
@@ -210,6 +281,7 @@ function closeChoice(mode: PullMode | null) {
       <button :disabled="pushBlocker !== null" :title="pushBlocker ?? 'Upload this branch\'s new commits to the server'" @click="push">
         Push
       </button>
+      <button class="more" title="More push options (Force Push…)" @click="pushMenu">▾</button>
     </template>
     <template v-else>
       <span class="progress muted" :title="progress">{{ progress }}</span>
@@ -255,6 +327,13 @@ function closeChoice(mode: PullMode | null) {
   overflow: hidden;
   white-space: nowrap;
   text-overflow: ellipsis;
+}
+
+/* The ▾ next to Push. */
+.more {
+  margin-left: -6px;
+  padding-left: 4px;
+  padding-right: 4px;
 }
 
 .muted {
