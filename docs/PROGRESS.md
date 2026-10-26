@@ -2,7 +2,7 @@
 
 Last updated: 2026-10-26
 
-**Current state:** Phase 3 is done. Step 25 (branch list in the sidebar) is done. Step 26 (add a remote, show / edit its URL) is done. Step 27 (force push with lease) is done. Step 28 (remove the branch line under the repo name) is coded, waiting for you to test it. Steps 12–15 are on hold, as requested.
+**Current state:** Phase 3 is done. Step 25 (branch list in the sidebar) is done. Step 26 (add a remote, show / edit its URL) is done. Step 27 (force push with lease) is done. Step 28 (remove the branch line under the repo name, reorder the toolbar, add icons) is coded, waiting for you to test it. Steps 12–15 are on hold, as requested.
 
 Legend: ✅ done · 🟡 in progress / waiting for confirmation · ⏸ on hold · ⬜ not started
 
@@ -66,7 +66,7 @@ Detailed notes for each step (in Vietnamese): [docs/learning/](learning/README.m
 | 25 | Branch list in the sidebar like SmartGit: Local (✓, ↑↓, gone) / Remotes grouped by remote; double-click checks out, right-click: checkout / merge / rebase / new / rename / delete | ✅ 196 Rust + 28 Vitest |
 | 26 | Add a remote (Add Remote…): + button / right-click "Remotes" in the Branches panel; name + URL, checked before `git remote add --`. Muted URL next to the remote name (tokens masked), right-click → Edit URL | ✅ 203 Rust + 30 Vitest |
 | 27 | Force push: ▾ next to Push → Force Push…; preview of the commits the server loses, confirmation, `--force-with-lease=<ref>:<id seen at the last fetch>`; refused (nothing lost) if someone pushed since | ✅ 208 Rust + 30 Vitest |
-| 28 | Removed the branch line under the repo name (the sidebar's Branches panel shows it); "Upstream of …" moved to the panel's right-click menu; a warning line remains only for a detached HEAD | 🟡 Coded, 30 Vitest pass, frontend only. Waiting for you to test, then commit |
+| 28 | Removed the branch line under the repo name (the sidebar's Branches panel shows it); "Upstream of …" moved to the panel's right-click menu; a warning line remains only for a detached HEAD. Toolbar: Fetch / Pull / Push / Refresh moved to the left, then a separator, then the file actions. Colored 24px icons above the labels on the toolbar buttons (`AppIcon.vue`, hand-drawn duotone SVG, no icon library; shared `button.tool` style). Stash Apply / Apply and Drop (was "Pop") / Drop moved from the Stashes tab to the toolbar, with icons; the Stash… button only on the Changes tab | 🟡 Coded, 30 Vitest pass, frontend only. Waiting for you to test, then commit |
 
 ---
 

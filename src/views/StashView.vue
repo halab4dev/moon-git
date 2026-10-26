@@ -136,13 +136,24 @@ async function showMenu(stash: StashEntry) {
   const menu = await Menu.new({
     items: [
       { text: "Apply", enabled, action: () => void perform(stash, "apply") },
-      { text: "Pop (Apply and Drop)", enabled, action: () => void perform(stash, "pop") },
+      { text: "Apply and Drop", enabled, action: () => void perform(stash, "pop") },
       { item: "Separator" },
       { text: "Drop…", enabled, action: () => void perform(stash, "drop") },
     ],
   });
   await menu.popup();
 }
+
+// The Apply / Apply and Drop / Drop buttons are in RepoView's toolbar (with the other
+// action buttons); they act on the stash selected here.
+defineExpose({
+  hasSelection: computed(() => selected.value !== null),
+  run: (action: StashAction) => {
+    if (selected.value !== null) {
+      void perform(selected.value, action);
+    }
+  },
+});
 
 // "stash@{0}". (Written here: braces inside {{ }} in the template are confusing.)
 function stashName(stash: StashEntry): string {
@@ -161,29 +172,10 @@ const { ratio: listRatio, startResize } = useSplitRatio("split", "moongit.stashe
 <template>
   <div class="stashes">
     <p v-if="error" class="err message">{{ error.message }}</p>
-    <div class="stash-toolbar">
-      <button
-        :disabled="busy || !selected"
-        title="Put the changes of the selected stash back into the working tree; keep the stash"
-        @click="selected && perform(selected, 'apply')"
-      >
-        Apply
-      </button>
-      <button
-        :disabled="busy || !selected"
-        title="Apply the selected stash, then drop it (it is kept if there are conflicts)"
-        @click="selected && perform(selected, 'pop')"
-      >
-        Pop
-      </button>
-      <button :disabled="busy || !selected" title="Delete the selected stash" @click="selected && perform(selected, 'drop')">
-        Drop…
-      </button>
-    </div>
     <div ref="split" class="split">
       <div class="list" :style="{ flexBasis: `${listRatio * 100}%` }">
         <p v-if="stashes.length === 0 && !loading" class="muted">
-          No stashes. Use "Stash…" to put your local changes aside.
+          No stashes. Use "Stash…" in the Changes tab to put your local changes aside.
         </p>
         <ul v-else tabindex="0" @keydown.up.prevent="move(-1)" @keydown.down.prevent="move(1)">
           <li
@@ -219,12 +211,6 @@ const { ratio: listRatio, startResize } = useSplitRatio("split", "moongit.stashe
   flex-direction: column;
   height: 100%;
   min-height: 0;
-}
-
-.stash-toolbar {
-  display: flex;
-  gap: 8px;
-  margin-bottom: 6px;
 }
 
 .split {

@@ -2,6 +2,7 @@
 import { computed, ref } from "vue";
 import { Menu } from "@tauri-apps/api/menu";
 import { ask, message } from "@tauri-apps/plugin-dialog";
+import AppIcon from "./AppIcon.vue";
 import { fetchRepo } from "../api/fetch";
 import { cancelOperation, onGitProgress } from "../api/operations";
 import { getStatus } from "../api/status";
@@ -273,15 +274,16 @@ function closeChoice(mode: PullMode | null) {
 <template>
   <span class="sync">
     <template v-if="!running">
+      <button class="tool" title="Download new commits from all remotes (files stay unchanged)" @click="fetchNow"><AppIcon name="fetch" />Fetch</button>
+      <button class="tool" :disabled="busy || pullBlocker !== null" :title="pullBlocker ?? 'Fetch, then bring the new commits into this branch'" @click="pull">
+        <AppIcon name="pull" />Pull
+      </button>
+      <button class="tool" :disabled="pushBlocker !== null" :title="pushBlocker ?? 'Upload this branch\'s new commits to the server'" @click="push">
+        <AppIcon name="push" />Push
+      </button>
+      <button class="tool more" title="More push options (Force Push…)" @click="pushMenu">▾</button>
+      <!-- After the buttons, so they don't move when a note appears. -->
       <span v-if="note" class="muted">{{ note }}</span>
-      <button title="Download new commits from all remotes (files stay unchanged)" @click="fetchNow">Fetch</button>
-      <button :disabled="busy || pullBlocker !== null" :title="pullBlocker ?? 'Fetch, then bring the new commits into this branch'" @click="pull">
-        Pull
-      </button>
-      <button :disabled="pushBlocker !== null" :title="pushBlocker ?? 'Upload this branch\'s new commits to the server'" @click="push">
-        Push
-      </button>
-      <button class="more" title="More push options (Force Push…)" @click="pushMenu">▾</button>
     </template>
     <template v-else>
       <span class="progress muted" :title="progress">{{ progress }}</span>
@@ -318,7 +320,7 @@ function closeChoice(mode: PullMode | null) {
 .sync {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
+  gap: 4px;
   min-width: 0;
 }
 
@@ -330,10 +332,13 @@ function closeChoice(mode: PullMode | null) {
 }
 
 /* The ▾ next to Push. */
-.more {
-  margin-left: -6px;
-  padding-left: 4px;
-  padding-right: 4px;
+/* The ▾ next to Push: a narrow toolbar button of the same height. */
+button.tool.more {
+  min-width: 0;
+  align-self: stretch;
+  margin-left: -8px;
+  padding: 0 3px;
+  color: var(--text-muted);
 }
 
 .muted {

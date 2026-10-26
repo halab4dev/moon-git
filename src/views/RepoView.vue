@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, onUnmounted, ref, watch } from "vue";
+import { computed, onMounted, onUnmounted, ref, useTemplateRef, watch } from "vue";
 import { Menu } from "@tauri-apps/api/menu";
 import CommitBox from "../components/CommitBox.vue";
 import DiffPanel from "../components/DiffPanel.vue";
@@ -8,6 +8,7 @@ import HistoryView from "./HistoryView.vue";
 import OperationBanner from "../components/OperationBanner.vue";
 import StashView from "./StashView.vue";
 import SyncButtons from "../components/SyncButtons.vue";
+import AppIcon from "../components/AppIcon.vue";
 import { buildRows, type FileRow } from "../components/fileRows";
 import { openConflictWindow, openDiffWindow } from "../windows";
 import { useSplitRatio } from "../composables/useSplitRatio";
@@ -42,6 +43,8 @@ const busy = ref(false);
 const syncLocked = ref(false);
 // Set by StashView while a stash is applied, popped or dropped.
 const stashLocked = ref(false);
+// The Stashes tab, for the Apply / Apply and Drop / Drop buttons of the toolbar.
+const stashView = useTemplateRef<InstanceType<typeof StashView>>("stashView");
 // Staging and committing must wait for all of them.
 const working = computed(() => busy.value || syncLocked.value || stashLocked.value);
 
@@ -516,49 +519,7 @@ onUnmounted(() => {
     </nav>
 
     <div class="toolbar">
-      <template v-if="tab === 'changes'">
-        <button :disabled="working || pathsToStage.length === 0" title="Stage selected files" @click="stageSelected">
-          Stage
-        </button>
-        <button :disabled="working || pathsToUnstage.length === 0" title="Unstage selected files" @click="unstageSelected">
-          Unstage
-        </button>
-        <button
-          :disabled="working || rowsToDiscard.length === 0"
-          title="Throw away the changes of the selected files (new files go to the Trash)"
-          @click="discardSelected"
-        >
-          Discard…
-        </button>
-        <!-- Only when conflicted files are selected. -->
-        <template v-if="conflictedPaths.length > 0">
-          <span class="separator"></span>
-          <button
-            class="primary"
-            :disabled="conflictRow === null"
-            title="Open the conflict solver for this file (or double-click it)"
-            @click="openSolver"
-          >
-            Resolve…
-          </button>
-          <button
-            :disabled="working"
-            title="You fixed the file by hand: stage it as it is now"
-            @click="resolveSelected('resolved')"
-          >
-            Mark Resolved
-          </button>
-        </template>
-      </template>
-      <button
-        v-if="tab !== 'history'"
-        :disabled="working || rows.length === 0"
-        title="Put the local changes aside and clean the working tree"
-        @click="askStash"
-      >
-        Stash…
-      </button>
-      <span class="spacer"></span>
+      <!-- Left: talking to the server + reload. Then "|", then the file actions of the tab. -->
       <SyncButtons
         v-if="status"
         v-model:locked="syncLocked"
@@ -567,7 +528,81 @@ onUnmounted(() => {
         :busy="busy"
         @finished="onSyncFinished"
       />
-      <button :disabled="working" title="Reload changed files and history" @click="refresh">Refresh</button>
+      <button class="tool" :disabled="working" title="Reload changed files and history" @click="refresh"><AppIcon name="refresh" />Refresh</button>
+      <!-- History has no file actions: no separator there. -->
+      <span v-if="tab !== 'history'" class="separator"></span>
+      <template v-if="tab === 'changes'">
+        <button class="tool" :disabled="working || pathsToStage.length === 0" title="Stage selected files" @click="stageSelected">
+          <AppIcon name="stage" />Stage
+        </button>
+        <button class="tool" :disabled="working || pathsToUnstage.length === 0" title="Unstage selected files" @click="unstageSelected">
+          <AppIcon name="unstage" />Unstage
+        </button>
+        <button
+          class="tool"
+          :disabled="working || rowsToDiscard.length === 0"
+          title="Throw away the changes of the selected files (new files go to the Trash)"
+          @click="discardSelected"
+        >
+          <AppIcon name="discard" />Discard…
+        </button>
+        <!-- Only when conflicted files are selected. -->
+        <template v-if="conflictedPaths.length > 0">
+          <span class="separator"></span>
+          <button
+            class="tool primary"
+            :disabled="conflictRow === null"
+            title="Open the conflict solver for this file (or double-click it)"
+            @click="openSolver"
+          >
+            <AppIcon name="resolve" />Resolve…
+          </button>
+          <button
+            class="tool"
+            :disabled="working"
+            title="You fixed the file by hand: stage it as it is now"
+            @click="resolveSelected('resolved')"
+          >
+            <AppIcon name="check" />Mark Resolved
+          </button>
+        </template>
+      </template>
+      <button
+        v-if="tab === 'changes'"
+        class="tool"
+        :disabled="working || rows.length === 0"
+        title="Put the local changes aside and clean the working tree"
+        @click="askStash"
+      >
+        <AppIcon name="stash" />Stash…
+      </button>
+      <!-- Act on the stash selected in the Stashes tab (StashView). -->
+      <template v-if="tab === 'stashes'">
+        <button
+          class="tool"
+          :disabled="working || !stashView?.hasSelection"
+          title="Put the changes of the selected stash back into the working tree; keep the stash"
+          @click="stashView?.run('apply')"
+        >
+          <AppIcon name="apply" />Apply
+        </button>
+        <button
+          class="tool"
+          :disabled="working || !stashView?.hasSelection"
+          title="Apply the selected stash, then drop it (it is kept if there are conflicts)"
+          @click="stashView?.run('pop')"
+        >
+          <AppIcon name="pop" />Apply and Drop
+        </button>
+        <button
+          class="tool"
+          :disabled="working || !stashView?.hasSelection"
+          title="Delete the selected stash"
+          @click="stashView?.run('drop')"
+        >
+          <AppIcon name="drop" />Drop…
+        </button>
+      </template>
     </div>
 
     <!-- Blue while the merge just waits for its commit, red while files conflict. -->
@@ -669,6 +704,7 @@ onUnmounted(() => {
     />
     <StashView
       v-if="tab === 'stashes'"
+      ref="stashView"
       v-model:locked="stashLocked"
       class="pane"
       :repo-id="repo.id"
@@ -710,17 +746,15 @@ h1 {
 
 .toolbar {
   display: flex;
-  gap: 8px;
+  align-items: stretch;
+  gap: 4px;
   margin-bottom: 8px;
-}
-
-.spacer {
-  flex: 1;
 }
 
 .separator {
   width: 1px;
   align-self: stretch;
+  margin: 4px 6px;
   background: var(--border);
 }
 

@@ -96,6 +96,39 @@ button.icon-btn:hover {
   color: var(--text);
 }
 
+/* Toolbar button (repo toolbar): a large colored icon above a short label,
+   flat until hovered, like the toolbar of SmartGit or an IDE. */
+button.tool {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  min-width: 56px;
+  padding: 4px 6px;
+  border-color: transparent;
+  background: transparent;
+  font-size: 12px;
+  line-height: 1.2;
+  white-space: nowrap;
+}
+
+button.tool:hover:not(:disabled) {
+  background: var(--bg-sidebar);
+  border-color: var(--border);
+}
+
+button.tool.primary {
+  background: var(--accent);
+  border-color: var(--accent);
+}
+
+button.tool .app-icon {
+  width: 24px;
+  height: 24px;
+  margin: 0;
+}
+
 .err {
   color: var(--danger);
 }
