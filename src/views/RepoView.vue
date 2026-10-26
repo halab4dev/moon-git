@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, ref, watch } from "vue";
 import { Menu } from "@tauri-apps/api/menu";
-import BranchStatus from "../components/BranchStatus.vue";
 import CommitBox from "../components/CommitBox.vue";
 import DiffPanel from "../components/DiffPanel.vue";
 import FileTable from "../components/FileTable.vue";
@@ -12,7 +11,6 @@ import SyncButtons from "../components/SyncButtons.vue";
 import { buildRows, type FileRow } from "../components/fileRows";
 import { openConflictWindow, openDiffWindow } from "../windows";
 import { useSplitRatio } from "../composables/useSplitRatio";
-import { showBranchMenu, type BranchCallbacks } from "../components/branchMenus";
 import { getStatus } from "../api/status";
 import { discardChanges, resolveConflicts, stageFiles, unstageFiles } from "../api/stage";
 import { commitChanges } from "../api/commit";
@@ -333,11 +331,6 @@ async function onStashFailed(stashError: AppError) {
   error.value = stashError;
 }
 
-const branchCallbacks: BranchCallbacks = {
-  onStatus: applyStatus,
-  onError: (err) => (error.value = err),
-};
-
 // The merge's own changes leave the working tree; changes made before it are
 // kept (git refuses to merge over files with local changes it would touch).
 async function confirmAbortMerge() {
@@ -438,12 +431,6 @@ function askStash() {
   });
 }
 
-function openBranchMenu() {
-  if (!working.value) {
-    void showBranchMenu(props.repo.id, branchCallbacks);
-  }
-}
-
 async function showRowMenu() {
   const menu = await Menu.new({
     items: [
@@ -512,7 +499,12 @@ onUnmounted(() => {
     <header class="repo-header">
       <h1>{{ repo.name }}</h1>
       <p class="muted path">{{ repo.path }}</p>
-      <BranchStatus v-if="status" :branch="status.branch" @open-menu="openBranchMenu" />
+      <!-- The current branch is shown in the sidebar's branch panel; only a
+           detached HEAD is called out here (it has no row there). -->
+      <p v-if="status && status.branch.name === null && status.branch.commit !== null" class="detached">
+        HEAD detached at {{ status.branch.commit.slice(0, 7) }}: new commits here belong to no branch. Check out a
+        branch, or create one from History.
+      </p>
     </header>
 
     <nav class="tabs">
@@ -709,6 +701,11 @@ h1 {
 .path {
   margin: 2px 0 0;
   word-break: break-all;
+}
+
+.detached {
+  margin: 4px 0 0;
+  color: var(--warning);
 }
 
 .toolbar {

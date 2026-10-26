@@ -21,8 +21,8 @@ import type { AppError } from "../types/error";
 import type { CommitRef, CommitSummary, RefInfo } from "../types/log";
 import type { RepoStatus } from "../types/status";
 
-// Native menus and dialogs for branches, used from the branch name in the
-// repo header and from right-clicking a commit in the History tab.
+// Native menus and dialogs for branches, used from the sidebar's branch
+// panel and from right-clicking a commit in the History tab.
 // Like sidebarMenus.ts: menu actions can't be awaited, so each starts a task.
 //
 // Everything that deletes asks first (CLAUDE.md: no destructive git command
@@ -44,87 +44,6 @@ async function perform(action: () => Promise<RepoStatus>, callbacks: BranchCallb
 }
 
 const SEPARATOR = { item: "Separator" as const };
-
-/**
- * The menu of the branch name in the repo header: every local branch (a
- * check mark on the current one) to check out, the remote branches in a
- * submenu, then New / Rename / Upstream / Delete.
- */
-export async function showBranchMenu(repoId: string, callbacks: BranchCallbacks) {
-  let refs: RefInfo[];
-  try {
-    refs = await listRefs(repoId);
-  } catch (err) {
-    callbacks.onError(toAppError(err));
-    return;
-  }
-  const local = refs.filter((r) => r.kind === "branch");
-  const remote = refs.filter((r) => r.kind === "remote");
-  const current = local.find((r) => r.current) ?? null;
-  const others = local.filter((r) => !r.current);
-
-  const menu = await Menu.new({
-    items: [
-      // "checked" makes these check-mark items; clicking one checks it out.
-      ...local.map((info) => ({
-        text: info.name,
-        checked: info.current,
-        action: () => {
-          if (!info.current) {
-            void perform(() => checkoutBranch(repoId, info.fullName), callbacks);
-          }
-        },
-      })),
-      SEPARATOR,
-      // Submenus only when they have entries: an empty submenu is not allowed everywhere.
-      ...(remote.length > 0
-        ? [
-            {
-              text: "Remote Branches",
-              items: remote.map((info) => ({
-                text: info.name,
-                action: () => void perform(() => checkoutBranch(repoId, info.fullName), callbacks),
-              })),
-            },
-            SEPARATOR,
-          ]
-        : []),
-      { text: "New Branch…", action: () => askNewBranch(repoId, null, "the current commit", callbacks) },
-      ...(current !== null
-        ? [
-            { text: `Rename "${current.name}"…`, action: () => askRename(repoId, current, callbacks) },
-            ...upstreamMenu(repoId, current, remote, callbacks),
-            ...mergeMenu(repoId, current, [...others, ...remote], callbacks),
-            ...rebaseMenu(repoId, current, [...others, ...remote], callbacks),
-          ]
-        : []),
-      ...(others.length > 0 || remote.length > 0 ? [SEPARATOR] : []),
-      ...(others.length > 0
-        ? [
-            {
-              text: "Delete Branch",
-              items: others.map((info) => ({
-                text: info.name,
-                action: () => void confirmDeleteLocal(repoId, info, callbacks),
-              })),
-            },
-          ]
-        : []),
-      ...(remote.length > 0
-        ? [
-            {
-              text: "Delete Remote Branch",
-              items: remote.map((info) => ({
-                text: info.name,
-                action: () => void confirmDeleteRemote(repoId, info, callbacks),
-              })),
-            },
-          ]
-        : []),
-    ],
-  });
-  await menu.popup();
-}
 
 // "Upstream of main ▸": every remote branch to track (check mark on the
 // current one), and "Stop Tracking".
@@ -150,38 +69,6 @@ function upstreamMenu(repoId: string, branch: RefInfo, remote: RefInfo[], callba
   ];
 }
 
-// "Merge into main ▸": the other local branches and the remote branches.
-function mergeMenu(repoId: string, current: RefInfo, sources: RefInfo[], callbacks: BranchCallbacks) {
-  if (sources.length === 0) {
-    return [];
-  }
-  return [
-    {
-      text: `Merge into "${current.name}"`,
-      items: sources.map((info) => ({
-        text: `${info.name}…`,
-        action: () => void askMerge(repoId, info.fullName, callbacks),
-      })),
-    },
-  ];
-}
-
-// "Rebase main onto ▸": the same targets as merging.
-function rebaseMenu(repoId: string, current: RefInfo, targets: RefInfo[], callbacks: BranchCallbacks) {
-  if (targets.length === 0) {
-    return [];
-  }
-  return [
-    {
-      text: `Rebase "${current.name}" onto`,
-      items: targets.map((info) => ({
-        text: `${info.name}…`,
-        action: () => void confirmRebase(repoId, info.fullName, callbacks),
-      })),
-    },
-  ];
-}
-
 /** A branch in the sidebar's branch panel. */
 export interface BranchItem {
   /** "refs/heads/main" or "refs/remotes/origin/main". */
@@ -193,12 +80,30 @@ export interface BranchItem {
 }
 
 /**
- * Right-click on a branch in the sidebar (step 25): the same actions as the
- * header menu and the History menu, for this one branch.
+ * Right-click on a branch in the sidebar (step 25): the actions for this one
+ * branch. (The sidebar replaced the old branch menu of the repo header.)
  */
 export async function showBranchItemMenu(repoId: string, item: BranchItem, callbacks: BranchCallbacks) {
-  const info: RefInfo = { fullName: item.fullName, name: item.name, kind: item.kind, current: item.current, upstream: null };
   const isLocal = item.kind === "branch";
+  // A local branch also gets "Upstream of …": that needs its current
+  // upstream and the remote branches to choose from.
+  let refs: RefInfo[] = [];
+  if (isLocal) {
+    try {
+      refs = await listRefs(repoId);
+    } catch (err) {
+      callbacks.onError(toAppError(err));
+      return;
+    }
+  }
+  const info: RefInfo = refs.find((r) => r.fullName === item.fullName) ?? {
+    fullName: item.fullName,
+    name: item.name,
+    kind: item.kind,
+    current: item.current,
+    upstream: null,
+  };
+  const remote = refs.filter((r) => r.kind === "remote");
   const others = item.current
     ? []
     : [
@@ -216,6 +121,7 @@ export async function showBranchItemMenu(repoId: string, item: BranchItem, callb
       ...(others.length > 0 ? [SEPARATOR] : []),
       { text: "New Branch from Here…", action: () => askNewBranch(repoId, item.fullName, item.name, callbacks) },
       ...(isLocal ? [{ text: `Rename ${item.name}…`, action: () => askRename(repoId, info, callbacks) }] : []),
+      ...(isLocal ? upstreamMenu(repoId, info, remote, callbacks) : []),
       ...(isLocal && !item.current
         ? [SEPARATOR, { text: `Delete ${item.name}…`, action: () => void confirmDeleteLocal(repoId, info, callbacks) }]
         : []),

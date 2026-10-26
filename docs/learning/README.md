@@ -37,6 +37,7 @@ Mỗi bước làm xong có một file giải thích riêng, đọc theo thứ t
 | 25 | [25-branch-panel.md](25-branch-panel.md) | Danh sách branch ở sidebar (local / theo từng remote), `upstream:track`, store nối hai component anh em |
 | 26 | [26-add-remote.md](26-add-remote.md) | Thêm remote, hiện / sửa URL: `remote add/set-url --`, `config --get-regexp`, che token trong URL |
 | 27 | [27-force-push.md](27-force-push.md) | Force push an toàn với `--force-with-lease=<ref>:<id>`, xác nhận liệt kê commit sẽ mất |
+| 28 | [28-remove-header-branch.md](28-remove-header-branch.md) | Bỏ dòng branch ở header (đã có panel Branches), chuyển "Upstream of …" sang panel, giữ cảnh báo HEAD detached |
 
 ## Mục lục khái niệm (lần đầu xuất hiện ở bước nào)
 
