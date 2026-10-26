@@ -18,7 +18,8 @@ export type IconName =
   | "drop"
   | "folder"
   | "folderOpen"
-  | "repo";
+  | "repo"
+  | "commit";
 
 defineProps<{
   name: IconName;
@@ -108,6 +109,8 @@ const ICONS: Record<IconName, Icon> = {
       line("M14 11v5.5"),
     ],
   },
+  // A commit as drawn in history graphs: a dot on a line.
+  commit: { color: "#0969da", shapes: [fill(circle(12, 12, 4.5)), line(circle(12, 12, 4.5)), line("M2 12h5.5"), line("M16.5 12H22")] },
   // Sidebar. A group: a two-tone yellow folder, open while expanded.
   folder: {
     color: "#f0a202",

@@ -2,7 +2,7 @@
 
 Last updated: 2026-10-26
 
-**Current state:** Phase 3 is done. Step 25 (branch list in the sidebar) is done. Step 26 (add a remote, show / edit its URL) is done. Step 27 (force push with lease) is done. Step 28 (remove the branch line under the repo name, reorder the toolbar, add icons) is coded, waiting for you to test it. Steps 12–15 are on hold, as requested.
+**Current state:** Phase 3 is done. Step 25 (branch list in the sidebar) is done. Step 26 (add a remote, show / edit its URL) is done. Step 27 (force push with lease) is done. Steps 28 (remove the branch line under the repo name, reorder the toolbar, add icons) and 29 (Commit dialog) are coded, waiting for you to test them. Steps 12–15 are on hold, as requested.
 
 Legend: ✅ done · 🟡 in progress / waiting for confirmation · ⏸ on hold · ⬜ not started
 
@@ -67,6 +67,7 @@ Detailed notes for each step (in Vietnamese): [docs/learning/](learning/README.m
 | 26 | Add a remote (Add Remote…): + button / right-click "Remotes" in the Branches panel; name + URL, checked before `git remote add --`. Muted URL next to the remote name (tokens masked), right-click → Edit URL | ✅ 203 Rust + 30 Vitest |
 | 27 | Force push: ▾ next to Push → Force Push…; preview of the commits the server loses, confirmation, `--force-with-lease=<ref>:<id seen at the last fetch>`; refused (nothing lost) if someone pushed since | ✅ 208 Rust + 30 Vitest |
 | 28 | Removed the branch line under the repo name (the sidebar's Branches panel shows it); "Upstream of …" moved to the panel's right-click menu; a warning line remains only for a detached HEAD. Toolbar: Fetch / Pull / Push / Refresh moved to the left, then a separator, then the file actions. Colored 24px icons above the labels on the toolbar buttons (`AppIcon.vue`, hand-drawn duotone SVG, no icon library; shared `button.tool` style). Stash Apply / Apply and Drop (was "Pop") / Drop moved from the Stashes tab to the toolbar, with icons; the Stash… button only on the Changes tab. Sidebar: orange repository icon, bigger two-tone yellow folder icons | 🟡 Coded, 30 Vitest pass, frontend only. Waiting for you to test, then commit |
+| 29 | Commit… button on the toolbar (Changes tab, after Stash…) opening a Commit dialog: message, Amend (or Merge/Simple commit during a merge), Commit / Commit and Push (pushes through the toolbar's Push); the commit area at the bottom is removed | 🟡 Coded, 30 Vitest pass, frontend only. Waiting for you to test, then commit |
 
 ---
 
@@ -120,5 +121,5 @@ Detailed notes for each step (in Vietnamese): [docs/learning/](learning/README.m
 - [x] Steps 16a–19b confirmed and committed.
 - [x] Steps 20a–24b confirmed and committed (22c was committed on 2026-10-24, when moving on to 22d). Phase 3 done.
 - [x] Steps 25, 26 and 27 confirmed and committed. README and MIT license added.
-- [ ] Test step 28 (table in `learning/28-remove-header-branch.md`), then commit.
+- [ ] Test steps 28 and 29 (tables in `learning/28-remove-header-branch.md`, `learning/29-commit-dialog.md`), then commit.
 - [ ] Steps 12–15 (credentials, accounts + keyring, per-repository user.name/email, SSH key) **on hold** (2026-10-21), to be resumed after phase 2 or when you ask.

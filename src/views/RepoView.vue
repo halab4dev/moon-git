@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import { computed, onMounted, onUnmounted, ref, useTemplateRef, watch } from "vue";
+import { computed, nextTick, onMounted, onUnmounted, ref, useTemplateRef, watch } from "vue";
 import { Menu } from "@tauri-apps/api/menu";
-import CommitBox from "../components/CommitBox.vue";
+import CommitDialog from "../components/CommitDialog.vue";
 import DiffPanel from "../components/DiffPanel.vue";
 import FileTable from "../components/FileTable.vue";
 import HistoryView from "./HistoryView.vue";
@@ -89,6 +89,8 @@ function readTab(): Tab {
     return "changes";
   }
 }
+// The Commit dialog: open or not, and its draft (kept when it is closed).
+const commitOpen = ref(false);
 const commitMessage = ref("");
 const amend = ref(false);
 // During a merge: commit it as an ordinary commit instead of the merge commit.
@@ -301,13 +303,42 @@ function unstageSelected() {
   return paths.length === 0 ? Promise.resolve() : run(() => unstageFiles(props.repo.id, paths));
 }
 
-async function commitStaged() {
-  const asSimple = merge.value !== null && simpleCommit.value;
-  if (await run(() => commitChanges(props.repo.id, commitMessage.value, amend.value, asSimple))) {
-    commitMessage.value = "";
-    amend.value = false;
-    simpleCommit.value = false;
+// Committing is blocked while git is busy, or while a rebase / cherry-pick
+// waits for Continue (that commits for you).
+const commitBlocker = computed(() => {
+  if (working.value) return "Another operation is running";
+  if (rebase.value !== null) return "A rebase is in progress: use Continue in the bar above";
+  if (cherryPick.value !== null) return "A cherry-pick is in progress: use Continue in the bar above";
+  return null;
+});
+
+// The toolbar's Fetch / Pull / Push, for "Commit and Push".
+const syncButtons = useTemplateRef<InstanceType<typeof SyncButtons>>("syncButtons");
+
+/** Called by the Commit dialog. Returns an error message to show there, or null. */
+async function commitFromDialog(push: boolean): Promise<string | null> {
+  if (commitBlocker.value !== null) {
+    return `${commitBlocker.value}. Try again later.`;
   }
+  const asSimple = merge.value !== null && simpleCommit.value;
+  busy.value = true;
+  try {
+    applyStatus(await commitChanges(props.repo.id, commitMessage.value, amend.value, asSimple));
+  } catch (err) {
+    return toAppError(err).message;
+  } finally {
+    busy.value = false;
+  }
+  commitMessage.value = "";
+  amend.value = false;
+  simpleCommit.value = false;
+  commitOpen.value = false;
+  if (push) {
+    // Wait until the toolbar has the new status (one more commit to push).
+    await nextTick();
+    void syncButtons.value?.push();
+  }
+  return null;
 }
 
 // After fetch/pull/push: reload first, then show the error (a successful
@@ -522,6 +553,7 @@ onUnmounted(() => {
       <!-- Left: talking to the server + reload. Then "|", then the file actions of the tab. -->
       <SyncButtons
         v-if="status"
+        ref="syncButtons"
         v-model:locked="syncLocked"
         :repo-id="repo.id"
         :branch="status.branch"
@@ -575,6 +607,15 @@ onUnmounted(() => {
         @click="askStash"
       >
         <AppIcon name="stash" />Stash…
+      </button>
+      <button
+        v-if="tab === 'changes'"
+        class="tool"
+        :disabled="commitBlocker !== null"
+        :title="commitBlocker ?? 'Commit the staged files (message, amend, then commit or commit and push)'"
+        @click="commitOpen = true"
+      >
+        <AppIcon name="commit" />Commit…
       </button>
       <!-- Act on the stash selected in the Stashes tab (StashView). -->
       <template v-if="tab === 'stashes'">
@@ -681,17 +722,6 @@ onUnmounted(() => {
           <DiffPanel :repo-id="repo.id" :row="diffRow" :selected-count="selectedRows.length" :version="statusVersion" />
         </div>
       </div>
-
-      <CommitBox
-        v-model:message="commitMessage"
-        v-model:amend="amend"
-        v-model:simple="simpleCommit"
-        :repo-id="repo.id"
-        :merging="merge !== null"
-        :staged-count="stagedCount"
-        :busy="working || rebase !== null || cherryPick !== null"
-        @commit="commitStaged"
-      />
     </div>
 
     <!-- v-if: the history is loaded when the tab is opened, and dropped when left. -->
@@ -701,6 +731,18 @@ onUnmounted(() => {
       :repo-id="repo.id"
       :version="statusVersion"
       @status-changed="applyStatus"
+    />
+    <CommitDialog
+      v-if="commitOpen && status"
+      v-model:message="commitMessage"
+      v-model:amend="amend"
+      v-model:simple="simpleCommit"
+      :repo-id="repo.id"
+      :merging="merge !== null"
+      :staged-count="stagedCount"
+      :push-blocker="status.branch.name === null ? 'HEAD is detached: check out a branch to push' : null"
+      :submit="commitFromDialog"
+      @close="commitOpen = false"
     />
     <StashView
       v-if="tab === 'stashes'"

@@ -248,6 +248,10 @@ function forcePushQuestion(preview: ForcePushPreview): string {
   ].join("\n");
 }
 
+// "Commit and Push" in the Commit dialog pushes through here, so it gets the
+// same first-push question, progress line and Cancel as the Push button.
+defineExpose({ push });
+
 // ---- "Merge or rebase?" dialog ----
 
 const choice = ref<{ ahead: number; behind: number } | null>(null);

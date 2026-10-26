@@ -18,7 +18,7 @@ MoonGit is a thin GUI over the **git command line** installed on your machine. I
 - Changed files, split into staged / unstaged / untracked, with SmartGit-style states (Modified, Added, Missing, Conflicted…).
 - Stage / unstage files, and **discard** changes. Discarded new files go to the system Trash, not straight to deletion.
 - **Side-by-side diff** (Monaco), opened in its own window: working tree, staged, or conflict view.
-- **Commit** with a message, or **amend** the last commit.
+- **Commit** from a dialog (Commit… on the toolbar): message, **amend** the last commit, then *Commit* or *Commit and Push*.
 
 ### Sync
 - **Fetch** (all remotes), **pull** and **push**, with live progress and a Cancel button.
