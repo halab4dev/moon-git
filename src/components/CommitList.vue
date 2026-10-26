@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, ref, watch } from "vue";
 import GraphCell from "./GraphCell.vue";
+import { formatCommitTime } from "./commitTime";
 import type { GraphRow } from "../graph/laneLayout";
 import type { CommitRef, CommitSummary } from "../types/log";
 
@@ -111,18 +112,6 @@ function onRowMenu(commit: CommitSummary) {
 
 // ---- formatting ----
 
-const dateFormat = new Intl.DateTimeFormat(undefined, {
-  year: "numeric",
-  month: "2-digit",
-  day: "2-digit",
-  hour: "2-digit",
-  minute: "2-digit",
-});
-
-function formatTime(seconds: number): string {
-  return dateFormat.format(new Date(seconds * 1000));
-}
-
 function refClass(ref: CommitRef): string[] {
   return ["ref", ref.kind, ref.current ? "current" : ""];
 }
@@ -168,7 +157,7 @@ function refClass(ref: CommitRef): string[] {
             {{ commit.subject }}
           </span>
           <span class="author" :title="commit.authorEmail">{{ commit.authorName }}</span>
-          <span class="date">{{ formatTime(commit.authorTime) }}</span>
+          <span class="date">{{ formatCommitTime(commit.authorTime) }}</span>
           <span class="hash">{{ commit.id.slice(0, 8) }}</span>
         </div>
       </div>
