@@ -8,7 +8,6 @@
   --success: #1a7f37;
   --danger: #cf222e;
   --warning: #9a6700;
-  --folder: #d9a227;
   /* Light backgrounds for notice bars (e.g. "Merging…"). */
   --info-bg: #ddf4ff;
   --danger-bg: #ffebe9;
@@ -30,7 +29,6 @@
     --success: #3fb950;
     --danger: #f85149;
     --warning: #d29922;
-    --folder: #e3b341;
     --info-bg: #13233a;
     --danger-bg: #3d1a1c;
   }
@@ -174,11 +172,11 @@ ul.tree {
   color: #fff;
 }
 
-.folder-icon {
-  width: 15px;
-  height: 15px;
-  flex-shrink: 0;
-  fill: var(--folder);
+/* Folder / repository icons (AppIcon) in the sidebar tree. */
+.tree-row svg.app-icon {
+  width: 18px;
+  height: 18px;
+  margin: 0;
 }
 
 .tree-name {

@@ -1,4 +1,4 @@
-# Bước 28 — Bỏ dòng branch dưới tên repo, sắp lại thanh công cụ, thêm icon
+# Bước 28 — Bỏ dòng branch dưới tên repo, sắp lại thanh công cụ, thêm icon (thanh công cụ + sidebar)
 
 *Bạn yêu cầu (2026-10-26): panel Branches ở sidebar đã hiện branch, không cần lặp lại ở header.*
 
@@ -76,6 +76,13 @@ Fetch  Pull  Push ▾  Refresh  |  Apply  Apply and Drop  Drop…
 
 Bản đầu dùng bảng kẹp giấy (Apply, mũi tên xuống) và hộp có mũi tên **lên** (Pop). Bạn thấy không rõ nghĩa và hai mũi tên ngược chiều, mâu thuẫn nhau. Bản hiện tại theo một quy tắc: **cùng một hộp, cùng chiều mũi tên**, khác nhau đúng một chi tiết là việc stash có bị xóa hay không (dấu ✕). Màu đỏ của dấu ✕ được cố định (kiểu hình `danger`), không theo màu chính của icon.
 
+## Icon trong danh sách repo ở sidebar (bạn yêu cầu thêm)
+- **Repo**: trước là ký tự `◆`. Giờ là ô vuông bo góc **màu cam** (màu quen thuộc của git) với **nhánh trắng**: một đường thẳng + một nhánh rẽ, ba chấm tròn.
+- **Nhóm (folder)**: to hơn (15px → 18px) và **hai tông vàng tươi**: thân sau vàng đậm, nắp trước vàng sáng. Gập: folder đóng; mở: folder mở (nắp nghiêng), như cũ.
+- Icon repo đứng thẳng hàng với icon folder cùng cấp: dưới cột ▸/▾ của nhóm có một ô trống cho repo.
+- Cả ba icon nằm trong `AppIcon.vue` như các icon khác (`folder`, `folderOpen`, `repo`). Để vẽ được icon hai màu, mỗi hình giờ có thể mang **màu riêng** (`paint(d, màu)`), không bắt buộc dùng màu chính của icon. Thêm kiểu `whiteSolid` cho các chấm trắng.
+- Màu folder giờ cố định, nên biến CSS `--folder` (màu folder cũ cho chế độ sáng/tối) bị bỏ. Đã xem thử trên nền sáng, nền tối và dòng đang chọn (nền xanh): đều rõ.
+
 ## File đã sửa
 
 | File | Việc |
@@ -86,7 +93,8 @@ Bản đầu dùng bảng kẹp giấy (Apply, mũi tên xuống) và hộp có 
 | `src/components/SyncButtons.vue` | ghi chú chuyển ra sau các nút; icon Fetch/Pull/Push |
 | `src/components/AppIcon.vue` (mới) | icon SVG màu theo tên (gồm apply / pop / drop) |
 | `src/views/StashView.vue` | bỏ hàng nút riêng; `defineExpose({ hasSelection, run })` |
-| `src/styles.css` | kiểu nút `button.tool` (icon trên, chữ dưới) |
+| `src/styles.css` | kiểu nút `button.tool` (icon trên, chữ dưới); cỡ icon 18px trong cây sidebar; bỏ `.folder-icon`, `--folder` |
+| `src/components/GroupItem.vue`, `RepoItem.vue` | icon folder / repo bằng `AppIcon` |
 | `src/components/branchMenus.ts` | Bỏ `showBranchMenu`, `mergeMenu`, `rebaseMenu` (chỉ menu header dùng); `showBranchItemMenu` thêm "Upstream of …" cho branch local (đọc `listRefs` để biết upstream hiện tại và các remote branch) |
 
 ## Khái niệm
@@ -116,3 +124,5 @@ Bấm ⌘R.
 | 13 | Chưa có stash nào | Apply / Apply and Drop / Drop… mờ; dòng "No stashes" chỉ sang tab Changes |
 | 14 | Chọn một stash → Apply and Drop (nút, hoặc chuột phải) | Thay đổi về working tree, stash biến mất khỏi danh sách |
 | 15 | Drop… | Hỏi xác nhận trước khi xóa |
+| 16 | Sidebar, danh sách repo | Mỗi repo có ô cam với nhánh trắng trước tên; nhóm có folder vàng to hơn, đóng/mở theo trạng thái gập |
+| 17 | Chọn một repo (nền xanh) | Icon vẫn rõ |

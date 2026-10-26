@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { useRepoStore } from "../stores/repos";
 import { showRepoMenu } from "./sidebarMenus";
+import AppIcon from "./AppIcon.vue";
 import type { RepoEntry } from "../types/repo";
 
 defineProps<{
@@ -21,7 +22,9 @@ const store = useRepoStore();
       @click="store.select(repo.id)"
       @contextmenu.prevent.stop="showRepoMenu(repo)"
     >
-      <span class="tree-icon">◆</span>
+      <!-- Empty, under the groups' ▸/▾, so repo and folder icons line up. -->
+      <span class="tree-icon"></span>
+      <AppIcon name="repo" />
       <span class="tree-name">{{ repo.name }}</span>
     </div>
   </li>
