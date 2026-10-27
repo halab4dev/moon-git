@@ -4,7 +4,7 @@
 
 ## Trạng thái
 - Chỉ đổi frontend. `pnpm test`: 35/35 (thêm 5 test cho `formatCommitTime`). `pnpm build`: OK.
-- Giao diện: chờ bạn thử. Chưa commit.
+- Giao diện: bạn đã xem, OK. Đã commit.
 
 ## Thay đổi
 Cột thời gian của danh sách commit (tab History):
