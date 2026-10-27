@@ -2,7 +2,7 @@
 
 Last updated: 2026-10-27
 
-**Current state:** Phase 3 is done, plus steps 25–30 added on request. Steps 31a (menu bar) and 31b (Branch → Checkout… dialog) are done. Step 32 (welcome picture) is done. Steps 12–15 are on hold, as requested.
+**Current state:** Phase 3 is done, plus steps 25–30 added on request. Steps 31a (menu bar) and 31b (Branch → Checkout… dialog) are done. Step 32 (welcome picture) is done. Step 33 (dark mode) is done. Steps 12–15 are on hold, as requested.
 
 Legend: ✅ done · 🟡 in progress / waiting for confirmation · ⏸ on hold · ⬜ not started
 
@@ -72,6 +72,7 @@ Detailed notes for each step (in Vietnamese): [docs/learning/](learning/README.m
 | 31a | Menu bar: MoonGit / Repository (was File) / Edit (+ Copy Repository Path) / View (tabs, Refresh ⌘R, Theme placeholder) / Remote / Local / Branch / Window; items run the same functions as the buttons through a command store and are greyed out when not possible | ✅ 208 Rust + 35 Vitest |
 | 31b | Branch → Checkout… (⇧⌘C): dialog with a search box (every typed word must match), local + remote branches, ↑/↓/Enter | ✅ 38 Vitest, frontend only |
 | 32 | Welcome screen (no repository selected): your moon base picture (`src/assets/background.svg`), large and centered, with CSS animations inside the SVG (twinkling stars, shooting star, signal waves, light flowing along the paths; still when Reduce motion is on), plus a one-line hint | ✅ frontend only |
+| 33 | Dark mode: View → Theme ▸ System / Light / Dark, remembered; Tauri's app-level `setTheme` switches every window, the web views follow (`prefers-color-scheme`), so CSS and Monaco need no change | ✅ frontend + one permission |
 
 ---
 
@@ -117,6 +118,7 @@ Detailed notes for each step (in Vietnamese): [docs/learning/](learning/README.m
 - Branch panel (step 25): the sidebar is split into a top (repositories) / bottom (branches) part with a splitter; the `repoActivity` store connects the sidebar with RepoView (RepoView stays the only owner of the status).
 - Remotes (step 26): URLs are read with `git config --get-regexp` (the raw value, before `insteadOf`); a password/token inside a URL is masked in the list; names and URLs starting with `-` are refused.
 - Menu bar (step 31a): built in JavaScript (`setAsAppMenu`), no Rust menu code. Items only send a command id to the `menuCommands` store; components register what they can do while mounted, so the menu follows the same conditions as the buttons. Copy Repository Path uses the official clipboard plugin (write-text permission only).
+- Theme (step 33): Tauri's app-level `setTheme` (null = follow macOS) instead of a `data-theme` attribute; the choice is kept in the main window's localStorage and applied at start.
 - Graph: lanes never shift sideways, free columns are reused; `LaneLayout` is computed incrementally per page; one SVG per row, at most 20 lanes shown.
 
 ## Open items
@@ -125,5 +127,5 @@ Detailed notes for each step (in Vietnamese): [docs/learning/](learning/README.m
 - [x] Steps 3–11 confirmed and committed.
 - [x] Steps 16a–19b confirmed and committed.
 - [x] Steps 20a–24b confirmed and committed (22c was committed on 2026-10-24, when moving on to 22d). Phase 3 done.
-- [x] Steps 25–32 confirmed and committed. README and MIT license added.
+- [x] Steps 25–33 confirmed and committed. README and MIT license added.
 - [ ] Steps 12–15 (credentials, accounts + keyring, per-repository user.name/email, SSH key) **on hold** (2026-10-21), to be resumed after phase 2 or when you ask.

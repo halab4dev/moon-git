@@ -55,6 +55,7 @@ MoonGit is a thin GUI over the **git command line** installed on your machine. I
 - Repository, Edit, View, Remote, Local and Branch menus with keyboard shortcuts (⌘K commit, ⇧⌘P push, ⌘R refresh, ⌘1–3 tabs…). Items are greyed out when the action isn't possible.
 - Edit → Copy Repository Path.
 - Branch → Checkout… (⇧⌘C): pick a local or remote branch from a searchable list.
+- View → Theme: System / Light / Dark (applies to every window, remembered).
 
 ### Safety
 - Destructive actions (hard reset, force push, deleting branches, discarding changes, aborting operations…) always ask for confirmation first.

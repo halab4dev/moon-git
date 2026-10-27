@@ -17,6 +17,7 @@
     "dialog:allow-message",
     "core:window:allow-close",
     "core:window:allow-destroy",
-    "clipboard-manager:allow-write-text"
+    "clipboard-manager:allow-write-text",
+    "core:app:allow-set-app-theme"
   ]
 }

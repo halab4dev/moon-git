@@ -11,6 +11,7 @@ import RepoView from "./views/RepoView.vue";
 import WelcomeView from "./views/WelcomeView.vue";
 import { useRepoStore } from "./stores/repos";
 import { installAppMenu } from "./appMenu";
+import { applyThemeChoice, readThemeChoice } from "./theme";
 
 const store = useRepoStore();
 
@@ -21,6 +22,8 @@ let unmounted = false;
 
 onMounted(async () => {
   store.attempt(() => store.load());
+  // The theme chosen last time (View → Theme); "system" = follow macOS.
+  void applyThemeChoice(readThemeChoice());
   const stop = await installAppMenu();
   if (unmounted) {
     stop();

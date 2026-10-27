@@ -6,6 +6,7 @@ import { addLocalRepo, newGroup } from "./components/sidebarMenus";
 import { useDialogStore } from "./stores/dialogs";
 import { useMenuCommands, type CommandId } from "./stores/menuCommands";
 import { useRepoStore } from "./stores/repos";
+import { applyThemeChoice, readThemeChoice, type ThemeChoice } from "./theme";
 
 // The menu bar of the app (step 31a), built from JavaScript and set as the
 // app menu. Our own items only send a command to the menuCommands store;
@@ -90,21 +91,28 @@ export async function installAppMenu(): Promise<() => void> {
     ],
   });
 
-  // Theme: only "System" (follow macOS) for now; Light / Dark come later.
-  const system = await CheckMenuItem.new({
-    text: "System",
-    checked: true,
-    // A check item flips itself when clicked; it is the only choice, so keep it on.
-    action: () => void system.setChecked(true),
-  });
-  const theme = await Submenu.new({
-    text: "Theme",
-    items: [
-      system,
-      await CheckMenuItem.new({ text: "Light", checked: false, enabled: false }),
-      await CheckMenuItem.new({ text: "Dark", checked: false, enabled: false }),
-    ],
-  });
+  // Theme (step 33): three check items that behave like radio buttons.
+  // The saved choice is applied at start (App.vue), so only the marks are set here.
+  const themeItems = new Map<ThemeChoice, CheckMenuItem>();
+  const chooseTheme = async (choice: ThemeChoice) => {
+    // A check item flips itself when clicked: set all marks explicitly.
+    for (const [other, menuItem] of themeItems) {
+      await menuItem.setChecked(other === choice);
+    }
+    await applyThemeChoice(choice);
+  };
+  const saved = readThemeChoice();
+  for (const [choice, text] of [
+    ["system", "System"],
+    ["light", "Light"],
+    ["dark", "Dark"],
+  ] as const) {
+    themeItems.set(
+      choice,
+      await CheckMenuItem.new({ text, checked: choice === saved, action: () => void chooseTheme(choice) }),
+    );
+  }
+  const theme = await Submenu.new({ text: "Theme", items: [...themeItems.values()] });
 
   const view = await Submenu.new({
     text: "View",
