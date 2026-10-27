@@ -51,6 +51,7 @@ Bản đầu là icon nét nhỏ 14px, cùng màu chữ, đứng trước chữ.
 | Stash… | hộp lưu trữ | tím |
 | Resolve… | cây bút | vàng đậm |
 | Mark Resolved | hình tròn đặc có ✓ trắng | xanh lá |
+| Cancel (khi Fetch / Pull / Push đang chạy) | hình tròn đặc có ✕ trắng; *thêm sau (2026-10-27)*: trước đó là nút chữ thường | đỏ |
 | Apply (tab Stashes) | **hộp stash** (giống icon Stash…), mũi tên **xuống** đi ra từ hộp: thay đổi được lấy ra, hộp vẫn còn | tím |
 | Apply and Drop (tab Stashes) | y hệt Apply + **dấu ✕ đỏ** ở góc: lấy ra rồi xóa stash | tím + đỏ |
 | Drop… (tab Stashes) | thùng rác | đỏ |

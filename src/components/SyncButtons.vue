@@ -300,8 +300,9 @@ function closeChoice(mode: PullMode | null) {
     </template>
     <template v-else>
       <span class="progress muted" :title="progress">{{ progress }}</span>
-      <button v-if="opId !== null" :disabled="cancelling" @click="cancel">
-        {{ cancelling ? "Cancelling…" : "Cancel" }}
+      <!-- Only while git talks to the server (merging / rebasing can't be interrupted). -->
+      <button v-if="opId !== null" class="tool" :disabled="cancelling" title="Stop this operation" @click="cancel">
+        <AppIcon name="cancel" />{{ cancelling ? "Cancelling…" : "Cancel" }}
       </button>
     </template>
   </span>

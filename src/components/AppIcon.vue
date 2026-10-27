@@ -19,7 +19,8 @@ export type IconName =
   | "folder"
   | "folderOpen"
   | "repo"
-  | "commit";
+  | "commit"
+  | "cancel";
 
 defineProps<{
   name: IconName;
@@ -111,6 +112,9 @@ const ICONS: Record<IconName, Icon> = {
   },
   // A commit as drawn in history graphs: a dot on a line.
   commit: { color: "#0969da", shapes: [fill(circle(12, 12, 4.5)), line(circle(12, 12, 4.5)), line("M2 12h5.5"), line("M16.5 12H22")] },
+  // Stop a running fetch / pull / push: a red disc with a white ✕, like
+  // Stage (+) and Unstage (−).
+  cancel: { color: "#d1242f", shapes: [solid(CIRCLE), white("M8.8 8.8l6.4 6.4"), white("M15.2 8.8l-6.4 6.4")] },
   // Sidebar. A group: a two-tone yellow folder, open while expanded.
   folder: {
     color: "#f0a202",
