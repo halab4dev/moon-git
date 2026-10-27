@@ -8,6 +8,7 @@ import { displayUrl } from "./remoteUrl";
 import { checkOutItem, showBranchItemMenu, type BranchCallbacks, type BranchItem } from "./branchMenus";
 import { useDialogStore } from "../stores/dialogs";
 import { useRepoActivity } from "../stores/repoActivity";
+import { useMenuHandlers } from "../stores/menuCommands";
 import type { AppError } from "../types/error";
 import type { BranchList, LocalBranch, RemoteGroup } from "../types/branches";
 
@@ -130,6 +131,11 @@ async function remoteMenu(group: RemoteGroup) {
   });
   await menu.popup();
 }
+
+// Remote → Add Remote… in the menu bar.
+useMenuHandlers({
+  "remote.addRemote": { run: askAddRemote, enabled: () => branches.value !== null && !activity.busy },
+});
 
 async function remotesMenu() {
   const menu = await Menu.new({ items: [{ text: "Add Remote…", action: askAddRemote }] });

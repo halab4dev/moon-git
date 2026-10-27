@@ -2,7 +2,7 @@
 
 Last updated: 2026-10-27
 
-**Current state:** Phase 3 is done. Step 25 (branch list in the sidebar) is done. Step 26 (add a remote, show / edit its URL) is done. Step 27 (force push with lease) is done. Steps 28 (remove the branch line under the repo name, reorder the toolbar, add icons) 29 (Commit dialog) and 30 (Today / Yesterday in History) are coded, waiting for you to test them. Steps 12–15 are on hold, as requested.
+**Current state:** Phase 3 is done, plus steps 25–30 added on request. Step 31a (menu bar) is done; 31b (Branch → Checkout… dialog) is in progress. Steps 12–15 are on hold, as requested.
 
 Legend: ✅ done · 🟡 in progress / waiting for confirmation · ⏸ on hold · ⬜ not started
 
@@ -69,6 +69,8 @@ Detailed notes for each step (in Vietnamese): [docs/learning/](learning/README.m
 | 28 | Removed the branch line under the repo name (the sidebar's Branches panel shows it); "Upstream of …" moved to the panel's right-click menu; a warning line remains only for a detached HEAD. Toolbar: Fetch / Pull / Push / Refresh moved to the left, then a separator, then the file actions. Colored 24px icons above the labels on the toolbar buttons (`AppIcon.vue`, hand-drawn duotone SVG, no icon library; shared `button.tool` style). Stash Apply / Apply and Drop (was "Pop") / Drop moved from the Stashes tab to the toolbar, with icons; the Stash… button only on the Changes tab. Sidebar: orange repository icon, bigger two-tone yellow folder icons | ✅ 30 Vitest, frontend only |
 | 29 | Commit… button on the toolbar (Changes tab, after Stash…) opening a Commit dialog: message, Amend (or Merge/Simple commit during a merge), Commit / Commit and Push (pushes through the toolbar's Push); the commit area at the bottom is removed | ✅ 30 Vitest, frontend only |
 | 30 | History time column: "Today, 14:32" / "Yesterday, 09:10" by local calendar day, full date otherwise (`commitTime.ts`) | ✅ 35 Vitest, frontend only |
+| 31a | Menu bar: MoonGit / Repository (was File) / Edit (+ Copy Repository Path) / View (tabs, Refresh ⌘R, Theme placeholder) / Remote / Local / Branch / Window; items run the same functions as the buttons through a command store and are greyed out when not possible | ✅ 208 Rust + 35 Vitest |
+| 31b | Branch → Checkout… dialog with a search box (local + remote branches) | ⬜ |
 
 ---
 
@@ -113,6 +115,7 @@ Detailed notes for each step (in Vietnamese): [docs/learning/](learning/README.m
 - Conflict Solver (your request 2026-10-24): a separate 3-column window like SmartGit, replacing the Take Ours/Theirs toolbar buttons and the external tool; hand-written Myers diff (`src/conflict/lineDiff.ts`) to highlight changes and scroll the side columns; non-UTF-8 files are treated as binary (not editable).
 - Branch panel (step 25): the sidebar is split into a top (repositories) / bottom (branches) part with a splitter; the `repoActivity` store connects the sidebar with RepoView (RepoView stays the only owner of the status).
 - Remotes (step 26): URLs are read with `git config --get-regexp` (the raw value, before `insteadOf`); a password/token inside a URL is masked in the list; names and URLs starting with `-` are refused.
+- Menu bar (step 31a): built in JavaScript (`setAsAppMenu`), no Rust menu code. Items only send a command id to the `menuCommands` store; components register what they can do while mounted, so the menu follows the same conditions as the buttons. Copy Repository Path uses the official clipboard plugin (write-text permission only).
 - Graph: lanes never shift sideways, free columns are reused; `LaneLayout` is computed incrementally per page; one SVG per row, at most 20 lanes shown.
 
 ## Open items
@@ -121,5 +124,5 @@ Detailed notes for each step (in Vietnamese): [docs/learning/](learning/README.m
 - [x] Steps 3–11 confirmed and committed.
 - [x] Steps 16a–19b confirmed and committed.
 - [x] Steps 20a–24b confirmed and committed (22c was committed on 2026-10-24, when moving on to 22d). Phase 3 done.
-- [x] Steps 25–30 confirmed and committed. README and MIT license added.
+- [x] Steps 25–31a confirmed and committed. README and MIT license added.
 - [ ] Steps 12–15 (credentials, accounts + keyring, per-repository user.name/email, SSH key) **on hold** (2026-10-21), to be resumed after phase 2 or when you ask.

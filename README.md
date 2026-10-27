@@ -51,6 +51,10 @@ MoonGit is a thin GUI over the **git command line** installed on your machine. I
   - Conflicted files are listed. Take ours or theirs for a whole file.
   - A **3-column Conflict Solver** window: your side, an editable result and their side. Jump between conflicts, take left / right / both, then *Save & Mark Resolved*.
 
+### Menu bar
+- Repository, Edit, View, Remote, Local and Branch menus with keyboard shortcuts (⌘K commit, ⇧⌘P push, ⌘R refresh, ⌘1–3 tabs…). Items are greyed out when the action isn't possible.
+- Edit → Copy Repository Path.
+
 ### Safety
 - Destructive actions (hard reset, force push, deleting branches, discarding changes, aborting operations…) always ask for confirmation first.
 - git is always called with argument arrays, never through a shell string.

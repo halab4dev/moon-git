@@ -16,6 +16,7 @@
     "dialog:allow-ask",
     "dialog:allow-message",
     "core:window:allow-close",
-    "core:window:allow-destroy"
+    "core:window:allow-destroy",
+    "clipboard-manager:allow-write-text"
   ]
 }

@@ -13,6 +13,8 @@ use storage::repos::RepoStore;
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
+        // Edit → Copy Repository Path (step 31a).
+        .plugin(tauri_plugin_clipboard_manager::init())
         .manage(Operations::new())
         .setup(|app| {
             // Per-user app data folder, e.g. on macOS:

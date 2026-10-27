@@ -63,7 +63,7 @@ export async function showRepoMenu(repo: RepoEntry) {
   await menu.popup();
 }
 
-async function addLocalRepo(groupId: string | null) {
+export async function addLocalRepo(groupId: string | null) {
   const store = useRepoStore();
   const picked = await open({ directory: true, multiple: false, title: "Add Local Repository" });
   // null means the user cancelled the dialog.
@@ -72,7 +72,7 @@ async function addLocalRepo(groupId: string | null) {
   }
 }
 
-function newGroup(parentId: string | null) {
+export function newGroup(parentId: string | null) {
   const store = useRepoStore();
   useDialogStore().askName({
     title: parentId ? "New Subgroup" : "New Group",

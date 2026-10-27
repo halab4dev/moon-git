@@ -264,7 +264,7 @@ export function askNewBranch(repoId: string, start: string | null, startLabel: s
   });
 }
 
-function askRename(repoId: string, branch: RefInfo, callbacks: BranchCallbacks) {
+export function askRename(repoId: string, branch: RefInfo, callbacks: BranchCallbacks) {
   useDialogStore().askName({
     title: `Rename Branch "${branch.name}"`,
     confirmLabel: "Rename",

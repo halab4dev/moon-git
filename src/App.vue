@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted } from "vue";
+import { onMounted, onUnmounted } from "vue";
 import AppSidebar from "./components/AppSidebar.vue";
 import CloneDialog from "./components/CloneDialog.vue";
 import MergeDialog from "./components/MergeDialog.vue";
@@ -10,11 +10,28 @@ import AddRemoteDialog from "./components/AddRemoteDialog.vue";
 import RepoView from "./views/RepoView.vue";
 import WelcomeView from "./views/WelcomeView.vue";
 import { useRepoStore } from "./stores/repos";
+import { installAppMenu } from "./appMenu";
 
 const store = useRepoStore();
 
-onMounted(() => {
+// The menu bar (step 31a) belongs to the main window; it stops following
+// the app's state when this window goes away (or is hot-reloaded).
+let stopMenu: (() => void) | null = null;
+let unmounted = false;
+
+onMounted(async () => {
   store.attempt(() => store.load());
+  const stop = await installAppMenu();
+  if (unmounted) {
+    stop();
+  } else {
+    stopMenu = stop;
+  }
+});
+
+onUnmounted(() => {
+  unmounted = true;
+  stopMenu?.();
 });
 </script>
 

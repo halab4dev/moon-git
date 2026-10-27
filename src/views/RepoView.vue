@@ -24,6 +24,8 @@ import type { RebaseAction } from "../types/rebase";
 import { ask } from "@tauri-apps/plugin-dialog";
 import { useDialogStore } from "../stores/dialogs";
 import { useRepoActivity } from "../stores/repoActivity";
+import { useMenuHandlers } from "../stores/menuCommands";
+import { askNewBranch, askRename, type BranchCallbacks } from "../components/branchMenus";
 import { toAppError } from "../api/errors";
 import type { AppError } from "../types/error";
 import type { RepoEntry } from "../types/repo";
@@ -525,6 +527,49 @@ onMounted(() => {
 
 onUnmounted(() => {
   window.removeEventListener("focus", refresh);
+});
+
+// ---- menu bar (step 31a): the same actions and conditions as the buttons ----
+
+const branchCallbacks: BranchCallbacks = {
+  onStatus: applyStatus,
+  onError: (err) => (error.value = err),
+};
+const onChanges = () => tab.value === "changes" && !working.value;
+const onStash = () => tab.value === "stashes" && !working.value && stashView.value?.hasSelection === true;
+
+useMenuHandlers({
+  "view.changes": { run: () => selectTab("changes") },
+  "view.history": { run: () => selectTab("history") },
+  "view.stashes": { run: () => selectTab("stashes") },
+  "view.refresh": { run: refresh, enabled: () => !working.value },
+  "local.commit": {
+    run: () => {
+      commitOpen.value = true;
+    },
+    enabled: () => commitBlocker.value === null,
+  },
+  "local.stage": { run: stageSelected, enabled: () => onChanges() && pathsToStage.value.length > 0 },
+  "local.unstage": { run: unstageSelected, enabled: () => onChanges() && pathsToUnstage.value.length > 0 },
+  "local.discard": { run: discardSelected, enabled: () => onChanges() && rowsToDiscard.value.length > 0 },
+  "local.stash": { run: askStash, enabled: () => !working.value && rows.value.length > 0 },
+  "local.apply": { run: () => stashView.value?.run("apply"), enabled: onStash },
+  "local.applyDrop": { run: () => stashView.value?.run("pop"), enabled: onStash },
+  "local.drop": { run: () => stashView.value?.run("drop"), enabled: onStash },
+  "branch.new": {
+    run: () => askNewBranch(props.repo.id, null, "the current commit", branchCallbacks),
+    enabled: () => !working.value && status.value?.branch.commit != null,
+  },
+  "branch.rename": {
+    run: () => {
+      const name = status.value?.branch.name;
+      if (name) {
+        const current = { fullName: `refs/heads/${name}`, name, kind: "branch" as const, current: true, upstream: null };
+        askRename(props.repo.id, current, branchCallbacks);
+      }
+    },
+    enabled: () => !working.value && status.value?.branch.name != null,
+  },
 });
 </script>
 

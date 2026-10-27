@@ -3,6 +3,7 @@ import { computed, ref } from "vue";
 import { Menu } from "@tauri-apps/api/menu";
 import { ask, message } from "@tauri-apps/plugin-dialog";
 import AppIcon from "./AppIcon.vue";
+import { useMenuHandlers } from "../stores/menuCommands";
 import { fetchRepo } from "../api/fetch";
 import { cancelOperation, onGitProgress } from "../api/operations";
 import { getStatus } from "../api/status";
@@ -251,6 +252,14 @@ function forcePushQuestion(preview: ForcePushPreview): string {
 // "Commit and Push" in the Commit dialog pushes through here, so it gets the
 // same first-push question, progress line and Cancel as the Push button.
 defineExpose({ push });
+
+// The same actions from the menu bar (Remote menu), with the buttons' conditions.
+useMenuHandlers({
+  "remote.fetch": { run: fetchNow, enabled: () => !running.value },
+  "remote.pull": { run: pull, enabled: () => !running.value && !props.busy && pullBlocker.value === null },
+  "remote.push": { run: push, enabled: () => !running.value && pushBlocker.value === null },
+  "remote.forcePush": { run: forcePush, enabled: () => !running.value && forcePushBlocker.value === null },
+});
 
 // ---- "Merge or rebase?" dialog ----
 
