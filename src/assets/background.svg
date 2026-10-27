@@ -1,0 +1,226 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="680" height="340" viewBox="0 0 680 340">
+  <!-- Animations (step 32): twinkling stars, a shooting star, the Earth's
+       glow breathing, signal waves from the dish, light running along the
+       paths like commits, pulsing junction lights. No script: CSS only, so
+       they also play when the picture is shown with <img>. -->
+  <style>
+    .twinkle { animation: twinkle 3.2s ease-in-out infinite; }
+    .t2 { animation-delay: -0.8s; animation-duration: 4.1s; }
+    .t3 { animation-delay: -1.9s; animation-duration: 2.7s; }
+    .t4 { animation-delay: -2.6s; animation-duration: 5s; }
+    @keyframes twinkle { 0%, 100% { opacity: 1; } 50% { opacity: 0.25; } }
+
+    .sparkle { transform-box: fill-box; transform-origin: center; animation: sparkle 4s ease-in-out infinite; }
+    .sparkle.s2 { animation-delay: -2s; }
+    @keyframes sparkle { 0%, 100% { transform: scale(1) rotate(0deg); opacity: 1; } 50% { transform: scale(0.6) rotate(45deg); opacity: 0.6; } }
+
+    .shooting { animation: shoot 9s linear infinite; opacity: 0; }
+    @keyframes shoot {
+      0% { transform: translate(0, 0); opacity: 0; }
+      2% { opacity: 1; }
+      9% { transform: translate(230px, 92px); opacity: 0; }
+      100% { transform: translate(230px, 92px); opacity: 0; }
+    }
+
+    .earth-glow { transform-box: fill-box; transform-origin: center; animation: breathe 6s ease-in-out infinite; }
+    @keyframes breathe { 0%, 100% { transform: scale(1); opacity: 0.85; } 50% { transform: scale(1.12); opacity: 1; } }
+
+    .wave { animation: wave 2.4s ease-out infinite; opacity: 0; }
+    .w2 { animation-delay: 0.4s; }
+    .w3 { animation-delay: 0.8s; }
+    @keyframes wave { 0% { opacity: 0; } 20% { opacity: 0.9; } 70%, 100% { opacity: 0; } }
+
+    .flow-a { animation: flow-a 1.6s linear infinite; }
+    .flow-b { animation: flow-b 1.4s linear infinite; }
+    @keyframes flow-a { to { stroke-dashoffset: -26; } }
+    @keyframes flow-b { to { stroke-dashoffset: -22; } }
+
+    .pulse { transform-box: fill-box; transform-origin: center; animation: pulse 2.8s ease-in-out infinite; }
+    .p2 { animation-delay: -0.7s; }
+    .p3 { animation-delay: -1.4s; }
+    .p4 { animation-delay: -2.1s; }
+    @keyframes pulse { 0%, 100% { transform: scale(0.85); opacity: 0.7; } 50% { transform: scale(1.25); opacity: 1; } }
+
+    .beacon { animation: beacon 1.8s steps(1) infinite; }
+    @keyframes beacon { 0%, 60% { opacity: 1; } 61%, 100% { opacity: 0.2; } }
+
+    .beam { animation: beam 3s ease-in-out infinite; }
+    @keyframes beam { 0%, 100% { opacity: 1; } 50% { opacity: 0.65; } }
+
+    /* People who turned on "Reduce motion" in macOS get the still picture. */
+    @media (prefers-reduced-motion: reduce) {
+      * { animation: none !important; }
+    }
+  </style>
+  <defs>
+    <linearGradient id="b1sky" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#0D1630"/>
+      <stop offset="0.55" stop-color="#101A3F"/>
+      <stop offset="1" stop-color="#1E2B5A"/>
+    </linearGradient>
+    <radialGradient id="b1earth" cx="0.36" cy="0.32" r="0.75">
+      <stop offset="0" stop-color="#8DB8FF"/>
+      <stop offset="0.55" stop-color="#3F70D2"/>
+      <stop offset="1" stop-color="#16306E"/>
+    </radialGradient>
+    <radialGradient id="b1earthGlow">
+      <stop offset="0.45" stop-color="#6E9BFF" stop-opacity="0.35"/>
+      <stop offset="1" stop-color="#6E9BFF" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="b1ground" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#34437F"/>
+      <stop offset="1" stop-color="#1A2350"/>
+    </linearGradient>
+    <linearGradient id="b1dome" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#6B7DC4"/>
+      <stop offset="1" stop-color="#2A3672"/>
+    </linearGradient>
+    <linearGradient id="b1metal" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#4A5A9C"/>
+      <stop offset="1" stop-color="#26316A"/>
+    </linearGradient>
+    <linearGradient id="b1beam" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#FFE9A8" stop-opacity="0.55"/>
+      <stop offset="1" stop-color="#FFE9A8" stop-opacity="0"/>
+    </linearGradient>
+    <radialGradient id="b1glow">
+      <stop offset="0" stop-color="#FADF86" stop-opacity="0.75"/>
+      <stop offset="1" stop-color="#FADF86" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="b1milky" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#7F8FE0" stop-opacity="0"/>
+      <stop offset="0.5" stop-color="#9AA8F0" stop-opacity="0.22"/>
+      <stop offset="1" stop-color="#7F8FE0" stop-opacity="0"/>
+    </linearGradient>
+    <linearGradient id="b1trail" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#FFFFFF" stop-opacity="0"/>
+      <stop offset="1" stop-color="#FFFFFF" stop-opacity="0.95"/>
+    </linearGradient>
+    <filter id="b1soft" x="-20%" y="-100%" width="140%" height="300%"><feGaussianBlur stdDeviation="12"/></filter>
+    <radialGradient id="b1fade" cx="0.5" cy="0.5" r="0.62">
+      <stop offset="0.72" stop-color="#fff"/>
+      <stop offset="1" stop-color="#000"/>
+    </radialGradient>
+    <mask id="b1mask"><rect width="680" height="340" fill="url(#b1fade)"/></mask>
+  </defs>
+  <g mask="url(#b1mask)">
+    <rect width="680" height="340" fill="url(#b1sky)"/>
+    <ellipse cx="300" cy="90" rx="340" ry="30" fill="url(#b1milky)" transform="rotate(-14 300 90)" filter="url(#b1soft)"/>
+    <g fill="#DCE4F7">
+      <g class="twinkle">
+        <circle cx="52" cy="40" r="1.4" opacity="0.9"/><circle cx="96" cy="88" r="0.9" opacity="0.6"/>
+        <circle cx="300" cy="96" r="1.1" opacity="0.7"/><circle cx="640" cy="40" r="1.3" opacity="0.8"/>
+        <circle cx="178" cy="112" r="0.7" opacity="0.6"/><circle cx="520" cy="22" r="0.8" opacity="0.7"/>
+      </g>
+      <g class="twinkle t2">
+        <circle cx="150" cy="28" r="1.1" opacity="0.7"/><circle cx="204" cy="70" r="1.6"/>
+        <circle cx="430" cy="78" r="1.2" opacity="0.8"/><circle cx="30" cy="130" r="1" opacity="0.6"/>
+        <circle cx="72" cy="12" r="0.8" opacity="0.6"/><circle cx="452" cy="118" r="0.7" opacity="0.5"/>
+      </g>
+      <g class="twinkle t3">
+        <circle cx="250" cy="34" r="0.9" opacity="0.6"/><circle cx="342" cy="44" r="1.3" opacity="0.8"/>
+        <circle cx="660" cy="120" r="0.9" opacity="0.6"/><circle cx="120" cy="150" r="0.8" opacity="0.5"/>
+        <circle cx="236" cy="138" r="0.9" opacity="0.6"/><circle cx="612" cy="150" r="0.8" opacity="0.5"/>
+      </g>
+      <g class="twinkle t4">
+        <circle cx="392" cy="20" r="0.9" opacity="0.6"/><circle cx="470" cy="36" r="0.8" opacity="0.5"/>
+        <circle cx="380" cy="140" r="0.9" opacity="0.5"/><circle cx="500" cy="130" r="1" opacity="0.6"/>
+        <circle cx="12" cy="70" r="0.9" opacity="0.6"/><circle cx="280" cy="8" r="0.8" opacity="0.6"/>
+      </g>
+    </g>
+    <!-- A shooting star now and then (one pass every 9 s). -->
+    <g class="shooting">
+      <line x1="60" y1="20" x2="104" y2="37.6" stroke="url(#b1trail)" stroke-width="1.6" stroke-linecap="round"/>
+      <circle cx="104" cy="37.6" r="1.6" fill="#FFFFFF"/>
+    </g>
+    <path class="sparkle" d="M204 62 L205.5 68.5 L212 70 L205.5 71.5 L204 78 L202.5 71.5 L196 70 L202.5 68.5 Z" fill="#FFF3CC"/>
+    <path class="sparkle s2" d="M342 37 L343 43 L349 44 L343 45 L342 51 L341 45 L335 44 L341 43 Z" fill="#FFF3CC" opacity="0.8"/>
+    <circle class="earth-glow" cx="566" cy="74" r="64" fill="url(#b1earthGlow)"/>
+    <circle cx="566" cy="74" r="34" fill="none" stroke="#9EC0FF" stroke-width="1.2" opacity="0.35"/>
+    <circle cx="566" cy="74" r="32" fill="url(#b1earth)"/>
+    <path d="M552 58 q10 -8 20 -2 q2 8 -8 10 q-6 6 -12 -8 Z" fill="#8FD19B" opacity="0.75"/>
+    <path d="M570 82 q12 -4 16 6 q-6 10 -14 4 Z" fill="#8FD19B" opacity="0.65"/>
+    <path d="M548 74 q14 -4 30 2 M556 92 q12 -3 24 0" stroke="#FFFFFF" stroke-width="2" stroke-linecap="round" opacity="0.45" fill="none"/>
+    <path d="M566 42 A32 32 0 0 1 566 106 A24 32 0 0 0 566 42 Z" fill="#0B1638" opacity="0.55"/>
+    <path d="M0 206 Q40 186 88 198 Q130 176 186 194 Q236 182 276 196 Q330 172 392 192 Q446 180 492 194 Q548 176 606 192 Q646 184 680 196 L680 240 L0 240 Z" fill="#18224C"/>
+    <path d="M0 220 Q90 200 180 214 Q270 202 360 212 Q450 200 540 214 Q610 206 680 212 L680 340 L0 340 Z" fill="#212D62"/>
+    <path d="M0 240 Q340 216 680 240 L680 340 L0 340 Z" fill="url(#b1ground)"/>
+    <path d="M0 240 Q340 216 680 240" stroke="#4C5C9E" stroke-width="1.5" fill="none" opacity="0.7"/>
+    <g>
+      <ellipse cx="96" cy="318" rx="46" ry="10" fill="#3A4A8A"/><ellipse cx="96" cy="320" rx="40" ry="7.5" fill="#151D45"/>
+      <ellipse cx="610" cy="312" rx="38" ry="8" fill="#3A4A8A"/><ellipse cx="610" cy="314" rx="33" ry="6" fill="#151D45"/>
+      <ellipse cx="300" cy="326" rx="24" ry="5" fill="#3A4A8A"/><ellipse cx="300" cy="327" rx="20" ry="3.6" fill="#151D45"/>
+      <ellipse cx="640" cy="252" rx="16" ry="3.5" fill="#3A4A8A"/><ellipse cx="640" cy="253" rx="13" ry="2.5" fill="#151D45"/>
+      <ellipse cx="250" cy="236" rx="14" ry="3" fill="#2F3C78"/><ellipse cx="250" cy="237" rx="11" ry="2" fill="#18214A"/>
+    </g>
+    <g fill="none" stroke-linecap="round">
+      <path d="M118 274 C238 304, 452 304, 584 268" stroke="#4A5A9C" stroke-width="13"/>
+      <path d="M205 290 C250 262, 292 246, 352 246 C412 246, 452 262, 497 291" stroke="#4A5A9C" stroke-width="10"/>
+      <path d="M118 274 C238 304, 452 304, 584 268" stroke="#2A366E" stroke-width="9"/>
+      <path d="M205 290 C250 262, 292 246, 352 246 C412 246, 452 262, 497 291" stroke="#2A366E" stroke-width="6.5"/>
+      <path d="M118 274 C238 304, 452 304, 584 268" stroke="#FADF86" stroke-width="1.5" stroke-dasharray="5 8" opacity="0.75" class="flow-a"/>
+      <path d="M205 290 C250 262, 292 246, 352 246 C412 246, 452 262, 497 291" stroke="#FADF86" stroke-width="1.2" stroke-dasharray="4 7" opacity="0.7" class="flow-b"/>
+    </g>
+    <path class="beam" d="M440 294 L560 270 L566 300 Z" fill="url(#b1beam)"/>
+    <g transform="translate(410 284)">
+      <rect x="2" y="-10" width="16" height="9" rx="2" fill="#9AA8D2"/>
+      <rect x="5" y="-8" width="7" height="5" rx="1" fill="#2A366E"/>
+      <rect x="-2" y="-2" width="32" height="10" rx="3" fill="#D3DCF2"/>
+      <rect x="-2" y="4" width="32" height="4" rx="2" fill="#9AA8D2"/>
+      <line x1="6" y1="-10" x2="4" y2="-20" stroke="#9AA8D2" stroke-width="1.5"/>
+      <circle class="beacon" cx="4" cy="-21" r="2" fill="#FADF86"/>
+      <circle cx="29" cy="1" r="2.2" fill="#FFF1C2"/>
+      <circle cx="4" cy="10" r="4.5" fill="#4A5A9C"/><circle cx="15" cy="10" r="4.5" fill="#4A5A9C"/><circle cx="26" cy="10" r="4.5" fill="#4A5A9C"/>
+      <circle cx="4" cy="10" r="1.6" fill="#9AA8D2"/><circle cx="15" cy="10" r="1.6" fill="#9AA8D2"/><circle cx="26" cy="10" r="1.6" fill="#9AA8D2"/>
+    </g>
+    <g>
+      <circle class="pulse" cx="205" cy="290" r="14" fill="url(#b1glow)"/><circle cx="205" cy="290" r="4.5" fill="#FFF1C2"/>
+      <circle class="pulse p2" cx="497" cy="291" r="14" fill="url(#b1glow)"/><circle cx="497" cy="291" r="4.5" fill="#FFF1C2"/>
+      <circle class="pulse p3" cx="276" cy="254" r="11" fill="url(#b1glow)"/><circle cx="276" cy="254" r="3.5" fill="#FFF1C2"/>
+      <circle class="pulse p4" cx="428" cy="254" r="11" fill="url(#b1glow)"/><circle cx="428" cy="254" r="3.5" fill="#FFF1C2"/>
+      <circle class="pulse p2" cx="310" cy="296" r="12" fill="url(#b1glow)"/><circle cx="310" cy="296" r="4" fill="#FFF1C2"/>
+    </g>
+    <g>
+      <ellipse cx="110" cy="276" rx="66" ry="11" fill="#141B42"/>
+      <polygon points="20,262 54,256 58,270 24,276" fill="#2B3B86"/>
+      <path d="M28 263 L56 258 M30 269 L57 264 M38 260 L41 274 M48 258 L51 272" stroke="#5B70C4" stroke-width="1"/>
+      <line x1="40" y1="272" x2="44" y2="280" stroke="#4A5A9C" stroke-width="2"/>
+      <path d="M58 272 A52 48 0 0 1 162 272 Z" fill="url(#b1dome)"/>
+      <path d="M110 224 L110 272 M76 236 Q94 252 92 272 M144 236 Q126 252 128 272 M62 254 Q110 244 158 254" stroke="#8FA2E0" stroke-width="1" fill="none" opacity="0.45"/>
+      <path d="M74 252 A38 36 0 0 1 104 230" stroke="#C4D0F2" stroke-width="3" stroke-linecap="round" fill="none" opacity="0.7"/>
+      <circle cx="110" cy="263" r="18" fill="url(#b1glow)"/>
+      <path d="M100 272 L100 260 A10 10 0 0 1 120 260 L120 272 Z" fill="#FADF86"/>
+      <rect x="150" y="226" width="3" height="46" fill="#4A5A9C"/>
+      <circle class="pulse p3" cx="151.5" cy="224" r="7" fill="url(#b1glow)"/><circle cx="151.5" cy="224" r="2.5" fill="#FFF1C2"/>
+    </g>
+    <g>
+      <ellipse cx="352" cy="248" rx="44" ry="7" fill="#141B42"/>
+      <path d="M318 248 A30 27 0 0 1 378 248 Z" fill="url(#b1dome)"/>
+      <path d="M330 236 A22 20 0 0 1 346 224" stroke="#C4D0F2" stroke-width="2.5" stroke-linecap="round" fill="none" opacity="0.7"/>
+      <rect x="378" y="222" width="16" height="26" rx="3" fill="url(#b1metal)"/>
+      <ellipse cx="386" cy="222" rx="8" ry="2.5" fill="#6B7DC4"/>
+      <circle cx="348" cy="242" r="12" fill="url(#b1glow)"/>
+      <rect x="342" y="238" width="12" height="10" rx="2" fill="#FADF86"/>
+      <rect x="382" y="230" width="8" height="4" rx="1" fill="#FADF86" opacity="0.85"/>
+    </g>
+    <g>
+      <ellipse cx="584" cy="271" rx="70" ry="10" fill="#141B42"/>
+      <path d="M528 270 L528 246 A56 28 0 0 1 640 246 L640 270 Z" fill="url(#b1metal)"/>
+      <path d="M542 270 L542 232 M556 270 L556 224 M570 270 L570 220 M584 270 L584 218 M598 270 L598 220 M612 270 L612 224 M626 270 L626 232" stroke="#6B7DC4" stroke-width="1" opacity="0.5"/>
+      <path d="M530 244 A54 26 0 0 1 600 220" stroke="#8FA2E0" stroke-width="2.5" fill="none" opacity="0.6" stroke-linecap="round"/>
+      <circle cx="584" cy="258" r="22" fill="url(#b1glow)"/>
+      <rect x="566" y="248" width="36" height="22" rx="2" fill="#FADF86"/>
+      <path d="M566 255 H602 M566 262 H602" stroke="#E5BE55" stroke-width="1"/>
+      <line x1="652" y1="270" x2="652" y2="238" stroke="#4A5A9C" stroke-width="3"/>
+      <ellipse cx="652" cy="232" rx="14" ry="6" fill="#9AA8D2" transform="rotate(-30 652 232)"/>
+      <line x1="652" y1="232" x2="662" y2="222" stroke="#D3DCF2" stroke-width="1.5"/>
+      <circle class="beacon" cx="663" cy="221" r="2" fill="#FADF86"/>
+      <!-- Signal waves from the dish, pointing at the Earth (up and left). -->
+      <g transform="translate(663 221) rotate(-123)" fill="none" stroke="#FADF86" stroke-width="1.4" stroke-linecap="round">
+        <path class="wave" d="M6.6 -4.6 A8 8 0 0 1 6.6 4.6"/>
+        <path class="wave w2" d="M11.5 -8 A14 14 0 0 1 11.5 8"/>
+        <path class="wave w3" d="M16.4 -11.5 A20 20 0 0 1 16.4 11.5"/>
+      </g>
+    </g>
+  </g>
+</svg>

@@ -2,7 +2,7 @@
 
 Last updated: 2026-10-27
 
-**Current state:** Phase 3 is done, plus steps 25–30 added on request. Steps 31a (menu bar) and 31b (Branch → Checkout… dialog) are done. Steps 12–15 are on hold, as requested.
+**Current state:** Phase 3 is done, plus steps 25–30 added on request. Steps 31a (menu bar) and 31b (Branch → Checkout… dialog) are done. Step 32 (welcome picture) is done. Steps 12–15 are on hold, as requested.
 
 Legend: ✅ done · 🟡 in progress / waiting for confirmation · ⏸ on hold · ⬜ not started
 
@@ -71,6 +71,7 @@ Detailed notes for each step (in Vietnamese): [docs/learning/](learning/README.m
 | 30 | History time column: "Today, 14:32" / "Yesterday, 09:10" by local calendar day, full date otherwise (`commitTime.ts`) | ✅ 35 Vitest, frontend only |
 | 31a | Menu bar: MoonGit / Repository (was File) / Edit (+ Copy Repository Path) / View (tabs, Refresh ⌘R, Theme placeholder) / Remote / Local / Branch / Window; items run the same functions as the buttons through a command store and are greyed out when not possible | ✅ 208 Rust + 35 Vitest |
 | 31b | Branch → Checkout… (⇧⌘C): dialog with a search box (every typed word must match), local + remote branches, ↑/↓/Enter | ✅ 38 Vitest, frontend only |
+| 32 | Welcome screen (no repository selected): your moon base picture (`src/assets/background.svg`), large and centered, with CSS animations inside the SVG (twinkling stars, shooting star, signal waves, light flowing along the paths; still when Reduce motion is on), plus a one-line hint | ✅ frontend only |
 
 ---
 
@@ -124,5 +125,5 @@ Detailed notes for each step (in Vietnamese): [docs/learning/](learning/README.m
 - [x] Steps 3–11 confirmed and committed.
 - [x] Steps 16a–19b confirmed and committed.
 - [x] Steps 20a–24b confirmed and committed (22c was committed on 2026-10-24, when moving on to 22d). Phase 3 done.
-- [x] Steps 25–31b confirmed and committed. README and MIT license added.
+- [x] Steps 25–32 confirmed and committed. README and MIT license added.
 - [ ] Steps 12–15 (credentials, accounts + keyring, per-repository user.name/email, SSH key) **on hold** (2026-10-21), to be resumed after phase 2 or when you ask.
