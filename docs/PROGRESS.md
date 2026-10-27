@@ -2,7 +2,7 @@
 
 Last updated: 2026-10-27
 
-**Current state:** Phase 3 is done, plus steps 25–30 added on request. Step 31a (menu bar) is done; 31b (Branch → Checkout… dialog) is in progress. Steps 12–15 are on hold, as requested.
+**Current state:** Phase 3 is done, plus steps 25–30 added on request. Steps 31a (menu bar) and 31b (Branch → Checkout… dialog) are done. Steps 12–15 are on hold, as requested.
 
 Legend: ✅ done · 🟡 in progress / waiting for confirmation · ⏸ on hold · ⬜ not started
 
@@ -70,7 +70,7 @@ Detailed notes for each step (in Vietnamese): [docs/learning/](learning/README.m
 | 29 | Commit… button on the toolbar (Changes tab, after Stash…) opening a Commit dialog: message, Amend (or Merge/Simple commit during a merge), Commit / Commit and Push (pushes through the toolbar's Push); the commit area at the bottom is removed | ✅ 30 Vitest, frontend only |
 | 30 | History time column: "Today, 14:32" / "Yesterday, 09:10" by local calendar day, full date otherwise (`commitTime.ts`) | ✅ 35 Vitest, frontend only |
 | 31a | Menu bar: MoonGit / Repository (was File) / Edit (+ Copy Repository Path) / View (tabs, Refresh ⌘R, Theme placeholder) / Remote / Local / Branch / Window; items run the same functions as the buttons through a command store and are greyed out when not possible | ✅ 208 Rust + 35 Vitest |
-| 31b | Branch → Checkout… dialog with a search box (local + remote branches) | ⬜ |
+| 31b | Branch → Checkout… (⇧⌘C): dialog with a search box (every typed word must match), local + remote branches, ↑/↓/Enter | ✅ 38 Vitest, frontend only |
 
 ---
 
@@ -124,5 +124,5 @@ Detailed notes for each step (in Vietnamese): [docs/learning/](learning/README.m
 - [x] Steps 3–11 confirmed and committed.
 - [x] Steps 16a–19b confirmed and committed.
 - [x] Steps 20a–24b confirmed and committed (22c was committed on 2026-10-24, when moving on to 22d). Phase 3 done.
-- [x] Steps 25–31a confirmed and committed. README and MIT license added.
+- [x] Steps 25–31b confirmed and committed. README and MIT license added.
 - [ ] Steps 12–15 (credentials, accounts + keyring, per-repository user.name/email, SSH key) **on hold** (2026-10-21), to be resumed after phase 2 or when you ask.

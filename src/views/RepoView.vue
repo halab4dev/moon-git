@@ -2,6 +2,7 @@
 import { computed, nextTick, onMounted, onUnmounted, ref, useTemplateRef, watch } from "vue";
 import { Menu } from "@tauri-apps/api/menu";
 import CommitDialog from "../components/CommitDialog.vue";
+import CheckoutDialog from "../components/CheckoutDialog.vue";
 import DiffPanel from "../components/DiffPanel.vue";
 import FileTable from "../components/FileTable.vue";
 import HistoryView from "./HistoryView.vue";
@@ -15,6 +16,7 @@ import { useSplitRatio } from "../composables/useSplitRatio";
 import { getStatus } from "../api/status";
 import { discardChanges, resolveConflicts, stageFiles, unstageFiles } from "../api/stage";
 import { commitChanges } from "../api/commit";
+import { checkoutBranch } from "../api/branch";
 import { createStash } from "../api/stash";
 import { abortMerge } from "../api/merge";
 import { runRebaseAction } from "../api/rebase";
@@ -529,6 +531,27 @@ onUnmounted(() => {
   window.removeEventListener("focus", refresh);
 });
 
+// ---- Branch → Checkout… (step 31b) ----
+
+const checkoutOpen = ref(false);
+
+/** Called by the Checkout dialog. Returns an error message to show there, or null. */
+async function checkoutFromDialog(fullName: string): Promise<string | null> {
+  if (working.value) {
+    return "Another operation is running. Try again when it has finished.";
+  }
+  busy.value = true;
+  try {
+    applyStatus(await checkoutBranch(props.repo.id, fullName));
+  } catch (err) {
+    return toAppError(err).message;
+  } finally {
+    busy.value = false;
+  }
+  checkoutOpen.value = false;
+  return null;
+}
+
 // ---- menu bar (step 31a): the same actions and conditions as the buttons ----
 
 const branchCallbacks: BranchCallbacks = {
@@ -556,6 +579,12 @@ useMenuHandlers({
   "local.apply": { run: () => stashView.value?.run("apply"), enabled: onStash },
   "local.applyDrop": { run: () => stashView.value?.run("pop"), enabled: onStash },
   "local.drop": { run: () => stashView.value?.run("drop"), enabled: onStash },
+  "branch.checkout": {
+    run: () => {
+      checkoutOpen.value = true;
+    },
+    enabled: () => !working.value,
+  },
   "branch.new": {
     run: () => askNewBranch(props.repo.id, null, "the current commit", branchCallbacks),
     enabled: () => !working.value && status.value?.branch.commit != null,
@@ -777,6 +806,7 @@ useMenuHandlers({
       :version="statusVersion"
       @status-changed="applyStatus"
     />
+    <CheckoutDialog v-if="checkoutOpen" :repo-id="repo.id" :submit="checkoutFromDialog" @close="checkoutOpen = false" />
     <CommitDialog
       v-if="commitOpen && status"
       v-model:message="commitMessage"

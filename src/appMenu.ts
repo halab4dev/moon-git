@@ -163,6 +163,7 @@ export async function installAppMenu(): Promise<() => void> {
   const branch = await Submenu.new({
     text: "Branch",
     items: [
+      await item("branch.checkout", "Checkout…", "CmdOrCtrl+Shift+C"),
       await item("branch.new", "New Branch…", "CmdOrCtrl+Shift+N"),
       await item("branch.rename", "Rename Current Branch…"),
     ],

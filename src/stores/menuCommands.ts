@@ -30,6 +30,7 @@ export type CommandId =
   | "local.apply"
   | "local.applyDrop"
   | "local.drop"
+  | "branch.checkout"
   | "branch.new"
   | "branch.rename";
 
