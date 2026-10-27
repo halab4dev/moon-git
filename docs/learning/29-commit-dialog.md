@@ -4,7 +4,7 @@
 
 ## Trạng thái
 - Chỉ đổi frontend. `pnpm test`: 30/30. `pnpm build`: OK.
-- Giao diện: chờ bạn thử. Chưa commit.
+- Giao diện: bạn đã xem, OK. Đã commit.
 
 ## Thay đổi
 - **Bỏ khung commit ở dưới màn hình** (ô message + Amend + nút Commit, component `CommitBox`). Vùng danh sách file + diff giờ cao thêm.

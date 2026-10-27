@@ -4,7 +4,7 @@
 
 ## Trạng thái
 - Chỉ đổi frontend. `pnpm test`: 30/30. `pnpm build`: OK (kiểm tra kiểu: không còn biến/import thừa).
-- Giao diện: chờ bạn thử. Chưa commit.
+- Giao diện: bạn đã xem, OK. Đã commit.
 
 ## Đã bỏ
 Dòng `⎇ main ▾ → origin/main ↑1 ↓2` dưới tên repo (component `BranchStatus.vue`, đã xóa) và menu của nó (`showBranchMenu`). Mọi thông tin của dòng đó đã có ở panel Branches:
