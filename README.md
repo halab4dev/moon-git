@@ -8,6 +8,8 @@ MoonGit is a thin GUI over the **git command line** installed on your machine. I
 
 **Stack:** [Tauri v2](https://tauri.app) · Rust backend · Vue 3 + TypeScript + Pinia frontend · Monaco editor for diffs and conflicts.
 
+![MoonGit in dark mode: the History tab with the commit graph, the details and diff of the selected commit, and the repositories and branches in the sidebar](docs/screenshots/main-dark.png)
+
 ## Features
 
 ### Repositories
@@ -19,6 +21,10 @@ MoonGit is a thin GUI over the **git command line** installed on your machine. I
 - Stage / unstage files, and **discard** changes. Discarded new files go to the system Trash, not straight to deletion.
 - **Side-by-side diff** (Monaco), opened in its own window: working tree, staged, or conflict view.
 - **Commit** from a dialog (Commit… on the toolbar): message, **amend** the last commit, then *Commit* or *Commit and Push*.
+
+![The Changes tab: changed files with their state and folder, the colored toolbar, and the side-by-side diff of the selected file](docs/screenshots/changes.png)
+
+![The Changes tab with a staged file and its diff, and the Commit dialog](docs/screenshots/commit-dialog.png)
 
 ### Sync
 - **Fetch** (all remotes), **pull** and **push**, with live progress and a Cancel button.
@@ -40,8 +46,10 @@ MoonGit is a thin GUI over the **git command line** installed on your machine. I
 - Branch actions: check out (double-click), create, rename, delete local branches, delete a branch on the server, set or unset the upstream branch.
 - **Add a remote**, and edit a remote's URL.
 
+![The Branches panel with the right-click menu of a branch: check out, merge, rebase, new branch, rename, upstream, delete](docs/screenshots/branches.png)
+
 ### Advanced operations
-- **Stash:** create (with a message, optionally including untracked files), list, apply, pop, drop.
+- **Stash:** create (with a message, optionally including untracked files), list, apply, apply and drop (pop), drop.
 - **Merge:** fast-forward, create a merge commit, or only bring the changes into the working tree.
 - **Rebase** (non-interactive) onto a chosen branch.
 - **Reset** the current branch to a commit: soft, mixed or hard. Hard asks twice.
@@ -51,11 +59,18 @@ MoonGit is a thin GUI over the **git command line** installed on your machine. I
   - Conflicted files are listed. Take ours or theirs for a whole file.
   - A **3-column Conflict Solver** window: your side, an editable result and their side. Jump between conflicts, take left / right / both, then *Save & Mark Resolved*.
 
+![The Conflict Solver: ours on the left, the editable result in the middle, theirs on the right](docs/screenshots/conflict-solver.png)
+
 ### Menu bar
 - Repository, Edit, View, Remote, Local and Branch menus with keyboard shortcuts (⌘K commit, ⇧⌘P push, ⌘R refresh, ⌘1–3 tabs…). Items are greyed out when the action isn't possible.
 - Edit → Copy Repository Path.
 - Branch → Checkout… (⇧⌘C): pick a local or remote branch from a searchable list.
 - View → Theme: System / Light / Dark (applies to every window, remembered).
+
+### Welcome screen
+An animated moon base while no repository is selected (still when macOS's *Reduce motion* is on).
+
+![The welcome screen: a moon base at night, with the Earth in the sky and paths between the domes like git branches](docs/screenshots/welcome.png)
 
 ### Safety
 - Destructive actions (hard reset, force push, deleting branches, discarding changes, aborting operations…) always ask for confirmation first.
