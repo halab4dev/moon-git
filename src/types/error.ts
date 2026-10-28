@@ -23,4 +23,6 @@ export type ErrorKind =
 export interface AppError {
   kind: ErrorKind;
   message: string;
+  /** "authRequired" only: the server that wants a login, e.g. "github.com". */
+  server?: string;
 }

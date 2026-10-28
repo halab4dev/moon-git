@@ -38,10 +38,23 @@ pub enum ErrorKind {
 pub struct AppError {
     pub kind: ErrorKind,
     pub message: String,
+    /// AuthRequired only: the server that wants a login, e.g. "github.com"
+    /// (the "Sign in" dialog asks for that server). Left out of the JSON when None.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub server: Option<String>,
 }
 
 impl AppError {
     pub fn new(kind: ErrorKind, message: String) -> AppError {
-        AppError { kind, message }
+        AppError {
+            kind,
+            message,
+            server: None,
+        }
+    }
+
+    pub fn with_server(mut self, server: Option<String>) -> AppError {
+        self.server = server;
+        self
     }
 }

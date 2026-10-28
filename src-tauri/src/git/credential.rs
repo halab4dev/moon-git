@@ -19,17 +19,35 @@
 // The password only travels through that pipe: never in an argument, an
 // environment variable, a file or a log.
 //
-// Step 12 is the plumbing. Saved accounts (keyring) come in step 13; until
-// then the helper never has an answer, so everything works exactly as before.
+// Step 12 was the plumbing; step 13a adds the saved accounts (accounts.json
+// + keyring, see storage/accounts.rs).
 
 use std::io::{self, Read, Write};
-use std::path::Path;
+use std::path::{Path, PathBuf};
+use std::sync::OnceLock;
 
 use crate::error::AppError;
 use crate::git::runner::run_git;
+use crate::storage::accounts::{Keyring, SavedAccounts};
 
 /// The argument that starts MoonGit in helper mode instead of opening a window.
 pub const HELPER_ARG: &str = "--git-credential";
+
+/// Environment variable telling the helper process where accounts.json is.
+/// Only a folder path: the token itself is read from the keyring.
+pub const DATA_DIR_ENV: &str = "MOONGIT_DATA_DIR";
+
+static DATA_DIR: OnceLock<PathBuf> = OnceLock::new();
+
+/// Called once at start (lib.rs) with the app data folder.
+pub fn set_data_dir(dir: PathBuf) {
+    let _ = DATA_DIR.set(dir);
+}
+
+/// None in tests and before the app has started: then no saved accounts are offered.
+pub fn data_dir() -> Option<&'static Path> {
+    DATA_DIR.get().map(PathBuf::as_path)
+}
 
 /// What git asks for ("protocol=https", "host=github.com", "path=…", "username=…").
 #[derive(Debug, Default, PartialEq)]
@@ -54,7 +72,7 @@ pub trait CredentialSource {
     fn find(&self, request: &CredentialRequest) -> Option<Credential>;
 }
 
-/// Step 12: no saved accounts yet, so the helper never answers.
+/// No saved accounts: the helper never answers (git started outside MoonGit).
 pub struct NoSavedAccounts;
 
 impl CredentialSource for NoSavedAccounts {
@@ -78,7 +96,18 @@ pub fn helper_main(args: &[String]) -> i32 {
     if io::stdin().read_to_string(&mut input).is_err() {
         return 1;
     }
-    let answer = answer(operation, &input, &NoSavedAccounts);
+    // Started by git from a MoonGit command: the variable says where the accounts are.
+    let answer = match std::env::var_os(DATA_DIR_ENV) {
+        Some(dir) => answer(
+            operation,
+            &input,
+            &SavedAccounts {
+                dir: PathBuf::from(dir),
+                secrets: Keyring,
+            },
+        ),
+        None => answer(operation, &input, &NoSavedAccounts),
+    };
     if io::stdout().write_all(answer.as_bytes()).is_err() {
         return 1;
     }
@@ -130,6 +159,23 @@ fn parse_request(input: &str) -> CredentialRequest {
 /// the answer ("host=evil.com"): never sent. Empty values are useless too.
 fn is_safe_value(value: &str) -> bool {
     !value.is_empty() && !value.contains(['\n', '\r', '\0'])
+}
+
+/// The server named in git's login errors:
+/// "could not read Username for 'https://github.com': terminal prompts disabled",
+/// "Authentication failed for 'https://github.com/me/x.git/'" → "github.com".
+pub fn server_in_messages(messages: &[String]) -> Option<String> {
+    messages.iter().find_map(|message| {
+        let (_, rest) = message.split_once(" for '")?;
+        let (url, _) = rest.split_once('\'')?;
+        let (_, after_scheme) = url.split_once("://")?;
+        let authority = after_scheme.split('/').next()?;
+        // "me@github.com" → "github.com" (a user name in the URL).
+        let host = authority
+            .rsplit_once('@')
+            .map_or(authority, |(_, host)| host);
+        (!host.is_empty()).then(|| host.to_string())
+    })
 }
 
 // ---- the git side (MoonGit → git) ----
@@ -233,6 +279,24 @@ mod tests {
             answer("get", "protocol=https\nhost=github.com\n", &NoSavedAccounts),
             ""
         );
+    }
+
+    #[test]
+    fn finds_the_server_in_login_errors() {
+        let lines = |text: &str| text.lines().map(str::to_string).collect::<Vec<_>>();
+        assert_eq!(
+            server_in_messages(&lines(
+                "fatal: could not read Username for 'https://github.com': terminal prompts disabled"
+            )),
+            Some("github.com".to_string())
+        );
+        assert_eq!(
+            server_in_messages(&lines(
+                "remote: Invalid username or token.\nfatal: Authentication failed for 'https://me@git.example.com:8443/team/x.git/'"
+            )),
+            Some("git.example.com:8443".to_string())
+        );
+        assert_eq!(server_in_messages(&lines("fatal: unable to access")), None);
     }
 
     #[test]

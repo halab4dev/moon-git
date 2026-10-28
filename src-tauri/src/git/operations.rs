@@ -113,6 +113,10 @@ pub fn run_git_with_progress(
         .chain(args.iter().copied())
         .collect();
     let mut command = git_command(cwd, &all_args)?;
+    // Where the helper process finds the saved accounts (not a secret).
+    if let Some(dir) = credential::data_dir() {
+        command.env(credential::DATA_DIR_ENV, dir);
+    }
     command
         .stdin(Stdio::null())
         .stdout(Stdio::null())
@@ -212,12 +216,13 @@ pub fn parse_percent(line: &str) -> Option<(String, u8)> {
 fn failure(messages: &[String], args: &[&str], status: ExitStatus) -> AppError {
     let all = messages.join("\n");
     if all.contains("terminal prompts disabled") || all.contains("Authentication failed") {
-        return AppError::new(
-            ErrorKind::AuthRequired,
-            "The server asked for a username and password. Logging in from MoonGit is not supported yet; \
-             use an SSH URL or a git credential helper for now."
-                .to_string(),
-        );
+        let server = credential::server_in_messages(messages);
+        let message = match (&server, all.contains("Authentication failed")) {
+            (Some(host), true) => format!("{host} refused the user name or password / token."),
+            (Some(host), false) => format!("{host} needs a user name and a password or token."),
+            (None, _) => "The server needs a user name and a password or token.".to_string(),
+        };
+        return AppError::new(ErrorKind::AuthRequired, message).with_server(server);
     }
 
     // Force push with lease: the server branch is not where it was at the

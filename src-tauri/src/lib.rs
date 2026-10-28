@@ -7,6 +7,7 @@ mod storage;
 use tauri::{Manager, WindowEvent};
 
 use git::operations::Operations;
+use storage::accounts::{AccountStore, Keyring};
 use storage::repos::RepoStore;
 
 /// The argument git uses to start MoonGit as its credential helper (step 12).
@@ -29,6 +30,9 @@ pub fn run() {
             // ~/Library/Application Support/com.github.halab4dev.moongit
             let data_dir = app.path().app_data_dir()?;
             app.manage(RepoStore::open(data_dir.join("repos.json")));
+            // Saved logins (step 13a): accounts.json here, tokens in the OS keyring.
+            git::credential::set_data_dir(data_dir.clone());
+            app.manage(AccountStore::new(data_dir, Box::new(Keyring)));
             Ok(())
         })
         // Closing the main window quits the app, diff windows included.
@@ -40,6 +44,10 @@ pub fn run() {
         })
         // Every command callable from the frontend must be listed here.
         .invoke_handler(tauri::generate_handler![
+            commands::account::list_accounts,
+            commands::account::find_account,
+            commands::account::begin_sign_in,
+            commands::account::finish_sign_in,
             commands::repo::list_repos,
             commands::repo::add_repo,
             commands::repo::remove_repo,

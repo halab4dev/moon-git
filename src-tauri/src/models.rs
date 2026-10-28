@@ -524,3 +524,14 @@ pub struct LostCommit {
     pub id: String,
     pub subject: String,
 }
+
+/// A saved login for an HTTPS server (step 13a). The token is not here: it
+/// lives in the OS keyring under `id`.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Account {
+    pub id: String,
+    /// "github.com", or "host:port".
+    pub host: String,
+    pub username: String,
+}
