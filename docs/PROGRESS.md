@@ -2,7 +2,7 @@
 
 Last updated: 2026-10-27
 
-**Current state:** Phase 3 is done, plus steps 25–30 added on request. Steps 31a (menu bar) and 31b (Branch → Checkout… dialog) are done. Step 32 (welcome picture) is done. Step 33 (dark mode) is done. Accounts resumed (2026-10-28): step 12 (MoonGit as git's credential helper) is done; 13a (saved accounts: accounts.json + keyring) is done; 13b (Sign in dialog) and 13c (MoonGit → Accounts…) are done (not yet tried against a real HTTPS server).
+**Current state:** Phase 3 is done, plus steps 25–30 added on request. Steps 31a (menu bar) and 31b (Branch → Checkout… dialog) are done. Step 32 (welcome picture) is done. Step 33 (dark mode) is done. Accounts resumed (2026-10-28): step 12 (MoonGit as git's credential helper) is done; 13a (saved accounts: accounts.json + keyring) is done; 13b (Sign in dialog) and 13c (MoonGit → Accounts…) are done (not yet tried against a real HTTPS server). Step 34 (drag repositories into / out of groups) is done.
 
 Legend: ✅ done · 🟡 in progress / waiting for confirmation · ⏸ on hold · ⬜ not started
 
@@ -18,7 +18,7 @@ Detailed notes for each step (in Vietnamese): [docs/learning/](learning/README.m
 | 1 | Tauri v2 + Vue 3 + TS skeleton, sidebar \| content layout, `greet` command | ✅ | UI confirmed (2026-10-21) |
 | 2 | Layer that runs git + shared error type | ✅ | `git/runner.rs`, `error.rs`, `check_repo` command. 7 tests pass, clippy clean. 4 cases confirmed in the UI (2026-10-21) |
 | 3 | Repository list + add a local repository | ✅ | `storage/repos.rs` (`repos.json`, written via a temp file + rename), dialog plugin, Pinia store. 13 tests pass, clippy clean. Confirmed in the UI (2026-10-21) |
-| 4 | Repository groups / subgroups | ✅ | `storage/repo_list.rs`, `repos.json` v2, native context menus, `NameDialog`. 23 tests pass. Confirmed (2026-10-21), SVG folder icon added. Not yet: drag and drop, moving groups |
+| 4 | Repository groups / subgroups | ✅ | `storage/repo_list.rs`, `repos.json` v2, native context menus, `NameDialog`. 23 tests pass. Confirmed (2026-10-21), SVG folder icon added. Drag and drop of repositories: step 34. Not yet: moving groups |
 | 5 | Clone with progress + cancel | ✅ | `git/operations.rs` (worker thread + Tauri event + cancelling the whole process group), `git/clone.rs`, `CloneDialog`. 36 tests pass. Confirmed (2026-10-21). Fetch/pull/push reuse `operations.rs` |
 | 6 | List of changed files | ✅ | `git/status.rs` (porcelain v2 -z, `--no-optional-locks`), `FileTable.vue` table (Name/State/Location, sortable columns, like SmartGit), refreshes on focus. 45 tests pass. Confirmed (2026-10-21) |
 | 7 | Stage / unstage | ✅ | `git/stage.rs` (`--literal-pathspecs`, batches of 100, repositories without commits), desktop-style row selection, buttons + context menu. 52 tests pass. States named as in SmartGit. Confirmed (2026-10-21) |
@@ -75,6 +75,7 @@ Detailed notes for each step (in Vietnamese): [docs/learning/](learning/README.m
 | 31b | Branch → Checkout… (⇧⌘C): dialog with a search box (every typed word must match), local + remote branches, ↑/↓/Enter | ✅ 38 Vitest, frontend only |
 | 32 | Welcome screen (no repository selected): your moon base picture (`src/assets/background.svg`), large and centered, with CSS animations inside the SVG (twinkling stars, shooting star, signal waves, light flowing along the paths; still when Reduce motion is on), plus a one-line hint | ✅ frontend only |
 | 33 | Dark mode: View → Theme ▸ System / Light / Dark, remembered; Tauri's app-level `setTheme` switches every window, the web views follow (`prefers-color-scheme`), so CSS and Monaco need no change | ✅ frontend + one permission |
+| 34 | Drag a repository onto a group (into it), onto another repository (its group) or onto empty space (top level); a closed group opens when hovered; HTML5 drag and drop, no library; needs `dragDropEnabled: false` on the main window (Tauri's file drop swallowed the `drop` event on macOS too) | ✅ frontend + one window option |
 
 ---
 
@@ -131,6 +132,6 @@ Detailed notes for each step (in Vietnamese): [docs/learning/](learning/README.m
 - [x] Steps 3–11 confirmed and committed.
 - [x] Steps 16a–19b confirmed and committed.
 - [x] Steps 20a–24b confirmed and committed (22c was committed on 2026-10-24, when moving on to 22d). Phase 3 done.
-- [x] Steps 25–33 confirmed and committed. README and MIT license added.
+- [x] Steps 25–34 confirmed and committed. README and MIT license added.
 - [ ] Try steps 13b / 13c against a real HTTPS server when one is available (tables in `learning/13b-…`, `13c-…`).
 - [ ] Steps 14–15 (per-repository user.name/email, SSH key).

@@ -142,6 +142,7 @@ export const useRepoStore = defineStore("repos", () => {
     isCollapsed,
     toggleCollapsed,
     attempt,
+    revealGroup,
     clearError,
   };
 });

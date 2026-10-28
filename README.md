@@ -13,7 +13,7 @@ MoonGit is a thin GUI over the **git command line** installed on your machine. I
 ## Features
 
 ### Repositories
-- Keep a list of local repositories, organized in **groups and subgroups** (create, rename, delete, move repos between groups).
+- Keep a list of local repositories, organized in **groups and subgroups** (create, rename, delete; move repos between groups by drag and drop or the context menu).
 - Add an existing local repository, or **clone** a remote one with live progress and a Cancel button.
 
 ### Working tree and commits

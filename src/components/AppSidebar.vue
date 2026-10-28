@@ -5,6 +5,7 @@ import { showAddMenu } from "./sidebarMenus";
 import BranchPanel from "./BranchPanel.vue";
 import GroupItem from "./GroupItem.vue";
 import RepoItem from "./RepoItem.vue";
+import { dropOnPlace, isDropTarget, overDropPlace } from "./repoDrag";
 
 const store = useRepoStore();
 
@@ -27,7 +28,14 @@ const { ratio, startResize } = useSplitRatio("sidebar", "moongit.sidebar.reposRa
     </div>
 
     <!-- Right-click on empty space opens the same menu as "+". -->
-    <div class="sidebar-body" @contextmenu.prevent="showAddMenu(null)">
+    <!-- Empty space in the list = the top level, also as a drop place (step 34). -->
+    <div
+      class="sidebar-body"
+      :class="{ 'drop-top': isDropTarget(null) }"
+      @contextmenu.prevent="showAddMenu(null)"
+      @dragover="overDropPlace($event, null)"
+      @drop="dropOnPlace($event, null)"
+    >
       <ul v-if="!store.isEmpty" class="tree">
         <GroupItem v-for="node in store.tree.groups" :key="node.group.id" :node="node" :depth="0" />
         <RepoItem v-for="repo in store.tree.repos" :key="repo.id" :repo="repo" :depth="0" />
