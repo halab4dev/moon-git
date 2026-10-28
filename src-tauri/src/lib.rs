@@ -48,6 +48,7 @@ pub fn run() {
             commands::account::find_account,
             commands::account::begin_sign_in,
             commands::account::finish_sign_in,
+            commands::account::remove_account,
             commands::repo::list_repos,
             commands::repo::add_repo,
             commands::repo::remove_repo,

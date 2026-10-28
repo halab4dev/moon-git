@@ -53,6 +53,9 @@ export async function installAppMenu(): Promise<() => void> {
         text: `About ${APP_NAME}`,
       }),
       await separator(),
+      // The saved logins for HTTPS servers (step 13c).
+      await MenuItem.new({ text: "Accounts…", action: () => useDialogStore().openAccounts() }),
+      await separator(),
       await PredefinedMenuItem.new({ item: "Services" }),
       await separator(),
       await PredefinedMenuItem.new({ item: "Hide", text: `Hide ${APP_NAME}` }),

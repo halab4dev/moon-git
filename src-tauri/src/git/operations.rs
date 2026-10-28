@@ -106,7 +106,7 @@ pub fn run_git_with_progress(
 ) -> Result<(), AppError> {
     // Every command run here talks to a server: MoonGit offers its saved
     // logins first (step 12, see credential.rs).
-    let helper = credential_options(cwd);
+    let helper = credential_options(cwd, args);
     let all_args: Vec<&str> = helper
         .iter()
         .map(String::as_str)
@@ -155,10 +155,12 @@ pub fn run_git_with_progress(
 
 /// `-c credential.helper=…` options pointing at this program. Empty if its
 /// own path is unknown (git then uses only the user's helpers, as before).
-fn credential_options(cwd: &Path) -> Vec<String> {
+fn credential_options(cwd: &Path, args: &[&str]) -> Vec<String> {
+    let only_moongit =
+        credential::data_dir().is_some_and(|dir| credential::has_account_for(cwd, args, dir));
     std::env::current_exe()
         .ok()
-        .and_then(|program| credential::helper_options(cwd, &program).ok())
+        .and_then(|program| credential::helper_options(cwd, &program, only_moongit).ok())
         .unwrap_or_default()
 }
 

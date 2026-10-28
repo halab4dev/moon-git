@@ -4,6 +4,7 @@ import { Menu } from "@tauri-apps/api/menu";
 import { ask, message } from "@tauri-apps/plugin-dialog";
 import AppIcon from "./AppIcon.vue";
 import { useMenuHandlers } from "../stores/menuCommands";
+import { withSignIn } from "./signIn";
 import { fetchRepo } from "../api/fetch";
 import { cancelOperation, onGitProgress } from "../api/operations";
 import { getStatus } from "../api/status";
@@ -129,7 +130,8 @@ async function cancel() {
 
 function fetchNow() {
   return perform(async () => {
-    await withProgress("Fetching…", (id) => fetchRepo(id, props.repoId));
+    // withSignIn: asks for a login and retries if the server wants one (step 13b).
+    await withSignIn(() => withProgress("Fetching…", (id) => fetchRepo(id, props.repoId)));
   });
 }
 
@@ -137,7 +139,7 @@ function pull() {
   return perform(async () => {
     locked.value = true;
     // 1. Download (the slow, network part: progress + Cancel).
-    if (!(await withProgress("Fetching…", (id) => fetchRepo(id, props.repoId)))) {
+    if (!(await withSignIn(() => withProgress("Fetching…", (id) => fetchRepo(id, props.repoId))))) {
       return;
     }
     // 2. Compare with the freshly fetched upstream.
@@ -183,7 +185,7 @@ function push() {
       }
       newUpstream = remote;
     }
-    await withProgress("Pushing…", (id) => pushRepo(id, props.repoId, newUpstream));
+    await withSignIn(() => withProgress("Pushing…", (id) => pushRepo(id, props.repoId, newUpstream)));
   });
 }
 
@@ -226,7 +228,10 @@ function forcePush() {
     if (!confirmed) {
       return;
     }
-    if (await withProgress("Force pushing…", (id) => forcePushRepo(id, props.repoId, preview.expected))) {
+    const pushed = await withSignIn(() =>
+      withProgress("Force pushing…", (id) => forcePushRepo(id, props.repoId, preview.expected)),
+    );
+    if (pushed) {
       note.value = "Force pushed";
     }
   });

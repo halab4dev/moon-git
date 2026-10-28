@@ -24,3 +24,8 @@ export function beginSignIn(host: string, username: string, token: string): Prom
 export function finishSignIn(id: string, accepted: boolean): Promise<void> {
   return invoke<void>("finish_sign_in", { id, accepted });
 }
+
+/** Forgets an account (its token is removed from the keyring). Resolves with the accounts left. */
+export function removeAccount(id: string): Promise<Account[]> {
+  return invoke<Account[]>("remove_account", { id });
+}

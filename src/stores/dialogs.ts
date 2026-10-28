@@ -55,6 +55,19 @@ export interface RemoteRequest {
   submit: (name: string, url: string) => Promise<string | null>;
 }
 
+export interface SignInRequest {
+  /** "github.com". */
+  server: string;
+  /** Prefilled: the saved account's user name, or "". */
+  username: string;
+  /** What git said, e.g. "github.com needs a user name and a password or token." */
+  reason: string;
+  /** Saves the login and retries. Returns an error message to show in the dialog, or null to close it. */
+  submit: (username: string, token: string) => Promise<string | null>;
+  /** The dialog was closed without signing in. */
+  cancel: () => void;
+}
+
 export interface CloneRequest {
   /** Group the cloned repo goes into; null = top level. */
   groupId: string | null;
@@ -67,6 +80,9 @@ export const useDialogStore = defineStore("dialogs", () => {
   const resetRequest = ref<ResetRequest | null>(null);
   const cherryPickRequest = ref<CherryPickRequest | null>(null);
   const remoteRequest = ref<RemoteRequest | null>(null);
+  const signInRequest = ref<SignInRequest | null>(null);
+  // MoonGit → Accounts… (the saved logins).
+  const accountsOpen = ref(false);
 
   function askName(request: NameRequest) {
     nameRequest.value = request;
@@ -116,6 +132,22 @@ export const useDialogStore = defineStore("dialogs", () => {
     remoteRequest.value = null;
   }
 
+  function askSignIn(request: SignInRequest) {
+    signInRequest.value = request;
+  }
+
+  function closeSignIn() {
+    signInRequest.value = null;
+  }
+
+  function openAccounts() {
+    accountsOpen.value = true;
+  }
+
+  function closeAccounts() {
+    accountsOpen.value = false;
+  }
+
   return {
     nameRequest,
     cloneRequest,
@@ -123,6 +155,8 @@ export const useDialogStore = defineStore("dialogs", () => {
     resetRequest,
     cherryPickRequest,
     remoteRequest,
+    signInRequest,
+    accountsOpen,
     askName,
     closeName,
     openClone,
@@ -135,6 +169,10 @@ export const useDialogStore = defineStore("dialogs", () => {
     closeCherryPick,
     askRemote,
     closeRemote,
+    askSignIn,
+    closeSignIn,
+    openAccounts,
+    closeAccounts,
   };
 });
 

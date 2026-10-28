@@ -40,6 +40,12 @@ pub async fn begin_sign_in(
     .await
 }
 
+/// Forgets an account (file + keyring). Returns the accounts left.
+#[tauri::command]
+pub async fn remove_account(app: AppHandle, id: String) -> Result<Vec<Account>, AppError> {
+    run_blocking(move || app.state::<AccountStore>().remove(&id)).await
+}
+
 /// `accepted`: false = the server refused it; the previous state comes back.
 #[tauri::command]
 pub async fn finish_sign_in(app: AppHandle, id: String, accepted: bool) -> Result<(), AppError> {

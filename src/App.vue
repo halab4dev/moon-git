@@ -7,6 +7,8 @@ import ResetDialog from "./components/ResetDialog.vue";
 import CherryPickDialog from "./components/CherryPickDialog.vue";
 import NameDialog from "./components/NameDialog.vue";
 import AddRemoteDialog from "./components/AddRemoteDialog.vue";
+import SignInDialog from "./components/SignInDialog.vue";
+import AccountsDialog from "./components/AccountsDialog.vue";
 import RepoView from "./views/RepoView.vue";
 import WelcomeView from "./views/WelcomeView.vue";
 import { useRepoStore } from "./stores/repos";
@@ -53,6 +55,9 @@ onUnmounted(() => {
   <ResetDialog />
   <CherryPickDialog />
   <AddRemoteDialog />
+  <AccountsDialog />
+  <!-- Last: it can open on top of the Clone dialog. -->
+  <SignInDialog />
 </template>
 
 <style scoped>

@@ -2,7 +2,7 @@
 
 Last updated: 2026-10-27
 
-**Current state:** Phase 3 is done, plus steps 25–30 added on request. Steps 31a (menu bar) and 31b (Branch → Checkout… dialog) are done. Step 32 (welcome picture) is done. Step 33 (dark mode) is done. Accounts resumed (2026-10-28): step 12 (MoonGit as git's credential helper) is done; 13a (saved accounts: accounts.json + keyring) is done; 13b (Sign in dialog) is in progress.
+**Current state:** Phase 3 is done, plus steps 25–30 added on request. Steps 31a (menu bar) and 31b (Branch → Checkout… dialog) are done. Step 32 (welcome picture) is done. Step 33 (dark mode) is done. Accounts resumed (2026-10-28): step 12 (MoonGit as git's credential helper) is done; 13a (saved accounts: accounts.json + keyring) is done; 13b (Sign in dialog) and 13c (MoonGit → Accounts…) are done (not yet tried against a real HTTPS server).
 
 Legend: ✅ done · 🟡 in progress / waiting for confirmation · ⏸ on hold · ⬜ not started
 
@@ -28,8 +28,8 @@ Detailed notes for each step (in Vietnamese): [docs/learning/](learning/README.m
 | 11 | Pull, push | ✅ | Pull = fetch (progress/cancel) + `merge --ff-only` / asks Rebase or Merge when diverged (preselected from `pull.rebase`); push never forces, a new branch asks first then uses `--set-upstream`; `Conflict` / `PushRejected`. 90 tests pass |
 | 12 | MoonGit as git's credential helper: `-c credential.helper=` reset, MoonGit first, the user's helpers after it, on every network command; `moongit --git-credential get` answers git without opening a window | ✅ | Your choice (2026-10-28): own credential helper (not GIT_ASKPASS); use a saved account of the same server; ask with a dialog when nothing works. 213 Rust tests. No visible change until step 13 |
 | 13a | Saved accounts: `accounts.json` (id, server, user name) + token in the OS keyring (crate `keyring` 4.2); sign-in saved before the retry and undone if the server refuses it; the helper reads them (`MOONGIT_DATA_DIR`); auth errors carry the server | ✅ | 220 Rust tests (keyring faked in tests). Nothing visible on its own |
-| 13b | "Sign in to <server>" dialog on an auth failure, then retry (fetch, pull, push, force push, clone, delete on the server) | ⬜ | |
-| 13c | Account list screen (view, change token, delete); choosing an account when a server has several | ⬜ | |
+| 13b | "Sign in to <server>" dialog on an auth failure, then retry (fetch, pull, push, force push, clone, delete on the server); refused logins are undone; when MoonGit has an account for the server, the user's own helpers are left out (so git never sends them "erase") | ✅ | 222 Rust + 38 Vitest. Committed without a test against a real HTTPS server (none available yet) |
+| 13c | MoonGit → Accounts…: list of saved accounts (server, user name; never the token), Remove… (file + keychain, confirmed) | ✅ | 223 Rust tests. Choosing an account per repository when a server has several: later, if needed |
 | 14 | Per-repository `user.name` / `user.email` | ⏸ | `git config --local` |
 | 15 | Choose an SSH key per server/repository | ⏸ | `GIT_SSH_COMMAND` |
 
@@ -132,4 +132,5 @@ Detailed notes for each step (in Vietnamese): [docs/learning/](learning/README.m
 - [x] Steps 16a–19b confirmed and committed.
 - [x] Steps 20a–24b confirmed and committed (22c was committed on 2026-10-24, when moving on to 22d). Phase 3 done.
 - [x] Steps 25–33 confirmed and committed. README and MIT license added.
-- [ ] Steps 13b–15 (Sign in dialog, account list, per-repository user.name/email, SSH key).
+- [ ] Try steps 13b / 13c against a real HTTPS server when one is available (tables in `learning/13b-…`, `13c-…`).
+- [ ] Steps 14–15 (per-repository user.name/email, SSH key).

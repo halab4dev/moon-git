@@ -4,6 +4,7 @@ import { open } from "@tauri-apps/plugin-dialog";
 import { suggestFolderName } from "../api/clone";
 import { cancelOperation, onGitProgress } from "../api/operations";
 import { toAppError } from "../api/errors";
+import { withSignIn } from "./signIn";
 import { useDialogStore } from "../stores/dialogs";
 import { useRepoStore } from "../stores/repos";
 
@@ -111,7 +112,10 @@ async function start() {
   });
 
   try {
-    await store.cloneRepo(id, url.value.trim(), parentDir.value.trim(), folderName.value.trim(), request.groupId);
+    // A private repository over HTTPS may need a login: asked, then cloned again (step 13b).
+    await withSignIn(() =>
+      store.cloneRepo(id, url.value.trim(), parentDir.value.trim(), folderName.value.trim(), request.groupId),
+    );
     dialogs.closeClone();
   } catch (err) {
     const appError = toAppError(err);

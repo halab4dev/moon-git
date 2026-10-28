@@ -27,8 +27,9 @@ use std::path::{Path, PathBuf};
 use std::sync::OnceLock;
 
 use crate::error::AppError;
+use crate::git::remote;
 use crate::git::runner::run_git;
-use crate::storage::accounts::{Keyring, SavedAccounts};
+use crate::storage::accounts::{Keyring, SavedAccounts, read_accounts};
 
 /// The argument that starts MoonGit in helper mode instead of opening a window.
 pub const HELPER_ARG: &str = "--git-credential";
@@ -168,25 +169,66 @@ pub fn server_in_messages(messages: &[String]) -> Option<String> {
     messages.iter().find_map(|message| {
         let (_, rest) = message.split_once(" for '")?;
         let (url, _) = rest.split_once('\'')?;
-        let (_, after_scheme) = url.split_once("://")?;
-        let authority = after_scheme.split('/').next()?;
-        // "me@github.com" → "github.com" (a user name in the URL).
-        let host = authority
-            .rsplit_once('@')
-            .map_or(authority, |(_, host)| host);
-        (!host.is_empty()).then(|| host.to_string())
+        http_host(url)
     })
+}
+
+/// "https://me@github.com:8443/x.git" → "github.com:8443". None for other
+/// kinds of URL (ssh, "git@github.com:x.git", local paths): no login asked there.
+pub fn http_host(url: &str) -> Option<String> {
+    let (scheme, after_scheme) = url.split_once("://")?;
+    if !scheme.eq_ignore_ascii_case("https") && !scheme.eq_ignore_ascii_case("http") {
+        return None;
+    }
+    let authority = after_scheme.split('/').next()?;
+    // "me@github.com" → "github.com" (a user name in the URL).
+    let host = authority
+        .rsplit_once('@')
+        .map_or(authority, |(_, host)| host);
+    (!host.is_empty()).then(|| host.to_string())
+}
+
+/// Does MoonGit have an account for a server this command talks to? The
+/// servers: URLs among the arguments (clone), and the repository's remotes.
+pub fn has_account_for(cwd: &Path, args: &[&str], data_dir: &Path) -> bool {
+    let Ok(accounts) = read_accounts(data_dir) else {
+        return false;
+    };
+    if accounts.is_empty() {
+        return false;
+    }
+    let mut hosts: Vec<String> = args.iter().filter_map(|arg| http_host(arg)).collect();
+    // Not a repository (clone runs in the parent folder): no remotes, fine.
+    if let Ok(urls) = remote::urls(cwd) {
+        hosts.extend(urls.values().filter_map(|url| http_host(url)));
+    }
+    hosts
+        .iter()
+        .any(|host| accounts.iter().any(|a| a.host.eq_ignore_ascii_case(host)))
 }
 
 // ---- the git side (MoonGit → git) ----
 
 /// The `-c` options that put `helper` (normally MoonGit itself) first among
-/// the credential helpers, keeping the user's own helpers after it.
-/// `cwd`: where git will run (its repository config counts too).
-pub fn helper_options(cwd: &Path, helper: &Path) -> Result<Vec<String>, AppError> {
+/// the credential helpers. `cwd`: where git will run (its repository config
+/// counts too).
+///
+/// `only_moongit`: MoonGit has an account for this server, so the user's own
+/// helpers are left out. After a login git tells *every* helper whether it
+/// worked ("store" / "erase"): with a wrong MoonGit token, git would otherwise
+/// tell osxkeychain to erase a login that works fine in the terminal.
+/// Without a MoonGit account, the user's helpers follow MoonGit as before.
+pub fn helper_options(
+    cwd: &Path,
+    helper: &Path,
+    only_moongit: bool,
+) -> Result<Vec<String>, AppError> {
     // Exit code 1 = no helper configured: an empty list, not an error.
-    let configured =
-        run_git(cwd, &["config", "--get-all", "credential.helper"]).unwrap_or_default();
+    let configured = if only_moongit {
+        String::new()
+    } else {
+        run_git(cwd, &["config", "--get-all", "credential.helper"]).unwrap_or_default()
+    };
 
     let mut options = vec![
         "-c".to_string(),
@@ -300,6 +342,59 @@ mod tests {
     }
 
     #[test]
+    fn http_hosts_only() {
+        assert_eq!(
+            http_host("https://github.com/me/x.git"),
+            Some("github.com".to_string())
+        );
+        assert_eq!(
+            http_host("HTTP://me@host:8080/x"),
+            Some("host:8080".to_string())
+        );
+        assert_eq!(http_host("ssh://git@github.com/me/x.git"), None);
+        assert_eq!(http_host("git@github.com:me/x.git"), None);
+        assert_eq!(http_host("/Users/me/repo"), None);
+    }
+
+    #[test]
+    fn knows_when_moongit_has_an_account_for_the_server() {
+        use crate::storage::accounts::AccountStore;
+        use crate::storage::accounts::tests::MemorySecrets;
+
+        let data = TempDir::new().unwrap();
+        let repo = TempDir::new().unwrap();
+        git(repo.path(), &["init", "--quiet"]);
+        git(
+            repo.path(),
+            &["remote", "add", "origin", "https://github.com/me/x.git"],
+        );
+
+        // No accounts at all.
+        assert!(!has_account_for(repo.path(), &["fetch"], data.path()));
+
+        let store = AccountStore::new(
+            data.path().to_path_buf(),
+            Box::new(MemorySecrets::default()),
+        );
+        let id = store.begin_sign_in("github.com", "me", "t").unwrap();
+        store.finish_sign_in(&id, true).unwrap();
+        // The repository's remote is on github.com.
+        assert!(has_account_for(repo.path(), &["fetch"], data.path()));
+        // Cloning outside any repository: decided by the URL alone.
+        let outside = TempDir::new().unwrap();
+        assert!(!has_account_for(
+            outside.path(),
+            &["clone", "--", "https://gitlab.com/me/y.git", "y"],
+            data.path()
+        ));
+        assert!(has_account_for(
+            outside.path(),
+            &["clone", "--", "https://github.com/me/z.git", "z"],
+            data.path()
+        ));
+    }
+
+    #[test]
     fn quotes_paths_for_the_shell() {
         assert_eq!(
             shell_quote("/Applications/MoonGit.app/x"),
@@ -373,7 +468,7 @@ mod tests {
         );
 
         // Ours answers: git uses it and never asks theirs.
-        let options = helper_options(repo.path(), &ours).unwrap();
+        let options = helper_options(repo.path(), &ours, false).unwrap();
         let filled = fill(repo.path(), &options);
         assert!(filled.contains("username=moongit\npassword=p2"), "{filled}");
         assert!(!bin_dir.join("theirs.log").exists());
@@ -386,12 +481,18 @@ mod tests {
             use std::os::unix::fs::PermissionsExt;
             fs::set_permissions(&silent, fs::Permissions::from_mode(0o755)).unwrap();
         }
-        let options = helper_options(repo.path(), &silent).unwrap();
+        let options = helper_options(repo.path(), &silent, false).unwrap();
         let filled = fill(repo.path(), &options);
         assert!(
             filled.contains("username=user-helper\npassword=p1"),
             "{filled}"
         );
+
+        // MoonGit has an account for the server: the user's helper is left out
+        // (git would also send it "erase" if the MoonGit token were wrong).
+        let options = helper_options(repo.path(), &silent, true).unwrap();
+        assert_eq!(options.len(), 4, "{options:?}");
+        assert!(!fill(repo.path(), &options).contains("user-helper"));
     }
 
     #[test]
@@ -400,7 +501,7 @@ mod tests {
         git(repo.path(), &["init", "--quiet"]);
         // Global/system helpers of the machine running the tests may exist:
         // only check that ours comes first, right after the reset.
-        let options = helper_options(repo.path(), Path::new("/x/moongit")).unwrap();
+        let options = helper_options(repo.path(), Path::new("/x/moongit"), false).unwrap();
         assert_eq!(options[0..3], ["-c", "credential.helper=", "-c"]);
         assert_eq!(
             options[3],

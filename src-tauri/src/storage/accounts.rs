@@ -199,6 +199,19 @@ impl AccountStore {
         }
     }
 
+    /// Forgets an account: removed from accounts.json and its token from the
+    /// keyring. Git will ask again next time (Sign in dialog).
+    pub fn remove(&self, id: &str) -> Result<Vec<Account>, AppError> {
+        let accounts: Vec<Account> = read_accounts(&self.dir)?
+            .into_iter()
+            .filter(|a| a.id != id)
+            .collect();
+        write_accounts(&self.dir, &accounts)?;
+        self.secrets.delete(id)?;
+        self.lock_pending()?.remove(id);
+        Ok(accounts)
+    }
+
     fn lock_pending(&self) -> Result<MutexGuard<'_, HashMap<String, Pending>>, AppError> {
         self.pending.lock().map_err(|_| {
             AppError::new(
@@ -438,6 +451,28 @@ pub mod tests {
                 .password,
             "t-work"
         );
+    }
+
+    #[test]
+    fn removed_account_is_gone_from_file_and_keyring() {
+        let (dir, secrets, store) = store();
+        let keep = store.begin_sign_in("gitlab.com", "me", "t1").unwrap();
+        store.finish_sign_in(&keep, true).unwrap();
+        let gone = store.begin_sign_in("github.com", "me", "t2").unwrap();
+        store.finish_sign_in(&gone, true).unwrap();
+
+        let left = store.remove(&gone).unwrap();
+        assert_eq!(
+            left.iter().map(|a| a.host.as_str()).collect::<Vec<_>>(),
+            ["gitlab.com"]
+        );
+        assert_eq!(secrets.get(&gone).unwrap(), None);
+        assert_eq!(secrets.get(&keep).unwrap().as_deref(), Some("t1"));
+        let helper = SavedAccounts {
+            dir: dir.path().to_path_buf(),
+            secrets,
+        };
+        assert!(helper.find(&request("github.com", None)).is_none());
     }
 
     #[test]

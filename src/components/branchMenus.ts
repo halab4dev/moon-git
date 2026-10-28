@@ -17,6 +17,7 @@ import { cherryPickCommit } from "../api/cherryPick";
 import { getStatus } from "../api/status";
 import { useDialogStore } from "../stores/dialogs";
 import { renameInSavedSelection } from "./refSelection";
+import { withSignIn } from "./signIn";
 import type { AppError } from "../types/error";
 import type { CommitRef, CommitSummary, RefInfo } from "../types/log";
 import type { RepoStatus } from "../types/status";
@@ -451,6 +452,6 @@ async function confirmDeleteRemote(repoId: string, branch: RefInfo, callbacks: B
   );
   if (confirmed) {
     // No progress shown: deleting a branch transfers almost nothing.
-    await perform(() => deleteRemoteBranch(crypto.randomUUID(), repoId, branch.fullName), callbacks);
+    await perform(() => withSignIn(() => deleteRemoteBranch(crypto.randomUUID(), repoId, branch.fullName)), callbacks);
   }
 }
