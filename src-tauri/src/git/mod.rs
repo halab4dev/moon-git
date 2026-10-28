@@ -7,6 +7,7 @@ pub mod cherry_pick;
 pub mod clone;
 pub mod commit;
 pub mod conflict;
+pub mod credential;
 pub mod diff;
 pub mod discard;
 pub mod fetch;

@@ -8,6 +8,7 @@ use std::process::{Child, ExitStatus, Stdio};
 use std::sync::{Mutex, MutexGuard};
 
 use crate::error::{AppError, ErrorKind};
+use crate::git::credential;
 use crate::git::runner::{git_command, spawn_error};
 
 /// Running git processes, keyed by an operation id chosen by the frontend.
@@ -103,7 +104,15 @@ pub fn run_git_with_progress(
     args: &[&str],
     mut on_line: impl FnMut(&str),
 ) -> Result<(), AppError> {
-    let mut command = git_command(cwd, args)?;
+    // Every command run here talks to a server: MoonGit offers its saved
+    // logins first (step 12, see credential.rs).
+    let helper = credential_options(cwd);
+    let all_args: Vec<&str> = helper
+        .iter()
+        .map(String::as_str)
+        .chain(args.iter().copied())
+        .collect();
+    let mut command = git_command(cwd, &all_args)?;
     command
         .stdin(Stdio::null())
         .stdout(Stdio::null())
@@ -138,6 +147,15 @@ pub fn run_git_with_progress(
         return Err(failure(&messages, args, status));
     }
     Ok(())
+}
+
+/// `-c credential.helper=…` options pointing at this program. Empty if its
+/// own path is unknown (git then uses only the user's helpers, as before).
+fn credential_options(cwd: &Path) -> Vec<String> {
+    std::env::current_exe()
+        .ok()
+        .and_then(|program| credential::helper_options(cwd, &program).ok())
+        .unwrap_or_default()
 }
 
 /// Splits git's stderr into lines. Progress updates end with '\r' (rewrite the

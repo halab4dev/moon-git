@@ -9,6 +9,14 @@ use tauri::{Manager, WindowEvent};
 use git::operations::Operations;
 use storage::repos::RepoStore;
 
+/// The argument git uses to start MoonGit as its credential helper (step 12).
+pub const CREDENTIAL_HELPER_ARG: &str = git::credential::HELPER_ARG;
+
+/// Helper mode: answers git on stdin/stdout, opens no window. Returns the exit code.
+pub fn credential_helper(args: &[String]) -> i32 {
+    git::credential::helper_main(args)
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()

@@ -2,7 +2,7 @@
 
 Last updated: 2026-10-27
 
-**Current state:** Phase 3 is done, plus steps 25–30 added on request. Steps 31a (menu bar) and 31b (Branch → Checkout… dialog) are done. Step 32 (welcome picture) is done. Step 33 (dark mode) is done. Steps 12–15 are on hold, as requested.
+**Current state:** Phase 3 is done, plus steps 25–30 added on request. Steps 31a (menu bar) and 31b (Branch → Checkout… dialog) are done. Step 32 (welcome picture) is done. Step 33 (dark mode) is done. Accounts resumed (2026-10-28): step 12 (MoonGit as git's credential helper) is done; 13a (saved accounts in the keyring) is in progress.
 
 Legend: ✅ done · 🟡 in progress / waiting for confirmation · ⏸ on hold · ⬜ not started
 
@@ -26,8 +26,8 @@ Detailed notes for each step (in Vietnamese): [docs/learning/](learning/README.m
 | 9 | Commit + amend | ✅ | Message through stdin (`-F -`), `--cleanup=whitespace`; checks first (nothing staged / conflicts / no commit yet); missing identity → `IdentityUnknown`; asks before amending a pushed commit. 71 tests pass |
 | 10 | Current branch + ahead/behind + fetch | ✅ | Header from `status --branch` (no extra git command), `fetch --all --progress` with progress/cancel, no `--prune`; fetch doesn't block stage/commit; cancel sends SIGTERM + SIGCONT. 77 tests pass |
 | 11 | Pull, push | ✅ | Pull = fetch (progress/cancel) + `merge --ff-only` / asks Rebase or Merge when diverged (preselected from `pull.rebase`); push never forces, a new branch asks first then uses `--set-upstream`; `Conflict` / `PushRejected`. 90 tests pass |
-| 12 | Design how credentials are provided | ⏸ | Only a proposal (`GIT_ASKPASS` or a credential helper), waiting for your choice before coding |
-| 13 | Per-server accounts + keyring | ⏸ | Tokens only in the keyring, an account attached to each repository |
+| 12 | MoonGit as git's credential helper: `-c credential.helper=` reset, MoonGit first, the user's helpers after it, on every network command; `moongit --git-credential get` answers git without opening a window | ✅ | Your choice (2026-10-28): own credential helper (not GIT_ASKPASS); use a saved account of the same server; ask with a dialog when nothing works. 213 Rust tests. No visible change until step 13 |
+| 13 | Per-server accounts + keyring; "Sign in to <server>" dialog when git reports an auth failure, then retry; saved for the next repositories of that server | ⬜ | Tokens only in the keyring (crate `keyring`). 13b: account list screen, choosing an account when a server has several |
 | 14 | Per-repository `user.name` / `user.email` | ⏸ | `git config --local` |
 | 15 | Choose an SSH key per server/repository | ⏸ | `GIT_SSH_COMMAND` |
 
@@ -119,6 +119,7 @@ Detailed notes for each step (in Vietnamese): [docs/learning/](learning/README.m
 - Remotes (step 26): URLs are read with `git config --get-regexp` (the raw value, before `insteadOf`); a password/token inside a URL is masked in the list; names and URLs starting with `-` are refused.
 - Menu bar (step 31a): built in JavaScript (`setAsAppMenu`), no Rust menu code. Items only send a command id to the `menuCommands` store; components register what they can do while mounted, so the menu follows the same conditions as the buttons. Copy Repository Path uses the official clipboard plugin (write-text permission only).
 - Theme (step 33): Tauri's app-level `setTheme` (null = follow macOS) instead of a `data-theme` attribute; the choice is kept in the main window's localStorage and applied at start.
+- Credentials (step 12): MoonGit is its own git credential helper, passed with `-c` per command (no git config file is changed). The user's configured helpers are re-added after it, so nothing changes when MoonGit has no saved login. Secrets only travel through the helper's stdout pipe.
 - Graph: lanes never shift sideways, free columns are reused; `LaneLayout` is computed incrementally per page; one SVG per row, at most 20 lanes shown.
 
 ## Open items
@@ -128,4 +129,4 @@ Detailed notes for each step (in Vietnamese): [docs/learning/](learning/README.m
 - [x] Steps 16a–19b confirmed and committed.
 - [x] Steps 20a–24b confirmed and committed (22c was committed on 2026-10-24, when moving on to 22d). Phase 3 done.
 - [x] Steps 25–33 confirmed and committed. README and MIT license added.
-- [ ] Steps 12–15 (credentials, accounts + keyring, per-repository user.name/email, SSH key) **on hold** (2026-10-21), to be resumed after phase 2 or when you ask.
+- [ ] Steps 13–15 (accounts + keyring + Sign in dialog, per-repository user.name/email, SSH key).
