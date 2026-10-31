@@ -3,7 +3,10 @@ use tauri::State;
 use super::run_blocking;
 use crate::error::AppError;
 use crate::git;
-use crate::models::RemoteAccess;
+use std::path::Path;
+
+use crate::error::ErrorKind;
+use crate::models::{GroupAccess, GroupApplyResult, RemoteAccess};
 use crate::storage::repos::RepoStore;
 
 // SSH key and HTTPS login of one repository (step 15a), in its .git/config.
@@ -28,4 +31,63 @@ pub async fn set_remote_access(
 ) -> Result<RemoteAccess, AppError> {
     let repo = store.repo_path(&repo_id)?;
     run_blocking(move || git::access::set(&repo, ssh_key.as_deref(), system_credentials)).await
+}
+
+/// Writes login settings into the repositories of a group and its subgroups
+/// (step 15b): only into parts a repository hasn't set itself, or into all
+/// of them (`all`). The group remembers the choice for its dialog.
+#[tauri::command]
+pub async fn apply_group_access(
+    group_id: String,
+    ssh_key: Option<String>,
+    system_credentials: bool,
+    all: bool,
+    store: State<'_, RepoStore>,
+) -> Result<GroupApplyResult, AppError> {
+    let ssh_key = match ssh_key {
+        Some(key) => Some(git::access::checked_key(&key)?),
+        None => None,
+    };
+    if store.group(&group_id)?.is_none() {
+        return Err(AppError::new(
+            ErrorKind::NotFound,
+            "This group no longer exists.".to_string(),
+        ));
+    }
+    let repos = store.repos_in_group(&group_id)?;
+    let total = repos.len() as u32;
+
+    let key = ssh_key.clone();
+    let (changed, failed) = run_blocking(move || {
+        let mut changed = 0;
+        let mut failed = Vec::new();
+        for repo in repos {
+            match git::access::apply_group_access(
+                Path::new(&repo.path),
+                key.as_deref(),
+                system_credentials,
+                all,
+            ) {
+                Ok(true) => changed += 1,
+                Ok(false) => {}
+                Err(err) => failed.push(format!("{}: {}", repo.name, err.message)),
+            }
+        }
+        Ok((changed, failed))
+    })
+    .await?;
+
+    let list = store.set_group_access(
+        &group_id,
+        GroupAccess {
+            ssh_key,
+            system_credentials,
+        },
+    )?;
+    Ok(GroupApplyResult {
+        list,
+        total,
+        changed,
+        failed,
+    })
 }

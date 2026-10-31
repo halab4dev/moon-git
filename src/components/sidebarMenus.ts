@@ -32,6 +32,7 @@ export async function showGroupMenu(group: RepoGroup) {
       separator,
       { text: "Rename…", action: () => renameGroup(group) },
       { text: "Commit Identity…", action: () => useDialogStore().askGroupIdentity({ groupId: group.id }) },
+      { text: "Login (SSH & HTTPS)…", action: () => useDialogStore().askGroupAccess({ groupId: group.id }) },
       { text: "Delete Group…", action: () => void deleteGroup(group) },
     ],
   });

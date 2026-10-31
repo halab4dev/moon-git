@@ -15,6 +15,14 @@ export interface RepoGroup {
   parentId: string | null;
   /** Commit identity for the repositories inside (step 14b); missing = none. */
   identity?: GroupIdentity;
+  /** Login settings last written for the repositories inside (step 15b); missing = never set. */
+  access?: GroupAccess;
+}
+
+export interface GroupAccess {
+  /** null = this computer's SSH settings. */
+  sshKey: string | null;
+  systemCredentials: boolean;
 }
 
 export interface GroupIdentity {

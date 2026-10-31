@@ -12,6 +12,7 @@ import AccountsDialog from "./components/AccountsDialog.vue";
 import IdentityDialog from "./components/IdentityDialog.vue";
 import GroupIdentityDialog from "./components/GroupIdentityDialog.vue";
 import AccessDialog from "./components/AccessDialog.vue";
+import GroupAccessDialog from "./components/GroupAccessDialog.vue";
 import RepoView from "./views/RepoView.vue";
 import WelcomeView from "./views/WelcomeView.vue";
 import { useRepoStore } from "./stores/repos";
@@ -62,6 +63,7 @@ onUnmounted(() => {
   <IdentityDialog />
   <GroupIdentityDialog />
   <AccessDialog />
+  <GroupAccessDialog />
   <!-- Last: it can open on top of the Clone dialog. -->
   <SignInDialog />
 </template>

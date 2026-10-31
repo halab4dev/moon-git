@@ -5,6 +5,7 @@ import { getComputerIdentity } from "../api/identity";
 import { toAppError } from "../api/errors";
 import { useDialogStore } from "../stores/dialogs";
 import { useRepoStore } from "../stores/repos";
+import { countReposInGroup } from "../stores/repoTree";
 import type { RepoGroup } from "../types/repo";
 
 // "Commit Identity" of a group (step 14b): a name and email written into the
@@ -28,24 +29,9 @@ const group = computed<RepoGroup | null>(() => {
 });
 
 // How many repositories it applies to (subgroups included), for the text.
-const repoCount = computed(() => {
-  const root = group.value;
-  if (root === null) {
-    return 0;
-  }
-  const ids = new Set([root.id]);
-  let added = true;
-  while (added) {
-    added = false;
-    for (const g of store.groups) {
-      if (g.parentId !== null && ids.has(g.parentId) && !ids.has(g.id)) {
-        ids.add(g.id);
-        added = true;
-      }
-    }
-  }
-  return store.repos.filter((r) => r.groupId !== null && ids.has(r.groupId)).length;
-});
+const repoCount = computed(() =>
+  group.value === null ? 0 : countReposInGroup(store.groups, store.repos, group.value.id),
+);
 
 watch(
   () => dialogs.groupIdentityRequest,

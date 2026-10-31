@@ -51,6 +51,7 @@ Mỗi bước làm xong có một file giải thích riêng, đọc theo thứ t
 | 13c | [13c-accounts-list.md](13c-accounts-list.md) | MoonGit → Accounts…: danh sách account, Remove (xóa cả token trong Keychain) |
 | 14 | [14-commit-identity.md](14-commit-identity.md) | `user.name` / `user.email` riêng cho repo (`git config --local`) và cho nhóm (ghi vào các repo của nhóm: chỉ repo chưa có, hoặc tất cả), dòng "Committing as" |
 | 15a | [15a-ssh-key-and-login.md](15a-ssh-key-and-login.md) | SSH key (`core.sshCommand`, `IdentitiesOnly`) và "dùng credential của máy" cho HTTPS, theo repo; menu Login (SSH & HTTPS)… |
+| 15b | [15b-group-login.md](15b-group-login.md) | Login (SSH & HTTPS) cho cả nhóm, SSH và HTTPS xét riêng |
 
 ## Mục lục khái niệm (lần đầu xuất hiện ở bước nào)
 

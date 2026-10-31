@@ -3,7 +3,8 @@ import { computed, ref } from "vue";
 import * as repoApi from "../api/repo";
 import * as groupApi from "../api/group";
 import * as cloneApi from "../api/clone";
-import { applyGroupIdentity, type GroupIdentityResult } from "../api/identity";
+import { applyGroupIdentity, type GroupApplyResult } from "../api/identity";
+import { applyGroupAccess } from "../api/access";
 import { toAppError } from "../api/errors";
 import { buildTree, listGroupOptions } from "./repoTree";
 import type { RepoEntry, RepoGroup, RepoList } from "../types/repo";
@@ -79,8 +80,20 @@ export const useRepoStore = defineStore("repos", () => {
   }
 
   /** Step 14b: saves the group's identity and writes it into its repositories. */
-  async function setGroupIdentity(id: string, name: string, email: string, all: boolean): Promise<GroupIdentityResult> {
+  async function setGroupIdentity(id: string, name: string, email: string, all: boolean): Promise<GroupApplyResult> {
     const result = await call(applyGroupIdentity(id, name, email, all));
+    applyList(result.list);
+    return result;
+  }
+
+  /** Step 15b: writes login settings into the repositories of a group. */
+  async function setGroupAccess(
+    id: string,
+    sshKey: string | null,
+    systemCredentials: boolean,
+    all: boolean,
+  ): Promise<GroupApplyResult> {
+    const result = await call(applyGroupAccess(id, sshKey, systemCredentials, all));
     applyList(result.list);
     return result;
   }
@@ -146,6 +159,7 @@ export const useRepoStore = defineStore("repos", () => {
     createGroup,
     renameGroup,
     setGroupIdentity,
+    setGroupAccess,
     deleteGroup,
     select,
     isCollapsed,

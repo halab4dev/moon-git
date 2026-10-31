@@ -6,7 +6,7 @@ use std::sync::{Mutex, MutexGuard};
 use serde::{Deserialize, Serialize};
 
 use crate::error::{AppError, ErrorKind};
-use crate::models::{RepoEntry, RepoGroup, RepoInfo, RepoList};
+use crate::models::{GroupAccess, RepoEntry, RepoGroup, RepoInfo, RepoList};
 
 /// 1: repos only. 2: adds groups and RepoEntry.group_id.
 const FILE_VERSION: u32 = 2;
@@ -121,6 +121,14 @@ impl RepoStore {
     ) -> Result<RepoList, AppError> {
         self.update(|list| {
             list.set_group_identity(id, identity)?;
+            Ok(list.clone())
+        })
+    }
+
+    /// Login settings of a group (step 15b), kept to prefill its dialog.
+    pub fn set_group_access(&self, id: &str, access: GroupAccess) -> Result<RepoList, AppError> {
+        self.update(|list| {
+            list.set_group_access(id, access)?;
             Ok(list.clone())
         })
     }

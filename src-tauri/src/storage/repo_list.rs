@@ -6,7 +6,7 @@ use std::time::{SystemTime, UNIX_EPOCH};
 
 use crate::error::{AppError, ErrorKind};
 use crate::git::identity::clean_identity;
-use crate::models::{GroupIdentity, RepoEntry, RepoGroup, RepoInfo, RepoList};
+use crate::models::{GroupAccess, GroupIdentity, RepoEntry, RepoGroup, RepoInfo, RepoList};
 
 const MAX_NAME_LEN: usize = 100;
 
@@ -65,6 +65,7 @@ impl RepoList {
             name,
             parent_id,
             identity: None,
+            access: None,
         };
         self.groups.push(group.clone());
         Ok(group)
@@ -126,6 +127,17 @@ impl RepoList {
             .find(|g| g.id == id)
             .ok_or_else(|| not_found("Group"))?;
         group.identity = identity;
+        Ok(())
+    }
+
+    /// Remembers the login settings last written for a group (step 15b).
+    pub fn set_group_access(&mut self, id: &str, access: GroupAccess) -> Result<(), AppError> {
+        let group = self
+            .groups
+            .iter_mut()
+            .find(|g| g.id == id)
+            .ok_or_else(|| not_found("Group"))?;
+        group.access = Some(access);
         Ok(())
     }
 

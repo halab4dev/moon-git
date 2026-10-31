@@ -38,6 +38,18 @@ pub struct RepoGroup {
     /// is written into each repository's .git/config. Older files: None.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub identity: Option<GroupIdentity>,
+    /// Login settings last set for the repositories inside (step 15b).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub access: Option<GroupAccess>,
+}
+
+/// The SSH key / HTTPS choice a group gives to the repositories inside.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct GroupAccess {
+    /// None = this computer's SSH settings.
+    pub ssh_key: Option<String>,
+    pub system_credentials: bool,
 }
 
 /// The name and email a group gives to the repositories inside it.
@@ -560,10 +572,11 @@ pub struct Identity {
     pub inherited_email: Option<String>,
 }
 
-/// What setting a group's identity did (step 14b).
+/// What writing a group's identity (step 14b) or login (step 15b) into its
+/// repositories did.
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
-pub struct GroupIdentityResult {
+pub struct GroupApplyResult {
     pub list: RepoList,
     /// Repositories in the group (and its subgroups).
     pub total: u32,

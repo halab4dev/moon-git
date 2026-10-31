@@ -59,6 +59,59 @@ pub fn set(
     read(repo)
 }
 
+/// Writes a group's login settings into one of its repositories (step 15b),
+/// SSH and HTTPS each on their own. `all`: also over what the repository
+/// already has; otherwise only a part the repository hasn't set gets the
+/// group's value ("this computer's" for an unset part changes nothing).
+/// `ssh_key` must already be checked (`checked_key`). Returns true when
+/// .git/config was changed.
+pub fn apply_group_access(
+    repo: &Path,
+    ssh_key: Option<&str>,
+    system_credentials: bool,
+    all: bool,
+) -> Result<bool, AppError> {
+    let mut changed = false;
+
+    let own_ssh = get_local(repo, SSH_KEY)?;
+    if all || own_ssh.is_none() {
+        match ssh_key {
+            Some(key) => {
+                let command = format!("{SSH_PREFIX}{}{SSH_SUFFIX}", shell_quote(key));
+                if own_ssh.as_deref() != Some(command.as_str()) {
+                    run_git(repo, &["config", "--local", "--", SSH_KEY, &command])?;
+                    changed = true;
+                }
+            }
+            None if own_ssh.is_some() => {
+                unset(repo, SSH_KEY)?;
+                changed = true;
+            }
+            None => {}
+        }
+    }
+
+    let own_credentials = get_local(repo, CREDENTIALS)?;
+    if all || own_credentials.is_none() {
+        let wanted = system_credentials.then_some("system");
+        if own_credentials.as_deref() != wanted {
+            match wanted {
+                Some(value) => {
+                    run_git(repo, &["config", "--local", "--", CREDENTIALS, value])?;
+                }
+                None => unset(repo, CREDENTIALS)?,
+            }
+            changed = true;
+        }
+    }
+    Ok(changed)
+}
+
+/// The key path as it will be written (trimmed, "~/" expanded), or why not.
+pub fn checked_key(key: &str) -> Result<String, AppError> {
+    check_key(key)
+}
+
 /// True when the repository chose this computer's credential helpers for
 /// HTTPS (`moongit.credentials = system`): MoonGit then adds no helper of its own.
 pub fn uses_system_credentials(repo: &Path) -> bool {
@@ -350,6 +403,39 @@ mod tests {
         assert_eq!(protocol("git://host/x"), Protocol::Other);
         // A Windows drive letter is a path, not "host:path".
         assert_eq!(protocol("C:\\repos\\x"), Protocol::Other);
+    }
+
+    #[test]
+    fn writes_a_group_login_into_repositories() {
+        let keys = TempDir::new().unwrap();
+        let group_key = key_file(keys.path());
+        let other_key = keys.path().join("id_other");
+        fs::write(&other_key, "x").unwrap();
+        let other_key = other_key.to_string_lossy().to_string();
+
+        let (empty, own) = (repo(), repo());
+        set(own.path(), Some(&other_key), true).unwrap();
+
+        // Only parts without a setting: the empty repo gets everything, the
+        // other keeps its key and its HTTPS choice.
+        assert!(apply_group_access(empty.path(), Some(&group_key), true, false).unwrap());
+        let got = read(empty.path()).unwrap();
+        assert_eq!(
+            (got.ssh_key.as_deref(), got.system_credentials),
+            (Some(group_key.as_str()), true)
+        );
+        assert!(!apply_group_access(own.path(), Some(&group_key), false, false).unwrap());
+        assert_eq!(
+            read(own.path()).unwrap().ssh_key.as_deref(),
+            Some(other_key.as_str())
+        );
+        // Nothing to change the second time.
+        assert!(!apply_group_access(empty.path(), Some(&group_key), true, false).unwrap());
+
+        // Write for all: "this computer's" removes both settings everywhere.
+        assert!(apply_group_access(own.path(), None, false, true).unwrap());
+        let got = read(own.path()).unwrap();
+        assert_eq!((got.ssh_key, got.system_credentials), (None, false));
     }
 
     #[test]

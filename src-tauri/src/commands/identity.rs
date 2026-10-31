@@ -6,7 +6,7 @@ use super::run_blocking;
 use crate::error::{AppError, ErrorKind};
 use crate::git;
 use crate::git::identity::clean_identity;
-use crate::models::{GroupIdentityResult, Identity};
+use crate::models::{GroupApplyResult, Identity};
 use crate::storage::repos::RepoStore;
 
 // Commit identities (step 14): of one repository (its .git/config), and of a
@@ -53,7 +53,7 @@ pub async fn apply_group_identity(
     email: String,
     all: bool,
     store: State<'_, RepoStore>,
-) -> Result<GroupIdentityResult, AppError> {
+) -> Result<GroupApplyResult, AppError> {
     let (name, email) = clean_identity(&name, &email)?;
     if store.group(&group_id)?.is_none() {
         return Err(AppError::new(
@@ -81,7 +81,7 @@ pub async fn apply_group_identity(
     .await?;
 
     let list = store.set_group_identity(&group_id, Some((&name, &email)))?;
-    Ok(GroupIdentityResult {
+    Ok(GroupApplyResult {
         list,
         total,
         changed,

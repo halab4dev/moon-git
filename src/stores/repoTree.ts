@@ -66,3 +66,19 @@ export function listGroupOptions(tree: RepoTree): GroupOption[] {
   visit(tree.groups, "");
   return result;
 }
+
+/** How many repositories a group holds, its subgroups included (steps 14b / 15b). */
+export function countReposInGroup(groups: RepoGroup[], repos: RepoEntry[], groupId: string): number {
+  const ids = new Set([groupId]);
+  let added = true;
+  while (added) {
+    added = false;
+    for (const g of groups) {
+      if (g.parentId !== null && ids.has(g.parentId) && !ids.has(g.id)) {
+        ids.add(g.id);
+        added = true;
+      }
+    }
+  }
+  return repos.filter((r) => r.groupId !== null && ids.has(r.groupId)).length;
+}

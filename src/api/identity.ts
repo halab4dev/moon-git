@@ -18,7 +18,8 @@ export function getComputerIdentity(): Promise<Identity> {
   return invoke<Identity>("get_computer_identity");
 }
 
-export interface GroupIdentityResult {
+/** What writing a group's identity (14b) or login (15b) into its repositories did. */
+export interface GroupApplyResult {
   list: RepoList;
   /** Repositories in the group (and its subgroups). */
   total: number;
@@ -37,6 +38,6 @@ export function applyGroupIdentity(
   name: string,
   email: string,
   all: boolean,
-): Promise<GroupIdentityResult> {
-  return invoke<GroupIdentityResult>("apply_group_identity", { groupId, name, email, all });
+): Promise<GroupApplyResult> {
+  return invoke<GroupApplyResult>("apply_group_identity", { groupId, name, email, all });
 }

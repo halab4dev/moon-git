@@ -2,7 +2,7 @@
 
 Last updated: 2026-10-27
 
-**Current state:** Phase 3 is done, plus steps 25–30 added on request. Steps 31a (menu bar) and 31b (Branch → Checkout… dialog) are done. Step 32 (welcome picture) is done. Step 33 (dark mode) is done. Accounts resumed (2026-10-28): step 12 (MoonGit as git's credential helper) is done; 13a (saved accounts: accounts.json + keyring) is done; 13b (Sign in dialog) and 13c (MoonGit → Accounts…) are done (not yet tried against a real HTTPS server). Step 34 (drag repositories into / out of groups) is done. Step 14 (commit identity per repository and per group) is done. Step 15a (SSH key and HTTPS login per repository) is done; 15b (the same for a group) is in progress.
+**Current state:** Phase 3 is done, plus steps 25–30 added on request. Steps 31a (menu bar) and 31b (Branch → Checkout… dialog) are done. Step 32 (welcome picture) is done. Step 33 (dark mode) is done. Accounts resumed (2026-10-28): step 12 (MoonGit as git's credential helper) is done; 13a (saved accounts: accounts.json + keyring) is done; 13b (Sign in dialog) and 13c (MoonGit → Accounts…) are done (not yet tried against a real HTTPS server). Step 34 (drag repositories into / out of groups) is done. Step 14 (commit identity per repository and per group) is done. Step 15 (SSH key and HTTPS login, per repository and per group) is done: every item of the CLAUDE.md roadmap is now done.
 
 Legend: ✅ done · 🟡 in progress / waiting for confirmation · ⏸ on hold · ⬜ not started
 
@@ -32,7 +32,7 @@ Detailed notes for each step (in Vietnamese): [docs/learning/](learning/README.m
 | 13c | MoonGit → Accounts…: list of saved accounts (server, user name; never the token), Remove… (file + keychain, confirmed) | ✅ | 223 Rust tests. Choosing an account per repository when a server has several: later, if needed |
 | 14 | `user.name` / `user.email` per repository (Repository → Commit Identity…, context menu, Commit dialog; `.git/config`) and per group (group context menu): Name / Email written into the .git/config of the repositories of the group and subgroups: "Only repositories without their own setting" or "Write for all repositories" | ✅ | 229 Rust tests. Never changes ~/.gitconfig |
 | 15a | Repository → Login (SSH & HTTPS)… (shows which remotes use each): SSH = this computer's settings or one key (`core.sshCommand = ssh -i '<key>' -o IdentitiesOnly=yes`); HTTPS = MoonGit's accounts or this computer's credential helpers (`moongit.credentials = system`) | ✅ | Your choice (2026-11-01): per repository + per group, in .git/config (terminal git does the same), never ~/.ssh/config. 238 Rust tests |
-| 15b | The same for a group (two write choices as in step 14) | ⬜ | |
+| 15b | Group → Login (SSH & HTTPS)…: written into the repositories of the group and subgroups, SSH and HTTPS each on their own; "only repositories without their own setting" or "write for all" | ✅ | 239 Rust tests |
 
 ## Phase 2 — history and branches
 
@@ -135,6 +135,5 @@ Detailed notes for each step (in Vietnamese): [docs/learning/](learning/README.m
 - [x] Steps 3–11 confirmed and committed.
 - [x] Steps 16a–19b confirmed and committed.
 - [x] Steps 20a–24b confirmed and committed (22c was committed on 2026-10-24, when moving on to 22d). Phase 3 done.
-- [x] Steps 25–34 confirmed and committed. README and MIT license added.
+- [x] Steps 25–34 and 12–15 confirmed and committed. CLAUDE.md roadmap complete (2026-11-01). README and MIT license added.
 - [ ] Try steps 13b / 13c against a real HTTPS server when one is available (tables in `learning/13b-…`, `13c-…`).
-- [ ] Step 15b (SSH key & login for a group).
