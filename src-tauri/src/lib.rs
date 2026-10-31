@@ -63,6 +63,7 @@ pub fn run() {
             commands::group::create_group,
             commands::group::rename_group,
             commands::group::delete_group,
+            commands::group::move_group,
             commands::clone::clone_repo,
             commands::clone::cancel_operation,
             commands::clone::suggest_folder_name,

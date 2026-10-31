@@ -3,7 +3,16 @@ import { useRepoStore } from "../stores/repos";
 import { showGroupMenu } from "./sidebarMenus";
 import RepoItem from "./RepoItem.vue";
 import AppIcon from "./AppIcon.vue";
-import { clearExpandTimer, dropOnPlace, hoverClosedGroup, isDropTarget, overDropPlace } from "./repoDrag";
+import {
+  clearExpandTimer,
+  dropOnPlace,
+  endDrag,
+  hoverClosedGroup,
+  isDragged,
+  isDropTarget,
+  overDropPlace,
+  startGroupDrag,
+} from "./repoDrag";
 import type { GroupNode } from "../stores/repoTree";
 
 defineProps<{
@@ -18,10 +27,13 @@ const store = useRepoStore();
   <li>
     <div
       class="tree-row group"
-      :class="{ 'drop-target': isDropTarget(node.group.id) }"
+      :class="{ 'drop-target': isDropTarget(node.group.id), dragging: isDragged('group', node.group.id) }"
+      draggable="true"
       :style="{ paddingLeft: `${12 + depth * 14}px` }"
       @click="store.toggleCollapsed(node.group.id)"
       @contextmenu.prevent.stop="showGroupMenu(node.group)"
+      @dragstart="startGroupDrag($event, node.group)"
+      @dragend="endDrag"
       @dragenter="store.isCollapsed(node.group.id) && hoverClosedGroup(node.group.id)"
       @dragleave="clearExpandTimer"
       @dragover="overDropPlace($event, node.group.id)"

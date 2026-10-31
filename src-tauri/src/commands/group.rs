@@ -27,3 +27,13 @@ pub fn rename_group(
 pub fn delete_group(id: String, store: State<'_, RepoStore>) -> Result<RepoList, AppError> {
     store.delete_group(&id)
 }
+
+/// Moves a group with everything inside under `parent_id` (null = top level).
+#[tauri::command]
+pub fn move_group(
+    id: String,
+    parent_id: Option<String>,
+    store: State<'_, RepoStore>,
+) -> Result<RepoList, AppError> {
+    store.move_group(&id, parent_id)
+}

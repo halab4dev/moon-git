@@ -1,4 +1,4 @@
-import { defineStore } from "pinia";
+import { acceptHMRUpdate, defineStore } from "pinia";
 import { computed, ref } from "vue";
 import * as repoApi from "../api/repo";
 import * as groupApi from "../api/group";
@@ -98,6 +98,11 @@ export const useRepoStore = defineStore("repos", () => {
     return result;
   }
 
+  async function moveGroup(id: string, parentId: string | null) {
+    applyList(await call(groupApi.moveGroup(id, parentId)));
+    revealGroup(parentId);
+  }
+
   async function deleteGroup(id: string) {
     applyList(await call(groupApi.deleteGroup(id)));
     collapsed.value.delete(id);
@@ -160,6 +165,7 @@ export const useRepoStore = defineStore("repos", () => {
     renameGroup,
     setGroupIdentity,
     setGroupAccess,
+    moveGroup,
     deleteGroup,
     select,
     isCollapsed,
@@ -177,4 +183,11 @@ async function call<T>(promise: Promise<T>): Promise<T> {
   } catch (err) {
     throw toAppError(err);
   }
+}
+
+// During development, let hot reload replace this store's code too (as in
+// dialogs.ts). Without it, the store created before an edit keeps its old
+// functions until a full reload, and newly added ones (moveGroup) are missing.
+if (import.meta.hot) {
+  import.meta.hot.accept(acceptHMRUpdate(useRepoStore, import.meta.hot));
 }

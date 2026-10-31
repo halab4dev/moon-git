@@ -51,6 +51,51 @@ impl RepoList {
         Ok(())
     }
 
+    /// Moves a group (with everything inside) under `parent_id`; None = top
+    /// level (step 35a). Not into itself or one of its own subgroups, and not
+    /// next to a group with the same name.
+    pub fn move_group(&mut self, id: &str, parent_id: Option<String>) -> Result<(), AppError> {
+        self.check_group_exists(&parent_id)?;
+        let group = self.find_group(id)?.clone();
+        if parent_id
+            .as_deref()
+            .is_some_and(|target| self.is_inside(target, id))
+        {
+            return Err(AppError::new(
+                ErrorKind::InvalidInput,
+                format!(
+                    "\"{}\" can't be moved into itself or one of its own subgroups.",
+                    group.name
+                ),
+            ));
+        }
+        self.check_unique_name(&group.name, &parent_id, Some(id))?;
+        if let Some(found) = self.groups.iter_mut().find(|g| g.id == id) {
+            found.parent_id = parent_id;
+        }
+        Ok(())
+    }
+
+    /// Is group `id` the group `ancestor` itself, or somewhere below it?
+    fn is_inside(&self, id: &str, ancestor: &str) -> bool {
+        let mut current = Some(id.to_string());
+        // At most one step per group: a broken file with a loop can't hang us.
+        for _ in 0..=self.groups.len() {
+            match current {
+                Some(ref group) if group == ancestor => return true,
+                Some(group) => {
+                    current = self
+                        .groups
+                        .iter()
+                        .find(|g| g.id == group)
+                        .and_then(|g| g.parent_id.clone())
+                }
+                None => return false,
+            }
+        }
+        false
+    }
+
     pub fn create_group(
         &mut self,
         name: &str,
@@ -291,6 +336,56 @@ mod tests {
             .set_group_identity(&work.id, Some(("Me", "no-at-sign")))
             .unwrap_err();
         assert_eq!(err.kind, ErrorKind::InvalidInput);
+    }
+
+    #[test]
+    fn moves_a_group_with_its_contents() {
+        let mut list = RepoList::default();
+        let work = list.create_group("Work", None).unwrap();
+        let team = list.create_group("Team", Some(work.id.clone())).unwrap();
+        let deep = list.create_group("Deep", Some(team.id.clone())).unwrap();
+        let other = list.create_group("Other", None).unwrap();
+        let repo = list.add_repo(info("/t/a"), Some(team.id.clone())).unwrap();
+
+        // Team (with Deep and its repo) into Other.
+        list.move_group(&team.id, Some(other.id.clone())).unwrap();
+        let parent = |list: &RepoList, id: &str| {
+            list.groups
+                .iter()
+                .find(|g| g.id == id)
+                .unwrap()
+                .parent_id
+                .clone()
+        };
+        assert_eq!(parent(&list, &team.id), Some(other.id.clone()));
+        assert_eq!(parent(&list, &deep.id), Some(team.id.clone()));
+        assert_eq!(list.repos_in_group(&other.id)[0].id, repo.id);
+
+        // Out to the top level.
+        list.move_group(&team.id, None).unwrap();
+        assert_eq!(parent(&list, &team.id), None);
+    }
+
+    #[test]
+    fn a_group_cannot_go_into_itself_or_a_subgroup() {
+        let mut list = RepoList::default();
+        let work = list.create_group("Work", None).unwrap();
+        let team = list.create_group("Team", Some(work.id.clone())).unwrap();
+        for target in [&work.id, &team.id] {
+            let err = list.move_group(&work.id, Some(target.clone())).unwrap_err();
+            assert_eq!(err.kind, ErrorKind::InvalidInput);
+        }
+        // A sibling with the same name at the target is refused too.
+        list.create_group("Team", None).unwrap();
+        let err = list.move_group(&team.id, None).unwrap_err();
+        assert!(err.message.contains("already exists"), "{}", err.message);
+        // Unknown target.
+        assert_eq!(
+            list.move_group(&team.id, Some("nope".to_string()))
+                .unwrap_err()
+                .kind,
+            ErrorKind::NotFound
+        );
     }
 
     #[test]

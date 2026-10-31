@@ -106,6 +106,13 @@ impl RepoStore {
         })
     }
 
+    pub fn move_group(&self, id: &str, parent_id: Option<String>) -> Result<RepoList, AppError> {
+        self.update(|list| {
+            list.move_group(id, parent_id)?;
+            Ok(list.clone())
+        })
+    }
+
     pub fn delete_group(&self, id: &str) -> Result<RepoList, AppError> {
         self.update(|list| {
             list.delete_group(id)?;
