@@ -31,6 +31,7 @@ export async function showGroupMenu(group: RepoGroup) {
       { text: "New Subgroup…", action: () => newGroup(group.id) },
       separator,
       { text: "Rename…", action: () => renameGroup(group) },
+      { text: "Commit Identity…", action: () => useDialogStore().askGroupIdentity({ groupId: group.id }) },
       { text: "Delete Group…", action: () => void deleteGroup(group) },
     ],
   });
@@ -54,6 +55,11 @@ export async function showRepoMenu(repo: RepoEntry) {
             action: moveTo(option.id),
           })),
         ],
+      },
+      separator,
+      {
+        text: "Commit Identity…",
+        action: () => useDialogStore().askIdentity({ repoId: repo.id, repoName: repo.name }),
       },
       separator,
       // Only forgets the repo; the folder stays on disk, so no confirmation.

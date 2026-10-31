@@ -9,6 +9,7 @@ pub mod commit;
 pub mod diff;
 pub mod fetch;
 pub mod group;
+pub mod identity;
 pub mod log;
 pub mod merge;
 pub mod pull;

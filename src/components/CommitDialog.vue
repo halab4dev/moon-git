@@ -2,14 +2,19 @@
 import { computed, nextTick, onMounted, ref, watch } from "vue";
 import { ask } from "@tauri-apps/plugin-dialog";
 import { getHeadCommit } from "../api/commit";
+import { getIdentity } from "../api/identity";
+import { useDialogStore } from "../stores/dialogs";
 import { toAppError } from "../api/errors";
 import type { HeadCommit } from "../types/commit";
+import type { Identity } from "../types/identity";
 
 // The Commit dialog (toolbar → Commit…): message, Amend option, then Commit
 // or Commit and Push. The parent owns the message and the options, so a
 // draft survives closing the dialog; it clears them after a commit.
 const props = defineProps<{
   repoId: string;
+  /** For the title of the Commit Identity dialog. */
+  repoName: string;
   stagedCount: number;
   /** A merge waits for its commit: offer merge commit / simple commit instead of Amend. */
   merging: boolean;
@@ -44,7 +49,37 @@ const textarea = ref<HTMLTextAreaElement | null>(null);
 onMounted(async () => {
   await nextTick();
   textarea.value?.focus();
+  void loadIdentity();
 });
+
+// ---- "Committing as Name <email>" (step 14) ----
+
+const identity = ref<Identity | null>(null);
+
+async function loadIdentity() {
+  try {
+    identity.value = await getIdentity(props.repoId);
+  } catch {
+    identity.value = null; // only informative: the commit itself reports real problems
+  }
+}
+
+const identityText = computed(() => {
+  const id = identity.value;
+  if (id === null) {
+    return null;
+  }
+  const name = id.name ?? id.inheritedName;
+  const email = id.email ?? id.inheritedEmail;
+  if (name === null || email === null) {
+    return null;
+  }
+  return `${name} <${email}>`;
+});
+
+function changeIdentity() {
+  useDialogStore().askIdentity({ repoId: props.repoId, repoName: props.repoName, saved: () => void loadIdentity() });
+}
 
 const canCommit = computed(
   () => !busy.value && message.value.trim() !== "" && (amend.value || props.stagedCount > 0),
@@ -169,6 +204,14 @@ async function commit(push: boolean) {
         </label>
         <span class="muted">{{ hint }}</span>
       </div>
+      <p class="identity">
+        <template v-if="identityText">
+          <span class="muted">Committing as</span> {{ identityText }}
+          <span v-if="identity?.name || identity?.email" class="muted">(this repository)</span>
+        </template>
+        <span v-else-if="identity" class="warn">No name / email for commits yet.</span>
+        <a href="#" @click.prevent="changeIdentity">Change…</a>
+      </p>
       <p v-if="note" class="muted">{{ note }}</p>
       <p v-else-if="amend && head?.pushed" class="warn">This commit is already pushed.</p>
       <p v-if="error" class="err">{{ error }}</p>
@@ -220,5 +263,15 @@ textarea {
 
 .warn {
   color: var(--warning);
+}
+
+.identity {
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+
+.identity a {
+  margin-left: 6px;
+  color: var(--accent);
 }
 </style>

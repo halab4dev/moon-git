@@ -106,10 +106,10 @@ pub(crate) fn explain_commit_error(err: AppError) -> AppError {
     if err.kind == ErrorKind::GitFailed && identity_problem {
         return AppError::new(
             ErrorKind::IdentityUnknown,
-            "git does not know your name and email for commits. Set them with \
+            "git does not know your name and email for commits. Set them for this \
+             repository with Repository → Commit Identity…, or for every repository with \
              `git config --global user.name \"Your Name\"` and \
-             `git config --global user.email you@example.com` \
-             (a per-repository setting will come in a later step)."
+             `git config --global user.email you@example.com`."
                 .to_string(),
         );
     }

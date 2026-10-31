@@ -113,6 +113,30 @@ impl RepoStore {
         })
     }
 
+    /// Commit identity of a group (step 14b); None removes it.
+    pub fn set_group_identity(
+        &self,
+        id: &str,
+        identity: Option<(&str, &str)>,
+    ) -> Result<RepoList, AppError> {
+        self.update(|list| {
+            list.set_group_identity(id, identity)?;
+            Ok(list.clone())
+        })
+    }
+
+    /// The repositories of a group and of its subgroups (step 14b).
+    pub fn repos_in_group(&self, group_id: &str) -> Result<Vec<RepoEntry>, AppError> {
+        let data = self.lock()?;
+        Ok(data.repos_in_group(group_id).into_iter().cloned().collect())
+    }
+
+    /// A group by id (None if it was deleted meanwhile).
+    pub fn group(&self, id: &str) -> Result<Option<RepoGroup>, AppError> {
+        let data = self.lock()?;
+        Ok(data.groups.iter().find(|g| g.id == id).cloned())
+    }
+
     /// Applies `change` to a copy of the list, saves the copy, then swaps it in.
     /// If `change` or the save fails, neither memory nor disk is modified.
     fn update<T>(

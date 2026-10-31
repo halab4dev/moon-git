@@ -68,6 +68,17 @@ export interface SignInRequest {
   cancel: () => void;
 }
 
+export interface GroupIdentityRequest {
+  groupId: string;
+}
+
+export interface IdentityRequest {
+  repoId: string;
+  repoName: string;
+  /** Called with the new identity after Save (e.g. to refresh the Commit dialog). */
+  saved?: () => void;
+}
+
 export interface CloneRequest {
   /** Group the cloned repo goes into; null = top level. */
   groupId: string | null;
@@ -81,6 +92,8 @@ export const useDialogStore = defineStore("dialogs", () => {
   const cherryPickRequest = ref<CherryPickRequest | null>(null);
   const remoteRequest = ref<RemoteRequest | null>(null);
   const signInRequest = ref<SignInRequest | null>(null);
+  const identityRequest = ref<IdentityRequest | null>(null);
+  const groupIdentityRequest = ref<GroupIdentityRequest | null>(null);
   // MoonGit → Accounts… (the saved logins).
   const accountsOpen = ref(false);
 
@@ -140,6 +153,22 @@ export const useDialogStore = defineStore("dialogs", () => {
     signInRequest.value = null;
   }
 
+  function askIdentity(request: IdentityRequest) {
+    identityRequest.value = request;
+  }
+
+  function closeIdentity() {
+    identityRequest.value = null;
+  }
+
+  function askGroupIdentity(request: GroupIdentityRequest) {
+    groupIdentityRequest.value = request;
+  }
+
+  function closeGroupIdentity() {
+    groupIdentityRequest.value = null;
+  }
+
   function openAccounts() {
     accountsOpen.value = true;
   }
@@ -157,6 +186,8 @@ export const useDialogStore = defineStore("dialogs", () => {
     remoteRequest,
     signInRequest,
     accountsOpen,
+    identityRequest,
+    groupIdentityRequest,
     askName,
     closeName,
     openClone,
@@ -173,6 +204,10 @@ export const useDialogStore = defineStore("dialogs", () => {
     closeSignIn,
     openAccounts,
     closeAccounts,
+    askIdentity,
+    closeIdentity,
+    askGroupIdentity,
+    closeGroupIdentity,
   };
 });
 

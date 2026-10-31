@@ -11,6 +11,7 @@ pub mod credential;
 pub mod diff;
 pub mod discard;
 pub mod fetch;
+pub mod identity;
 pub mod log;
 pub mod merge;
 pub mod operations;

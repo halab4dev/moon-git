@@ -2,7 +2,7 @@
 
 Last updated: 2026-10-27
 
-**Current state:** Phase 3 is done, plus steps 25–30 added on request. Steps 31a (menu bar) and 31b (Branch → Checkout… dialog) are done. Step 32 (welcome picture) is done. Step 33 (dark mode) is done. Accounts resumed (2026-10-28): step 12 (MoonGit as git's credential helper) is done; 13a (saved accounts: accounts.json + keyring) is done; 13b (Sign in dialog) and 13c (MoonGit → Accounts…) are done (not yet tried against a real HTTPS server). Step 34 (drag repositories into / out of groups) is done.
+**Current state:** Phase 3 is done, plus steps 25–30 added on request. Steps 31a (menu bar) and 31b (Branch → Checkout… dialog) are done. Step 32 (welcome picture) is done. Step 33 (dark mode) is done. Accounts resumed (2026-10-28): step 12 (MoonGit as git's credential helper) is done; 13a (saved accounts: accounts.json + keyring) is done; 13b (Sign in dialog) and 13c (MoonGit → Accounts…) are done (not yet tried against a real HTTPS server). Step 34 (drag repositories into / out of groups) is done. Step 14 (commit identity per repository and per group) is done. Step 15 (SSH key) is next.
 
 Legend: ✅ done · 🟡 in progress / waiting for confirmation · ⏸ on hold · ⬜ not started
 
@@ -30,7 +30,7 @@ Detailed notes for each step (in Vietnamese): [docs/learning/](learning/README.m
 | 13a | Saved accounts: `accounts.json` (id, server, user name) + token in the OS keyring (crate `keyring` 4.2); sign-in saved before the retry and undone if the server refuses it; the helper reads them (`MOONGIT_DATA_DIR`); auth errors carry the server | ✅ | 220 Rust tests (keyring faked in tests). Nothing visible on its own |
 | 13b | "Sign in to <server>" dialog on an auth failure, then retry (fetch, pull, push, force push, clone, delete on the server); refused logins are undone; when MoonGit has an account for the server, the user's own helpers are left out (so git never sends them "erase") | ✅ | 222 Rust + 38 Vitest. Committed without a test against a real HTTPS server (none available yet) |
 | 13c | MoonGit → Accounts…: list of saved accounts (server, user name; never the token), Remove… (file + keychain, confirmed) | ✅ | 223 Rust tests. Choosing an account per repository when a server has several: later, if needed |
-| 14 | Per-repository `user.name` / `user.email` | ⏸ | `git config --local` |
+| 14 | `user.name` / `user.email` per repository (Repository → Commit Identity…, context menu, Commit dialog; `.git/config`) and per group (group context menu): Name / Email written into the .git/config of the repositories of the group and subgroups: "Only repositories without their own setting" or "Write for all repositories" | ✅ | 229 Rust tests. Never changes ~/.gitconfig |
 | 15 | Choose an SSH key per server/repository | ⏸ | `GIT_SSH_COMMAND` |
 
 ## Phase 2 — history and branches
@@ -124,6 +124,7 @@ Detailed notes for each step (in Vietnamese): [docs/learning/](learning/README.m
 - Theme (step 33): Tauri's app-level `setTheme` (null = follow macOS) instead of a `data-theme` attribute; the choice is kept in the main window's localStorage and applied at start.
 - Credentials (step 12): MoonGit is its own git credential helper, passed with `-c` per command (no git config file is changed). The user's configured helpers are re-added after it, so nothing changes when MoonGit has no saved login. Secrets only travel through the helper's stdout pipe.
 - Accounts (step 13a): `accounts.json` holds no secret; tokens are in the OS keyring under service `com.github.halab4dev.moongit`, user = account id. Same server + user name = same account; the latest sign-in is used first for its server. A sign-in is saved before git tries it, then kept or undone.
+- Group identities (step 14, your choice): written into each repository's .git/config (terminal git uses them too); two choices for the whole group: only repositories without their own setting, or all of them. The group's last identity is kept in repos.json to prefill the dialog.
 - Graph: lanes never shift sideways, free columns are reused; `LaneLayout` is computed incrementally per page; one SVG per row, at most 20 lanes shown.
 
 ## Open items
@@ -134,4 +135,4 @@ Detailed notes for each step (in Vietnamese): [docs/learning/](learning/README.m
 - [x] Steps 20a–24b confirmed and committed (22c was committed on 2026-10-24, when moving on to 22d). Phase 3 done.
 - [x] Steps 25–34 confirmed and committed. README and MIT license added.
 - [ ] Try steps 13b / 13c against a real HTTPS server when one is available (tables in `learning/13b-…`, `13c-…`).
-- [ ] Steps 14–15 (per-repository user.name/email, SSH key).
+- [ ] Step 15 (SSH key per server / repository).

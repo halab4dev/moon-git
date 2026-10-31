@@ -12,6 +12,7 @@ export type CommandId =
   | "repo.clone"
   | "repo.newGroup"
   | "repo.remove"
+  | "repo.identity"
   | "edit.copyPath"
   | "view.changes"
   | "view.history"

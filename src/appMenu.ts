@@ -73,6 +73,8 @@ export async function installAppMenu(): Promise<() => void> {
       await item("repo.clone", "Clone Repository…", "CmdOrCtrl+Shift+O"),
       await item("repo.newGroup", "New Group…"),
       await separator(),
+      await item("repo.identity", "Commit Identity…"),
+      await separator(),
       await item("repo.remove", "Remove from List"),
       await separator(),
       await PredefinedMenuItem.new({ item: "CloseWindow" }),
@@ -222,6 +224,15 @@ function registerAppCommands() {
     run: () => {
       const repo = store.selected;
       return repo === null ? undefined : store.attempt(() => store.removeRepo(repo.id));
+    },
+    enabled: () => store.selected !== null,
+  });
+  commands.register("repo.identity", {
+    run: () => {
+      const repo = store.selected;
+      if (repo !== null) {
+        useDialogStore().askIdentity({ repoId: repo.id, repoName: repo.name });
+      }
     },
     enabled: () => store.selected !== null,
   });

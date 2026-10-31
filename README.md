@@ -21,6 +21,7 @@ MoonGit is a thin GUI over the **git command line** installed on your machine. I
 - Stage / unstage files, and **discard** changes. Discarded new files go to the system Trash, not straight to deletion.
 - **Side-by-side diff** (Monaco), opened in its own window: working tree, staged, or conflict view.
 - **Commit** from a dialog (Commit… on the toolbar): message, **amend** the last commit, then *Commit* or *Commit and Push*.
+- **Commit identity** (`user.name` / `user.email`) per repository, or for a whole group of repositories at once (written into each repository's `.git/config`).
 
 ![The Changes tab: changed files with their state and folder, the colored toolbar, and the side-by-side diff of the selected file](docs/screenshots/changes.png)
 
@@ -79,10 +80,7 @@ An animated moon base while no repository is selected (still when macOS's *Reduc
 - git's error messages are turned into readable messages, never swallowed.
 
 ### Not done yet
-- **Account management**:
-  - per-server HTTPS tokens stored in the OS keychain;
-  - per-repository `user.name` / `user.email`;
-  - choosing an SSH key per server.
+- **Choosing an SSH key** per server or repository.
 
   Until then, MoonGit uses whatever your system git already uses: credential helpers, SSH agent and keys, and your git config.
 - **Windows:** not supported yet.

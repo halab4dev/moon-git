@@ -3,6 +3,7 @@ import { computed, ref } from "vue";
 import * as repoApi from "../api/repo";
 import * as groupApi from "../api/group";
 import * as cloneApi from "../api/clone";
+import { applyGroupIdentity, type GroupIdentityResult } from "../api/identity";
 import { toAppError } from "../api/errors";
 import { buildTree, listGroupOptions } from "./repoTree";
 import type { RepoEntry, RepoGroup, RepoList } from "../types/repo";
@@ -77,6 +78,13 @@ export const useRepoStore = defineStore("repos", () => {
     applyList(await call(groupApi.renameGroup(id, name)));
   }
 
+  /** Step 14b: saves the group's identity and writes it into its repositories. */
+  async function setGroupIdentity(id: string, name: string, email: string, all: boolean): Promise<GroupIdentityResult> {
+    const result = await call(applyGroupIdentity(id, name, email, all));
+    applyList(result.list);
+    return result;
+  }
+
   async function deleteGroup(id: string) {
     applyList(await call(groupApi.deleteGroup(id)));
     collapsed.value.delete(id);
@@ -137,6 +145,7 @@ export const useRepoStore = defineStore("repos", () => {
     moveRepo,
     createGroup,
     renameGroup,
+    setGroupIdentity,
     deleteGroup,
     select,
     isCollapsed,

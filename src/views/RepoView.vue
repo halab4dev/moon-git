@@ -813,6 +813,7 @@ useMenuHandlers({
       v-model:amend="amend"
       v-model:simple="simpleCommit"
       :repo-id="repo.id"
+      :repo-name="repo.name"
       :merging="merge !== null"
       :staged-count="stagedCount"
       :push-blocker="status.branch.name === null ? 'HEAD is detached: check out a branch to push' : null"

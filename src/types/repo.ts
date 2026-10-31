@@ -13,6 +13,13 @@ export interface RepoGroup {
   name: string;
   /** null = top level */
   parentId: string | null;
+  /** Commit identity for the repositories inside (step 14b); missing = none. */
+  identity?: GroupIdentity;
+}
+
+export interface GroupIdentity {
+  name: string;
+  email: string;
 }
 
 export interface RepoList {

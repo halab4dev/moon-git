@@ -5,7 +5,8 @@
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use crate::error::{AppError, ErrorKind};
-use crate::models::{RepoEntry, RepoGroup, RepoInfo, RepoList};
+use crate::git::identity::clean_identity;
+use crate::models::{GroupIdentity, RepoEntry, RepoGroup, RepoInfo, RepoList};
 
 const MAX_NAME_LEN: usize = 100;
 
@@ -63,6 +64,7 @@ impl RepoList {
             id: new_id(),
             name,
             parent_id,
+            identity: None,
         };
         self.groups.push(group.clone());
         Ok(group)
@@ -102,6 +104,54 @@ impl RepoList {
         }
         self.groups.retain(|g| g.id != id);
         Ok(())
+    }
+
+    /// `identity`: (name, email) for the repositories in this group (and its
+    /// subgroups, unless they have their own); None = remove it.
+    pub fn set_group_identity(
+        &mut self,
+        id: &str,
+        identity: Option<(&str, &str)>,
+    ) -> Result<(), AppError> {
+        let identity = match identity {
+            Some((name, email)) => {
+                let (name, email) = clean_identity(name, email)?;
+                Some(GroupIdentity { name, email })
+            }
+            None => None,
+        };
+        let group = self
+            .groups
+            .iter_mut()
+            .find(|g| g.id == id)
+            .ok_or_else(|| not_found("Group"))?;
+        group.identity = identity;
+        Ok(())
+    }
+
+    /// The repositories of a group, including those of its subgroups.
+    pub fn repos_in_group(&self, group_id: &str) -> Vec<&RepoEntry> {
+        let mut groups = vec![group_id.to_string()];
+        // Collect the subgroups level by level (at most one pass per group).
+        for _ in 0..self.groups.len() {
+            let more: Vec<String> = self
+                .groups
+                .iter()
+                .filter(|g| {
+                    g.parent_id.as_ref().is_some_and(|p| groups.contains(p))
+                        && !groups.contains(&g.id)
+                })
+                .map(|g| g.id.clone())
+                .collect();
+            if more.is_empty() {
+                break;
+            }
+            groups.extend(more);
+        }
+        self.repos
+            .iter()
+            .filter(|r| r.group_id.as_ref().is_some_and(|g| groups.contains(g)))
+            .collect()
     }
 
     fn find_group(&self, id: &str) -> Result<&RepoGroup, AppError> {
@@ -184,6 +234,51 @@ mod tests {
             root: root.to_string(),
             name: root.rsplit('/').next().unwrap().to_string(),
         }
+    }
+
+    #[test]
+    fn group_identity_and_repos_of_a_group() {
+        let mut list = RepoList::default();
+        let work = list.create_group("Work", None).unwrap();
+        let team = list.create_group("Team", Some(work.id.clone())).unwrap();
+        let other = list.create_group("Other", None).unwrap();
+        list.add_repo(info("/w/a"), Some(work.id.clone())).unwrap();
+        list.add_repo(info("/w/t/b"), Some(team.id.clone()))
+            .unwrap();
+        list.add_repo(info("/o/c"), Some(other.id.clone())).unwrap();
+        list.add_repo(info("/d"), None).unwrap();
+
+        // A group's repositories include its subgroups' ones.
+        let paths = |id: &str| {
+            list.repos_in_group(id)
+                .iter()
+                .map(|r| r.path.clone())
+                .collect::<Vec<_>>()
+        };
+        assert_eq!(paths(&work.id), ["/w/a", "/w/t/b"]);
+        assert_eq!(paths(&team.id), ["/w/t/b"]);
+
+        list.set_group_identity(&work.id, Some((" Me ", "me@work.example")))
+            .unwrap();
+        let identity = list
+            .groups
+            .iter()
+            .find(|g| g.id == work.id)
+            .unwrap()
+            .identity
+            .clone()
+            .unwrap();
+        assert_eq!(
+            (identity.name.as_str(), identity.email.as_str()),
+            ("Me", "me@work.example")
+        );
+        list.set_group_identity(&work.id, None).unwrap();
+        assert!(list.groups.iter().all(|g| g.identity.is_none()));
+
+        let err = list
+            .set_group_identity(&work.id, Some(("Me", "no-at-sign")))
+            .unwrap_err();
+        assert_eq!(err.kind, ErrorKind::InvalidInput);
     }
 
     #[test]

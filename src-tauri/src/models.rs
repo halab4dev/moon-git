@@ -34,6 +34,18 @@ pub struct RepoGroup {
     pub name: String,
     /// None = top level.
     pub parent_id: Option<String>,
+    /// Commit identity last set for the repositories inside (step 14b); it
+    /// is written into each repository's .git/config. Older files: None.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub identity: Option<GroupIdentity>,
+}
+
+/// The name and email a group gives to the repositories inside it.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct GroupIdentity {
+    pub name: String,
+    pub email: String,
 }
 
 /// Everything shown in the sidebar. Stored flat; the frontend builds the tree.
@@ -534,4 +546,29 @@ pub struct Account {
     /// "github.com", or "host:port".
     pub host: String,
     pub username: String,
+}
+
+/// Who commits are made as (step 14). `name` / `email`: the repository's own
+/// setting (None = not set); `inherited_*`: what applies without it (the
+/// user-wide ~/.gitconfig, or the machine-wide config).
+#[derive(Debug, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Identity {
+    pub name: Option<String>,
+    pub email: Option<String>,
+    pub inherited_name: Option<String>,
+    pub inherited_email: Option<String>,
+}
+
+/// What setting a group's identity did (step 14b).
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct GroupIdentityResult {
+    pub list: RepoList,
+    /// Repositories in the group (and its subgroups).
+    pub total: u32,
+    /// Repositories whose .git/config was changed.
+    pub changed: u32,
+    /// "repo name: reason" for each repository that couldn't be changed.
+    pub failed: Vec<String>,
 }
