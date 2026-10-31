@@ -572,3 +572,19 @@ pub struct GroupIdentityResult {
     /// "repo name: reason" for each repository that couldn't be changed.
     pub failed: Vec<String>,
 }
+
+/// How a repository logs in to its servers (step 15a), from its .git/config.
+#[derive(Debug, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RemoteAccess {
+    /// Private key used for SSH; None = this computer's SSH settings.
+    pub ssh_key: Option<String>,
+    /// A `core.sshCommand` not written by MoonGit (set by hand), if any.
+    pub custom_ssh_command: Option<String>,
+    /// HTTPS: this computer's credential helpers instead of MoonGit's accounts.
+    pub system_credentials: bool,
+    /// Remotes whose URL (or push URL, "origin (push)") uses SSH / HTTPS.
+    /// A repository can use both, e.g. origin over SSH, upstream over HTTPS.
+    pub ssh_remotes: Vec<String>,
+    pub https_remotes: Vec<String>,
+}

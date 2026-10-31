@@ -46,6 +46,7 @@ MoonGit is a thin GUI over the **git command line** installed on your machine. I
   - sort A→Z / Z→A, and collapse groups.
 - Branch actions: check out (double-click), create, rename, delete local branches, delete a branch on the server, set or unset the upstream branch.
 - **Add a remote**, and edit a remote's URL.
+- **Login per repository** (Repository → Login (SSH & HTTPS)…): an SSH key of your choice or the computer's SSH settings; for HTTPS, MoonGit's saved accounts (a *Sign in* dialog asks for a token when a server needs one, kept in the system keychain) or the computer's own credential helpers.
 
 ![The Branches panel with the right-click menu of a branch: check out, merge, rebase, new branch, rename, upstream, delete](docs/screenshots/branches.png)
 
@@ -80,9 +81,6 @@ An animated moon base while no repository is selected (still when macOS's *Reduc
 - git's error messages are turned into readable messages, never swallowed.
 
 ### Not done yet
-- **Choosing an SSH key** per server or repository.
-
-  Until then, MoonGit uses whatever your system git already uses: credential helpers, SSH agent and keys, and your git config.
 - **Windows:** not supported yet.
   - The code tries to stay OS-independent, but it's untested there.
   - Cancelling a long operation only stops the `git` process itself.

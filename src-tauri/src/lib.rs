@@ -44,6 +44,8 @@ pub fn run() {
         })
         // Every command callable from the frontend must be listed here.
         .invoke_handler(tauri::generate_handler![
+            commands::access::get_remote_access,
+            commands::access::set_remote_access,
             commands::account::list_accounts,
             commands::account::find_account,
             commands::account::begin_sign_in,

@@ -1,6 +1,7 @@
 // Tauri commands, grouped by feature. Commands stay thin: validate input,
 // call into git/ or storage/, and return a model.
 
+pub mod access;
 pub mod account;
 pub mod branch;
 pub mod cherry_pick;

@@ -61,6 +61,10 @@ export async function showRepoMenu(repo: RepoEntry) {
         text: "Commit Identity…",
         action: () => useDialogStore().askIdentity({ repoId: repo.id, repoName: repo.name }),
       },
+      {
+        text: "Login (SSH & HTTPS)…",
+        action: () => useDialogStore().askAccess({ repoId: repo.id, repoName: repo.name }),
+      },
       separator,
       // Only forgets the repo; the folder stays on disk, so no confirmation.
       { text: "Remove from List", action: () => void store.attempt(() => store.removeRepo(repo.id)) },

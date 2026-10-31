@@ -1,6 +1,7 @@
 // Everything that runs git lives under this module.
 // One file per area: runner (process handling), repo, status, stage, diff, later log, branch...
 
+pub mod access;
 pub mod branch;
 pub mod branches;
 pub mod cherry_pick;

@@ -68,6 +68,11 @@ export interface SignInRequest {
   cancel: () => void;
 }
 
+export interface AccessRequest {
+  repoId: string;
+  repoName: string;
+}
+
 export interface GroupIdentityRequest {
   groupId: string;
 }
@@ -94,6 +99,8 @@ export const useDialogStore = defineStore("dialogs", () => {
   const signInRequest = ref<SignInRequest | null>(null);
   const identityRequest = ref<IdentityRequest | null>(null);
   const groupIdentityRequest = ref<GroupIdentityRequest | null>(null);
+  // Repository → Login (SSH & HTTPS)… (step 15a).
+  const accessRequest = ref<AccessRequest | null>(null);
   // MoonGit → Accounts… (the saved logins).
   const accountsOpen = ref(false);
 
@@ -161,6 +168,14 @@ export const useDialogStore = defineStore("dialogs", () => {
     identityRequest.value = null;
   }
 
+  function askAccess(request: AccessRequest) {
+    accessRequest.value = request;
+  }
+
+  function closeAccess() {
+    accessRequest.value = null;
+  }
+
   function askGroupIdentity(request: GroupIdentityRequest) {
     groupIdentityRequest.value = request;
   }
@@ -188,6 +203,7 @@ export const useDialogStore = defineStore("dialogs", () => {
     accountsOpen,
     identityRequest,
     groupIdentityRequest,
+    accessRequest,
     askName,
     closeName,
     openClone,
@@ -208,6 +224,8 @@ export const useDialogStore = defineStore("dialogs", () => {
     closeIdentity,
     askGroupIdentity,
     closeGroupIdentity,
+    askAccess,
+    closeAccess,
   };
 });
 

@@ -8,6 +8,7 @@ use std::process::{Child, ExitStatus, Stdio};
 use std::sync::{Mutex, MutexGuard};
 
 use crate::error::{AppError, ErrorKind};
+use crate::git::access;
 use crate::git::credential;
 use crate::git::runner::{git_command, spawn_error};
 
@@ -148,7 +149,17 @@ pub fn run_git_with_progress(
         ));
     }
     if !status.success() {
-        return Err(failure(&messages, args, status));
+        let mut error = failure(&messages, args, status);
+        // This repository uses the computer's credentials (step 15a): MoonGit
+        // must not offer its Sign in dialog, which would save an account
+        // this repository never uses.
+        if error.kind == ErrorKind::AuthRequired && access::uses_system_credentials(cwd) {
+            error.server = None;
+            error.message.push_str(
+                " This repository uses this computer's credentials (Repository → Login (SSH & HTTPS)…).",
+            );
+        }
+        return Err(error);
     }
     Ok(())
 }

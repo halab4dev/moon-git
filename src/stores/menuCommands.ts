@@ -13,6 +13,7 @@ export type CommandId =
   | "repo.newGroup"
   | "repo.remove"
   | "repo.identity"
+  | "repo.access"
   | "edit.copyPath"
   | "view.changes"
   | "view.history"

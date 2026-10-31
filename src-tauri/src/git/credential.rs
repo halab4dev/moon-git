@@ -27,6 +27,7 @@ use std::path::{Path, PathBuf};
 use std::sync::OnceLock;
 
 use crate::error::AppError;
+use crate::git::access;
 use crate::git::remote;
 use crate::git::runner::run_git;
 use crate::storage::accounts::{Keyring, SavedAccounts, read_accounts};
@@ -223,6 +224,11 @@ pub fn helper_options(
     helper: &Path,
     only_moongit: bool,
 ) -> Result<Vec<String>, AppError> {
+    // The repository chose this computer's credentials (step 15a): git's own
+    // helpers only, exactly as in a terminal.
+    if access::uses_system_credentials(cwd) {
+        return Ok(Vec::new());
+    }
     // Exit code 1 = no helper configured: an empty list, not an error.
     let configured = if only_moongit {
         String::new()
@@ -249,7 +255,7 @@ pub fn helper_options(
 
 /// git runs a "!…" helper through the shell, so the program path is quoted:
 /// 'it'\''s' for a path containing a quote, spaces kept as they are.
-fn shell_quote(text: &str) -> String {
+pub(crate) fn shell_quote(text: &str) -> String {
     format!("'{}'", text.replace('\'', r"'\''"))
 }
 
@@ -339,6 +345,23 @@ mod tests {
             Some("git.example.com:8443".to_string())
         );
         assert_eq!(server_in_messages(&lines("fatal: unable to access")), None);
+    }
+
+    #[test]
+    fn no_moongit_helper_when_the_repository_uses_the_computers_credentials() {
+        let repo = TempDir::new().unwrap();
+        git(repo.path(), &["init", "--quiet"]);
+        crate::git::access::set(repo.path(), None, true).unwrap();
+        assert!(
+            helper_options(repo.path(), Path::new("/x/moongit"), false)
+                .unwrap()
+                .is_empty()
+        );
+        assert!(
+            helper_options(repo.path(), Path::new("/x/moongit"), true)
+                .unwrap()
+                .is_empty()
+        );
     }
 
     #[test]

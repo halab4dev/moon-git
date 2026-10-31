@@ -74,6 +74,7 @@ export async function installAppMenu(): Promise<() => void> {
       await item("repo.newGroup", "New Group…"),
       await separator(),
       await item("repo.identity", "Commit Identity…"),
+      await item("repo.access", "Login (SSH & HTTPS)…"),
       await separator(),
       await item("repo.remove", "Remove from List"),
       await separator(),
@@ -232,6 +233,15 @@ function registerAppCommands() {
       const repo = store.selected;
       if (repo !== null) {
         useDialogStore().askIdentity({ repoId: repo.id, repoName: repo.name });
+      }
+    },
+    enabled: () => store.selected !== null,
+  });
+  commands.register("repo.access", {
+    run: () => {
+      const repo = store.selected;
+      if (repo !== null) {
+        useDialogStore().askAccess({ repoId: repo.id, repoName: repo.name });
       }
     },
     enabled: () => store.selected !== null,
