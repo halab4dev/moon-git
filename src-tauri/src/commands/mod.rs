@@ -69,3 +69,25 @@ where
         )),
     }
 }
+
+/// Runs `apply` on each repository in the background (group or picked
+/// repositories, steps 14b / 15b / 35c). One that fails doesn't stop the
+/// others: it is reported as "name: reason". Returns (changed, failed).
+pub(crate) async fn apply_to_repos(
+    repos: Vec<crate::models::RepoEntry>,
+    apply: impl Fn(&std::path::Path) -> Result<bool, AppError> + Send + 'static,
+) -> Result<(u32, Vec<String>), AppError> {
+    run_blocking(move || {
+        let mut changed = 0;
+        let mut failed = Vec::new();
+        for repo in repos {
+            match apply(std::path::Path::new(&repo.path)) {
+                Ok(true) => changed += 1,
+                Ok(false) => {}
+                Err(err) => failed.push(format!("{}: {}", repo.name, err.message)),
+            }
+        }
+        Ok((changed, failed))
+    })
+    .await
+}

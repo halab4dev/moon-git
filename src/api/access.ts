@@ -25,3 +25,13 @@ export function applyGroupAccess(
 ): Promise<GroupApplyResult> {
   return invoke<GroupApplyResult>("apply_group_access", { groupId, sshKey, systemCredentials, all });
 }
+
+/** The same for repositories picked in the sidebar (step 35c). */
+export function applyAccessToRepos(
+  repoIds: string[],
+  sshKey: string | null,
+  systemCredentials: boolean,
+  all: boolean,
+): Promise<GroupApplyResult> {
+  return invoke<GroupApplyResult>("apply_access_to_repos", { repoIds, sshKey, systemCredentials, all });
+}

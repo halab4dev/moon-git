@@ -1,16 +1,16 @@
 <script setup lang="ts">
-import { computed, nextTick, ref, watch } from "vue";
+import { nextTick, ref, watch } from "vue";
 import { message as showMessage } from "@tauri-apps/plugin-dialog";
 import { getComputerIdentity } from "../api/identity";
 import { toAppError } from "../api/errors";
 import { useDialogStore } from "../stores/dialogs";
 import { useRepoStore } from "../stores/repos";
-import { countReposInGroup } from "../stores/repoTree";
-import type { RepoGroup } from "../types/repo";
+import { useApplyTarget } from "./applyTarget";
 
-// "Commit Identity" of a group (step 14b): a name and email written into the
-// .git/config of the repositories of the group (and of its subgroups), so
-// git in a terminal uses them too. Two ways:
+// "Commit Identity" of a group (step 14b) or of the repositories picked in the
+// sidebar (step 35c): a name and email written into their .git/config (for a
+// group: also its subgroups' repositories), so git in a terminal uses them
+// too. Two ways:
 //   - Write for all repositories: also over the identity some already have;
 //   - Only repositories without their own: those keep theirs.
 const dialogs = useDialogStore();
@@ -23,30 +23,23 @@ const message = ref<string | null>(null);
 const busy = ref(false);
 const nameInput = ref<HTMLInputElement | null>(null);
 
-const group = computed<RepoGroup | null>(() => {
-  const id = dialogs.groupIdentityRequest?.groupId;
-  return store.groups.find((g) => g.id === id) ?? null;
-});
-
-// How many repositories it applies to (subgroups included), for the text.
-const repoCount = computed(() =>
-  group.value === null ? 0 : countReposInGroup(store.groups, store.repos, group.value.id),
-);
+const { group, repoIds, label, repoCount, where, ready } = useApplyTarget(() => dialogs.groupIdentityRequest);
 
 watch(
   () => dialogs.groupIdentityRequest,
   async (request) => {
     message.value = null;
     all.value = false;
-    if (request === null || group.value === null) {
+    if (request === null || !ready.value) {
       return;
     }
-    // The group's last identity, or else the computer's as a starting point.
-    name.value = group.value.identity?.name ?? "";
-    email.value = group.value.identity?.email ?? "";
+    // A group's last identity, or else the computer's as a starting point.
+    const last = group.value?.identity;
+    name.value = last?.name ?? "";
+    email.value = last?.email ?? "";
     await nextTick();
     nameInput.value?.focus();
-    if (group.value.identity === undefined) {
+    if (last === undefined) {
       try {
         const computer = await getComputerIdentity();
         name.value ||= computer.inheritedName ?? "";
@@ -59,14 +52,17 @@ watch(
 );
 
 async function onSubmit() {
-  const current = group.value;
-  if (current === null || busy.value) {
+  if (!ready.value || busy.value) {
     return;
   }
+  const title = `Commit Identity · ${label.value}`;
   busy.value = true;
   message.value = null;
   try {
-    const result = await store.setGroupIdentity(current.id, name.value, email.value, all.value);
+    const result =
+      group.value !== null
+        ? await store.setGroupIdentity(group.value.id, name.value, email.value, all.value)
+        : await store.setReposIdentity(repoIds.value ?? [], name.value, email.value, all.value);
     dialogs.closeGroupIdentity();
     const kept = result.total - result.changed - result.failed.length;
     const lines = [`Written to ${result.changed} of ${result.total} ${result.total === 1 ? "repository" : "repositories"}.`];
@@ -77,7 +73,7 @@ async function onSubmit() {
       lines.push("", "Could not be changed:", ...result.failed);
     }
     void showMessage(lines.join("\n"), {
-      title: `Commit Identity · group "${current.name}"`,
+      title,
       kind: result.failed.length > 0 ? "warning" : "info",
     });
   } catch (err) {
@@ -89,12 +85,12 @@ async function onSubmit() {
 </script>
 
 <template>
-  <div v-if="dialogs.groupIdentityRequest && group" class="backdrop" @mousedown.self="dialogs.closeGroupIdentity()">
+  <div v-if="ready" class="backdrop" @mousedown.self="dialogs.closeGroupIdentity()">
     <form class="dialog identity-dialog" @submit.prevent="onSubmit" @keydown.esc="dialogs.closeGroupIdentity()">
-      <h2>Commit Identity · group "{{ group.name }}"</h2>
+      <h2>Commit Identity · {{ label }}</h2>
       <p class="muted">
-        Written into the {{ repoCount }} {{ repoCount === 1 ? "repository" : "repositories" }} of this group and its
-        subgroups (their <code>.git/config</code>), so git in a terminal uses it too.
+        Written into the {{ repoCount }} {{ repoCount === 1 ? "repository" : "repositories" }} {{ where }} (their
+        <code>.git/config</code>), so git in a terminal uses it too.
       </p>
 
       <label class="field">

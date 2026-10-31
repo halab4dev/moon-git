@@ -41,3 +41,8 @@ export function applyGroupIdentity(
 ): Promise<GroupApplyResult> {
   return invoke<GroupApplyResult>("apply_group_identity", { groupId, name, email, all });
 }
+
+/** The same for repositories picked in the sidebar (step 35c). */
+export function applyIdentityToRepos(repoIds: string[], name: string, email: string, all: boolean): Promise<GroupApplyResult> {
+  return invoke<GroupApplyResult>("apply_identity_to_repos", { repoIds, name, email, all });
+}

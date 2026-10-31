@@ -36,8 +36,11 @@ function begin(event: DragEvent, item: Dragged, id: string) {
   dragged.value = item;
 }
 
+/** Dragging a picked repository takes all the picked ones along (step 35b). */
 export function startRepoDrag(event: DragEvent, repo: RepoEntry) {
-  begin(event, { kind: "repos", repos: [repo] }, repo.id);
+  const store = useRepoStore();
+  const repos = store.isPicked(repo.id) && store.pickedRepos.length > 1 ? store.pickedRepos : [repo];
+  begin(event, { kind: "repos", repos }, repo.id);
 }
 
 export function startGroupDrag(event: DragEvent, group: RepoGroup) {

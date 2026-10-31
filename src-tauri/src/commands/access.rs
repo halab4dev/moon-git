@@ -1,12 +1,10 @@
 use tauri::State;
 
-use super::run_blocking;
+use super::{apply_to_repos, run_blocking};
 use crate::error::AppError;
-use crate::git;
-use std::path::Path;
-
 use crate::error::ErrorKind;
-use crate::models::{GroupAccess, GroupApplyResult, RemoteAccess};
+use crate::git;
+use crate::models::{GroupAccess, GroupApplyResult, RemoteAccess, RepoEntry};
 use crate::storage::repos::RepoStore;
 
 // SSH key and HTTPS login of one repository (step 15a), in its .git/config.
@@ -56,27 +54,8 @@ pub async fn apply_group_access(
     }
     let repos = store.repos_in_group(&group_id)?;
     let total = repos.len() as u32;
-
-    let key = ssh_key.clone();
-    let (changed, failed) = run_blocking(move || {
-        let mut changed = 0;
-        let mut failed = Vec::new();
-        for repo in repos {
-            match git::access::apply_group_access(
-                Path::new(&repo.path),
-                key.as_deref(),
-                system_credentials,
-                all,
-            ) {
-                Ok(true) => changed += 1,
-                Ok(false) => {}
-                Err(err) => failed.push(format!("{}: {}", repo.name, err.message)),
-            }
-        }
-        Ok((changed, failed))
-    })
-    .await?;
-
+    let (changed, failed) = write_access(repos, ssh_key.clone(), system_credentials, all).await?;
+    // Remembered for the group's dialog.
     let list = store.set_group_access(
         &group_id,
         GroupAccess {
@@ -90,4 +69,40 @@ pub async fn apply_group_access(
         changed,
         failed,
     })
+}
+
+/// The same for repositories picked in the sidebar (step 35c).
+#[tauri::command]
+pub async fn apply_access_to_repos(
+    repo_ids: Vec<String>,
+    ssh_key: Option<String>,
+    system_credentials: bool,
+    all: bool,
+    store: State<'_, RepoStore>,
+) -> Result<GroupApplyResult, AppError> {
+    let ssh_key = match ssh_key {
+        Some(key) => Some(git::access::checked_key(&key)?),
+        None => None,
+    };
+    let repos = store.repos_by_ids(&repo_ids)?;
+    let total = repos.len() as u32;
+    let (changed, failed) = write_access(repos, ssh_key, system_credentials, all).await?;
+    Ok(GroupApplyResult {
+        list: store.list()?,
+        total,
+        changed,
+        failed,
+    })
+}
+
+async fn write_access(
+    repos: Vec<RepoEntry>,
+    ssh_key: Option<String>,
+    system_credentials: bool,
+    all: bool,
+) -> Result<(u32, Vec<String>), AppError> {
+    apply_to_repos(repos, move |path| {
+        git::access::apply_group_access(path, ssh_key.as_deref(), system_credentials, all)
+    })
+    .await
 }

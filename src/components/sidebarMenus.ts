@@ -41,6 +41,11 @@ export async function showGroupMenu(group: RepoGroup) {
 
 export async function showRepoMenu(repo: RepoEntry) {
   const store = useRepoStore();
+  // Right-click on one of several picked repositories: act on all of them (step 35b).
+  if (store.isPicked(repo.id) && store.pickedRepos.length > 1) {
+    await showPickedReposMenu([...store.pickedRepos]);
+    return;
+  }
   const moveTo = (groupId: string | null) => () => void store.attempt(() => store.moveRepo(repo.id, groupId));
 
   const menu = await Menu.new({
@@ -72,6 +77,70 @@ export async function showRepoMenu(repo: RepoEntry) {
     ],
   });
   await menu.popup();
+}
+
+/** The menu for several picked repositories: the actions that make sense for all of them. */
+async function showPickedReposMenu(repos: RepoEntry[]) {
+  const store = useRepoStore();
+  const moveAll = (groupId: string | null) => () =>
+    void store.attempt(async () => {
+      for (const repo of repos.filter((r) => r.groupId !== groupId)) {
+        await store.moveRepo(repo.id, groupId);
+      }
+    });
+
+  const menu = await Menu.new({
+    items: [
+      { text: `${repos.length} Repositories`, enabled: false },
+      separator,
+      {
+        text: "Move To",
+        items: [
+          { text: "Top Level", enabled: repos.some((r) => r.groupId !== null), action: moveAll(null) },
+          ...(store.groupOptions.length > 0 ? [separator] : []),
+          ...store.groupOptions.map((option) => ({
+            text: option.label,
+            enabled: repos.some((r) => r.groupId !== option.id),
+            action: moveAll(option.id),
+          })),
+        ],
+      },
+      separator,
+      {
+        text: "Commit Identity…",
+        action: () => useDialogStore().askGroupIdentity({ repoIds: repos.map((r) => r.id) }),
+      },
+      {
+        text: "Login (SSH & HTTPS)…",
+        action: () => useDialogStore().askGroupAccess({ repoIds: repos.map((r) => r.id) }),
+      },
+      separator,
+      { text: `Remove ${repos.length} from List…`, action: () => void removePicked(repos) },
+    ],
+  });
+  await menu.popup();
+}
+
+// Several at once: asked first (one is not, as it is easy to add back).
+async function removePicked(repos: RepoEntry[]) {
+  const store = useRepoStore();
+  const names = repos.slice(0, 10).map((r) => `• ${r.name}`);
+  if (repos.length > 10) {
+    names.push(`… and ${repos.length - 10} more`);
+  }
+  const confirmed = await ask(
+    `Remove ${repos.length} repositories from the list?\n\n${names.join("\n")}\n\nOnly the list changes: the folders stay on disk.`,
+    { title: "Remove from List", kind: "warning", okLabel: "Remove", cancelLabel: "Cancel" },
+  );
+  if (!confirmed) {
+    return;
+  }
+  await store.attempt(async () => {
+    for (const repo of repos) {
+      await store.removeRepo(repo.id);
+    }
+  });
+  store.clearPicked();
 }
 
 export async function addLocalRepo(groupId: string | null) {

@@ -82,3 +82,35 @@ export function countReposInGroup(groups: RepoGroup[], repos: RepoEntry[], group
   }
   return repos.filter((r) => r.groupId !== null && ids.has(r.groupId)).length;
 }
+
+/**
+ * Repository ids in the order the sidebar shows them, skipping the inside of
+ * collapsed groups (step 35b, for ⇧-click ranges). At each level: groups
+ * first, then repositories, like the sidebar.
+ */
+export function visibleRepoOrder(tree: RepoTree, isCollapsed: (groupId: string) => boolean): string[] {
+  const order: string[] = [];
+  const visit = (groups: GroupNode[], repos: RepoEntry[]) => {
+    for (const node of groups) {
+      if (!isCollapsed(node.group.id)) {
+        visit(node.children, node.repos);
+      }
+    }
+    order.push(...repos.map((repo) => repo.id));
+  };
+  visit(tree.groups, tree.repos);
+  return order;
+}
+
+/** The ids from `from` to `to` (either order), both included; just `to` if `from` isn't visible. */
+export function rangeBetween(order: string[], from: string | null, to: string): string[] {
+  const end = order.indexOf(to);
+  const start = from === null ? -1 : order.indexOf(from);
+  if (end < 0) {
+    return [];
+  }
+  if (start < 0) {
+    return [to];
+  }
+  return order.slice(Math.min(start, end), Math.max(start, end) + 1);
+}

@@ -47,6 +47,8 @@ pub fn run() {
             commands::access::get_remote_access,
             commands::access::set_remote_access,
             commands::access::apply_group_access,
+            commands::access::apply_access_to_repos,
+            commands::identity::apply_identity_to_repos,
             commands::account::list_accounts,
             commands::account::find_account,
             commands::account::begin_sign_in,

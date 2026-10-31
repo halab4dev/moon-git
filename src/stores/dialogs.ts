@@ -1,6 +1,7 @@
 import { acceptHMRUpdate, defineStore } from "pinia";
 import { ref } from "vue";
 import type { MergeMode, MergePreview } from "../types/merge";
+import type { ApplyTargetRequest } from "../components/applyTarget";
 import type { ResetMode, ResetPreview } from "../types/reset";
 import type { CherryPickMode } from "../types/cherryPick";
 
@@ -73,13 +74,11 @@ export interface AccessRequest {
   repoName: string;
 }
 
-export interface GroupAccessRequest {
-  groupId: string;
-}
+/** A group, or the repositories picked in the sidebar (step 35c). */
+export type GroupAccessRequest = ApplyTargetRequest;
 
-export interface GroupIdentityRequest {
-  groupId: string;
-}
+/** A group, or the repositories picked in the sidebar (step 35c). */
+export type GroupIdentityRequest = ApplyTargetRequest;
 
 export interface IdentityRequest {
   repoId: string;

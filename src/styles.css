@@ -186,6 +186,11 @@ ul.tree {
   text-align: center;
 }
 
+/* Also picked with ⌘-click / ⇧-click (step 35b); the opened one stays blue. */
+.tree-row.picked {
+  background: var(--accent-soft);
+}
+
 .tree-row.selected .tree-icon {
   color: #fff;
 }

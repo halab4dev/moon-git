@@ -2,7 +2,7 @@
 
 Last updated: 2026-10-27
 
-**Current state:** Phase 3 is done, plus steps 25–30 added on request. Steps 31a (menu bar) and 31b (Branch → Checkout… dialog) are done. Step 32 (welcome picture) is done. Step 33 (dark mode) is done. Accounts resumed (2026-10-28): step 12 (MoonGit as git's credential helper) is done; 13a (saved accounts: accounts.json + keyring) is done; 13b (Sign in dialog) and 13c (MoonGit → Accounts…) are done (not yet tried against a real HTTPS server). Step 34 (drag repositories into / out of groups) is done. Step 14 (commit identity per repository and per group) is done. Step 15 (SSH key and HTTPS login, per repository and per group) is done: every item of the CLAUDE.md roadmap is now done. Step 35a (drag whole groups) is done; 35b (select several repositories) is in progress, 35c (identity / login for them) comes next.
+**Current state:** Phase 3 is done, plus steps 25–30 added on request. Steps 31a (menu bar) and 31b (Branch → Checkout… dialog) are done. Step 32 (welcome picture) is done. Step 33 (dark mode) is done. Accounts resumed (2026-10-28): step 12 (MoonGit as git's credential helper) is done; 13a (saved accounts: accounts.json + keyring) is done; 13b (Sign in dialog) and 13c (MoonGit → Accounts…) are done (not yet tried against a real HTTPS server). Step 34 (drag repositories into / out of groups) is done. Step 14 (commit identity per repository and per group) is done. Step 15 (SSH key and HTTPS login, per repository and per group) is done: every item of the CLAUDE.md roadmap is now done. Steps 35a (drag whole groups) and 35b (select several repositories: drag, Move To, Commit Identity, Login, Remove) are done.
 
 Legend: ✅ done · 🟡 in progress / waiting for confirmation · ⏸ on hold · ⬜ not started
 
@@ -78,8 +78,7 @@ Detailed notes for each step (in Vietnamese): [docs/learning/](learning/README.m
 | 33 | Dark mode: View → Theme ▸ System / Light / Dark, remembered; Tauri's app-level `setTheme` switches every window, the web views follow (`prefers-color-scheme`), so CSS and Monaco need no change | ✅ frontend + one permission |
 | 34 | Drag a repository onto a group (into it), onto another repository (its group) or onto empty space (top level); a closed group opens when hovered; HTML5 drag and drop, no library; needs `dragDropEnabled: false` on the main window (Tauri's file drop swallowed the `drop` event on macOS too) | ✅ frontend + one window option |
 | 35a | Drag a whole group into another group or out to the top level; not into itself or its own subgroups, not next to a group of the same name | ✅ | 241 Rust tests |
-| 35b | Select several repositories (⌘-click, ⇧-click): drag them together; context menu Move To / Remove from List | ⬜ | |
-| 35c | Commit Identity / Login for the selected repositories | ⬜ | |
+| 35b | Select several repositories (⌘-click, ⇧-click): drag them together; context menu Move To / Commit Identity… / Login… / Remove from List (35c merged in) | ✅ | 241 Rust + 42 Vitest |
 
 ---
 
@@ -138,5 +137,5 @@ Detailed notes for each step (in Vietnamese): [docs/learning/](learning/README.m
 - [x] Steps 3–11 confirmed and committed.
 - [x] Steps 16a–19b confirmed and committed.
 - [x] Steps 20a–24b confirmed and committed (22c was committed on 2026-10-24, when moving on to 22d). Phase 3 done.
-- [x] Steps 25–35a and 12–15 confirmed and committed. CLAUDE.md roadmap complete (2026-11-01). README and MIT license added.
+- [x] Steps 25–35b and 12–15 confirmed and committed. CLAUDE.md roadmap complete (2026-11-01). README and MIT license added.
 - [ ] Try steps 13b / 13c against a real HTTPS server when one is available (tables in `learning/13b-…`, `13c-…`).

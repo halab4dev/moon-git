@@ -1,14 +1,14 @@
 <script setup lang="ts">
-import { computed, ref, watch } from "vue";
+import { ref, watch } from "vue";
 import { message as showMessage, open } from "@tauri-apps/plugin-dialog";
 import { homeDir, join } from "@tauri-apps/api/path";
 import { toAppError } from "../api/errors";
 import { useDialogStore } from "../stores/dialogs";
 import { useRepoStore } from "../stores/repos";
-import { countReposInGroup } from "../stores/repoTree";
-import type { RepoGroup } from "../types/repo";
+import { useApplyTarget } from "./applyTarget";
 
-// Group → Login (SSH & HTTPS)… (step 15b): the same choices as a
+// Group → Login (SSH & HTTPS)… (step 15b), also for the repositories picked
+// in the sidebar (step 35c): the same choices as a
 // repository's Login dialog (15a), written into the .git/config of the
 // repositories of the group and its subgroups, with the two ways of step 14b:
 //   - Only repositories without their own setting (SSH and HTTPS each on
@@ -25,25 +25,18 @@ const all = ref(false);
 const message = ref<string | null>(null);
 const busy = ref(false);
 
-const group = computed<RepoGroup | null>(() => {
-  const id = dialogs.groupAccessRequest?.groupId;
-  return store.groups.find((g) => g.id === id) ?? null;
-});
-
-const repoCount = computed(() =>
-  group.value === null ? 0 : countReposInGroup(store.groups, store.repos, group.value.id),
-);
+const { group, repoIds, label, repoCount, where, ready } = useApplyTarget(() => dialogs.groupAccessRequest);
 
 watch(
   () => dialogs.groupAccessRequest,
   (request) => {
     message.value = null;
     all.value = false;
-    if (request === null || group.value === null) {
+    if (request === null || !ready.value) {
       return;
     }
     // What was written for this group last time (or the defaults).
-    const last = group.value.access;
+    const last = group.value?.access;
     useKey.value = (last?.sshKey ?? null) !== null;
     keyPath.value = last?.sshKey ?? "";
     systemCredentials.value = last?.systemCredentials ?? false;
@@ -65,19 +58,18 @@ async function chooseKey() {
 }
 
 async function onSubmit() {
-  const current = group.value;
-  if (current === null || busy.value) {
+  if (!ready.value || busy.value) {
     return;
   }
+  const title = `Login · ${label.value}`;
+  const key = useKey.value ? keyPath.value : null;
   busy.value = true;
   message.value = null;
   try {
-    const result = await store.setGroupAccess(
-      current.id,
-      useKey.value ? keyPath.value : null,
-      systemCredentials.value,
-      all.value,
-    );
+    const result =
+      group.value !== null
+        ? await store.setGroupAccess(group.value.id, key, systemCredentials.value, all.value)
+        : await store.setReposAccess(repoIds.value ?? [], key, systemCredentials.value, all.value);
     dialogs.closeGroupAccess();
     const lines = [
       `Changed in ${result.changed} of ${result.total} ${result.total === 1 ? "repository" : "repositories"}.`,
@@ -90,7 +82,7 @@ async function onSubmit() {
       lines.push("", "Could not be changed:", ...result.failed);
     }
     void showMessage(lines.join("\n"), {
-      title: `Login · group "${current.name}"`,
+      title,
       kind: result.failed.length > 0 ? "warning" : "info",
     });
   } catch (err) {
@@ -102,12 +94,12 @@ async function onSubmit() {
 </script>
 
 <template>
-  <div v-if="dialogs.groupAccessRequest && group" class="backdrop" @mousedown.self="dialogs.closeGroupAccess()">
+  <div v-if="ready" class="backdrop" @mousedown.self="dialogs.closeGroupAccess()">
     <form class="dialog access-dialog" @submit.prevent="onSubmit" @keydown.esc="dialogs.closeGroupAccess()">
-      <h2>Login · group "{{ group.name }}"</h2>
+      <h2>Login · {{ label }}</h2>
       <p class="muted small">
-        Written into the {{ repoCount }} {{ repoCount === 1 ? "repository" : "repositories" }} of this group and its
-        subgroups (their <code>.git/config</code>), so git in a terminal does the same.
+        Written into the {{ repoCount }} {{ repoCount === 1 ? "repository" : "repositories" }} {{ where }} (their
+        <code>.git/config</code>), so git in a terminal does the same.
       </p>
 
       <h3>SSH <span class="muted">(remote URLs like git@github.com:…)</span></h3>

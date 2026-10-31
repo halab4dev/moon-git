@@ -1,12 +1,10 @@
-use std::path::Path;
-
 use tauri::State;
 
-use super::run_blocking;
+use super::{apply_to_repos, run_blocking};
 use crate::error::{AppError, ErrorKind};
 use crate::git;
 use crate::git::identity::clean_identity;
-use crate::models::{GroupApplyResult, Identity};
+use crate::models::{GroupApplyResult, Identity, RepoEntry};
 use crate::storage::repos::RepoStore;
 
 // Commit identities (step 14): of one repository (its .git/config), and of a
@@ -63,23 +61,8 @@ pub async fn apply_group_identity(
     }
     let repos = store.repos_in_group(&group_id)?;
     let total = repos.len() as u32;
-
-    let (written_name, written_email) = (name.clone(), email.clone());
-    let (changed, failed) = run_blocking(move || {
-        let mut changed = 0;
-        let mut failed = Vec::new();
-        for repo in repos {
-            let path = Path::new(&repo.path);
-            match git::identity::apply_group_identity(path, &written_name, &written_email, all) {
-                Ok(true) => changed += 1,
-                Ok(false) => {}
-                Err(err) => failed.push(format!("{}: {}", repo.name, err.message)),
-            }
-        }
-        Ok((changed, failed))
-    })
-    .await?;
-
+    let (changed, failed) = write_identity(repos, &name, &email, all).await?;
+    // Remembered for the group's dialog.
     let list = store.set_group_identity(&group_id, Some((&name, &email)))?;
     Ok(GroupApplyResult {
         list,
@@ -87,6 +70,40 @@ pub async fn apply_group_identity(
         changed,
         failed,
     })
+}
+
+/// The same for repositories picked in the sidebar (step 35c).
+#[tauri::command]
+pub async fn apply_identity_to_repos(
+    repo_ids: Vec<String>,
+    name: String,
+    email: String,
+    all: bool,
+    store: State<'_, RepoStore>,
+) -> Result<GroupApplyResult, AppError> {
+    let (name, email) = clean_identity(&name, &email)?;
+    let repos = store.repos_by_ids(&repo_ids)?;
+    let total = repos.len() as u32;
+    let (changed, failed) = write_identity(repos, &name, &email, all).await?;
+    Ok(GroupApplyResult {
+        list: store.list()?,
+        total,
+        changed,
+        failed,
+    })
+}
+
+async fn write_identity(
+    repos: Vec<RepoEntry>,
+    name: &str,
+    email: &str,
+    all: bool,
+) -> Result<(u32, Vec<String>), AppError> {
+    let (name, email) = (name.to_string(), email.to_string());
+    apply_to_repos(repos, move |path| {
+        git::identity::apply_group_identity(path, &name, &email, all)
+    })
+    .await
 }
 
 fn both<'a>(name: &'a Option<String>, email: &'a Option<String>) -> Option<(&'a str, &'a str)> {

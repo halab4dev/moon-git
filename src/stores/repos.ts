@@ -3,10 +3,10 @@ import { computed, ref } from "vue";
 import * as repoApi from "../api/repo";
 import * as groupApi from "../api/group";
 import * as cloneApi from "../api/clone";
-import { applyGroupIdentity, type GroupApplyResult } from "../api/identity";
-import { applyGroupAccess } from "../api/access";
+import { applyGroupIdentity, applyIdentityToRepos, type GroupApplyResult } from "../api/identity";
+import { applyAccessToRepos, applyGroupAccess } from "../api/access";
 import { toAppError } from "../api/errors";
-import { buildTree, listGroupOptions } from "./repoTree";
+import { buildTree, listGroupOptions, rangeBetween, visibleRepoOrder } from "./repoTree";
 import type { RepoEntry, RepoGroup, RepoList } from "../types/repo";
 import type { AppError } from "../types/error";
 
@@ -19,6 +19,12 @@ export const useRepoStore = defineStore("repos", () => {
   const groups = ref<RepoGroup[]>([]);
   const repos = ref<RepoEntry[]>([]);
   const selectedId = ref<string | null>(null);
+  // Several repositories picked with ⌘-click / ⇧-click (step 35b), for
+  // dragging them together and actions on all of them. The opened one
+  // (selectedId) is in it after a plain click.
+  const picked = ref(new Set<string>());
+  // Where a ⇧-click range starts: the last repository clicked without ⇧.
+  let anchorId: string | null = null;
   // Collapsed groups. Not saved: every group starts expanded.
   const collapsed = ref(new Set<string>());
   const error = ref<AppError | null>(null);
@@ -27,6 +33,7 @@ export const useRepoStore = defineStore("repos", () => {
   const groupOptions = computed(() => listGroupOptions(tree.value));
   const selected = computed(() => repos.value.find((r) => r.id === selectedId.value) ?? null);
   const isEmpty = computed(() => groups.value.length === 0 && repos.value.length === 0);
+  const pickedRepos = computed(() => repos.value.filter((r) => picked.value.has(r.id)));
 
   function applyList(list: RepoList) {
     groups.value = list.groups;
@@ -34,6 +41,9 @@ export const useRepoStore = defineStore("repos", () => {
     if (selected.value === null) {
       selectedId.value = null;
     }
+    // Forget picked repositories that were removed.
+    const ids = new Set(list.repos.map((r) => r.id));
+    picked.value = new Set([...picked.value].filter((id) => ids.has(id)));
   }
 
   async function load() {
@@ -98,6 +108,25 @@ export const useRepoStore = defineStore("repos", () => {
     return result;
   }
 
+  /** Step 35c: identity for the picked repositories. */
+  async function setReposIdentity(repoIds: string[], name: string, email: string, all: boolean): Promise<GroupApplyResult> {
+    const result = await call(applyIdentityToRepos(repoIds, name, email, all));
+    applyList(result.list);
+    return result;
+  }
+
+  /** Step 35c: login settings for the picked repositories. */
+  async function setReposAccess(
+    repoIds: string[],
+    sshKey: string | null,
+    systemCredentials: boolean,
+    all: boolean,
+  ): Promise<GroupApplyResult> {
+    const result = await call(applyAccessToRepos(repoIds, sshKey, systemCredentials, all));
+    applyList(result.list);
+    return result;
+  }
+
   async function moveGroup(id: string, parentId: string | null) {
     applyList(await call(groupApi.moveGroup(id, parentId)));
     revealGroup(parentId);
@@ -108,8 +137,36 @@ export const useRepoStore = defineStore("repos", () => {
     collapsed.value.delete(id);
   }
 
+  /** Plain click: open this repository, and pick only it. */
   function select(id: string) {
     selectedId.value = id;
+    picked.value = new Set([id]);
+    anchorId = id;
+  }
+
+  /** ⌘-click: add or remove one repository; the opened one stays open. */
+  function togglePicked(id: string) {
+    const next = new Set(picked.value);
+    if (!next.delete(id)) {
+      next.add(id);
+    }
+    picked.value = next;
+    anchorId = id;
+  }
+
+  /** ⇧-click: every visible repository from the last clicked one to this one. */
+  function pickRange(id: string) {
+    const order = visibleRepoOrder(tree.value, isCollapsed);
+    picked.value = new Set(rangeBetween(order, anchorId ?? selectedId.value, id));
+  }
+
+  function isPicked(id: string): boolean {
+    return picked.value.has(id);
+  }
+
+  /** Back to just the opened repository (e.g. after acting on several). */
+  function clearPicked() {
+    picked.value = new Set(selectedId.value === null ? [] : [selectedId.value]);
   }
 
   function isCollapsed(groupId: string): boolean {
@@ -165,9 +222,16 @@ export const useRepoStore = defineStore("repos", () => {
     renameGroup,
     setGroupIdentity,
     setGroupAccess,
+    setReposIdentity,
+    setReposAccess,
     moveGroup,
     deleteGroup,
     select,
+    togglePicked,
+    pickRange,
+    isPicked,
+    clearPicked,
+    pickedRepos,
     isCollapsed,
     toggleCollapsed,
     attempt,

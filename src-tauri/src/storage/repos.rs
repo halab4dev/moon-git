@@ -140,6 +140,17 @@ impl RepoStore {
         })
     }
 
+    /// The saved repositories with these ids (unknown ids are skipped).
+    pub fn repos_by_ids(&self, ids: &[String]) -> Result<Vec<RepoEntry>, AppError> {
+        let data = self.lock()?;
+        Ok(data
+            .repos
+            .iter()
+            .filter(|r| ids.contains(&r.id))
+            .cloned()
+            .collect())
+    }
+
     /// The repositories of a group and of its subgroups (step 14b).
     pub fn repos_in_group(&self, group_id: &str) -> Result<Vec<RepoEntry>, AppError> {
         let data = self.lock()?;
