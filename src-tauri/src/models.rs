@@ -601,3 +601,24 @@ pub struct RemoteAccess {
     pub ssh_remotes: Vec<String>,
     pub https_remotes: Vec<String>,
 }
+
+/// What deleting several local branches did (step 36).
+#[derive(Debug, Default, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct DeletedBranches {
+    /// Full names ("refs/heads/x") that were deleted.
+    pub deleted: Vec<String>,
+    /// Not deleted: they have commits found in no other branch (ask, then force).
+    pub not_merged: Vec<String>,
+    /// "name: reason" for the others that couldn't be deleted.
+    pub failed: Vec<String>,
+}
+
+/// DeletedBranches plus the status afterwards, for the frontend.
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct DeleteBranchesResult {
+    #[serde(flatten)]
+    pub branches: DeletedBranches,
+    pub status: RepoStatus,
+}

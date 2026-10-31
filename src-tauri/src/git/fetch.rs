@@ -9,8 +9,10 @@ use crate::git::operations::{Operations, run_git_with_progress};
 /// (origin/main…) move; local branches and files stay as they are, so this
 /// is always safe to run.
 ///
-/// Remote-tracking branches deleted on the server are kept (no --prune);
-/// cleaning them up can be added later as an explicit option.
+/// --prune (step 36): remote-tracking branches whose branch was deleted on
+/// the server (origin/feature/x) are removed: they are only git's copy of
+/// the server. Local branches are never touched; one that tracked such a
+/// branch shows as "deleted on server" (its upstream is "gone").
 pub fn fetch(
     ops: &Operations,
     op_id: &str,
@@ -19,7 +21,13 @@ pub fn fetch(
 ) -> Result<(), AppError> {
     // --all: every remote, not only the one of the current branch.
     // --progress: git only prints progress to a terminal unless asked.
-    run_git_with_progress(ops, op_id, repo, &["fetch", "--all", "--progress"], on_line)
+    run_git_with_progress(
+        ops,
+        op_id,
+        repo,
+        &["fetch", "--all", "--prune", "--progress"],
+        on_line,
+    )
 }
 
 #[cfg(test)]
@@ -29,6 +37,45 @@ mod tests {
     use crate::git::status::read_status;
     use crate::git::test_support::{clone_of, commit_file, git, server_and_clone};
     use tempfile::TempDir;
+
+    #[test]
+    fn branches_deleted_on_the_server_are_pruned_but_local_ones_stay() {
+        let (_server, mine) = server_and_clone();
+        let root = mine.path();
+        // A branch on the server, with a local branch tracking it.
+        git(root, &["switch", "--quiet", "--create", "feature"]);
+        git(root, &["push", "--quiet", "-u", "origin", "feature"]);
+        git(root, &["switch", "--quiet", "main"]);
+        // Someone deletes it on the server (from another clone).
+        let other = clone_of(_server.path());
+        git(
+            other.path(),
+            &["push", "--quiet", "origin", "--delete", "feature"],
+        );
+
+        fetch(&Operations::new(), "op", root, |_| {}).unwrap();
+
+        // origin/feature is gone…
+        let remote = git(
+            root,
+            &[
+                "for-each-ref",
+                "--format=%(refname)",
+                "refs/remotes/origin/feature",
+            ],
+        );
+        assert_eq!(remote.trim(), "");
+        // …the local branch is still there, its upstream marked as gone.
+        let local = git(
+            root,
+            &[
+                "for-each-ref",
+                "--format=%(upstream:track)",
+                "refs/heads/feature",
+            ],
+        );
+        assert_eq!(local.trim(), "[gone]");
+    }
 
     #[test]
     fn fetch_updates_ahead_and_behind() {

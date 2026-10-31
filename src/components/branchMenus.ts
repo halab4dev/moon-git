@@ -4,6 +4,7 @@ import {
   checkoutBranch,
   createBranch,
   deleteBranch,
+  deleteBranches,
   deleteRemoteBranch,
   renameBranch,
   setBranchUpstream,
@@ -453,5 +454,63 @@ async function confirmDeleteRemote(repoId: string, branch: RefInfo, callbacks: B
   if (confirmed) {
     // No progress shown: deleting a branch transfers almost nothing.
     await perform(() => withSignIn(() => deleteRemoteBranch(crypto.randomUUID(), repoId, branch.fullName)), callbacks);
+  }
+}
+
+/**
+ * Deletes several local branches (step 36), e.g. the ones deleted on the
+ * server. Asked first; branches with commits found nowhere else are asked
+ * about a second time before forcing, as for a single branch.
+ */
+export async function confirmDeleteLocals(
+  repoId: string,
+  branches: { fullName: string; name: string }[],
+  callbacks: BranchCallbacks,
+) {
+  if (branches.length === 0) {
+    return;
+  }
+  const list = (names: string[]) => {
+    const shown = names.slice(0, 12).map((name) => `• ${name}`);
+    if (names.length > 12) {
+      shown.push(`… and ${names.length - 12} more`);
+    }
+    return shown.join("\n");
+  };
+  const confirmed = await ask(
+    `Delete ${branches.length} branches?\n\n${list(branches.map((b) => b.name))}\n\nOnly the branch names are removed on this computer.`,
+    { title: "Delete Branches", kind: "warning", okLabel: "Delete", cancelLabel: "Cancel" },
+  );
+  if (!confirmed) {
+    return;
+  }
+  try {
+    const first = await deleteBranches(
+      repoId,
+      branches.map((b) => b.fullName),
+      false,
+    );
+    callbacks.onStatus(first.status);
+    let failed = first.failed;
+    if (first.notMerged.length > 0) {
+      const names = first.notMerged.map((full) => full.replace(/^refs\/heads\//, ""));
+      const force = await ask(
+        `${names.length} of them have commits that are not in any other branch:\n\n${list(names)}\n\nDeleting them anyway makes those commits hard to find (git keeps them for a while in its reflog).`,
+        { title: "Delete Unmerged Branches", kind: "warning", okLabel: "Delete Anyway", cancelLabel: "Keep Them" },
+      );
+      if (force) {
+        const second = await deleteBranches(repoId, first.notMerged, true);
+        callbacks.onStatus(second.status);
+        failed = [...failed, ...second.failed];
+      }
+    }
+    if (failed.length > 0) {
+      await message(`These branches could not be deleted:\n\n${failed.join("\n")}`, {
+        title: "Delete Branches",
+        kind: "warning",
+      });
+    }
+  } catch (err) {
+    callbacks.onError(toAppError(err));
   }
 }

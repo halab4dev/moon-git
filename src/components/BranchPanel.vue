@@ -5,7 +5,15 @@ import { message } from "@tauri-apps/plugin-dialog";
 import { addRemote, listBranches, setRemoteUrl } from "../api/branch";
 import { toAppError } from "../api/errors";
 import { displayUrl } from "./remoteUrl";
-import { checkOutItem, showBranchItemMenu, type BranchCallbacks, type BranchItem } from "./branchMenus";
+import {
+  checkOutItem,
+  confirmDeleteLocals,
+  showBranchItemMenu,
+  type BranchCallbacks,
+  type BranchItem,
+} from "./branchMenus";
+import { rangeBetween } from "../stores/repoTree";
+import AppIcon from "./AppIcon.vue";
 import { useDialogStore } from "../stores/dialogs";
 import { useRepoActivity } from "../stores/repoActivity";
 import { useMenuHandlers } from "../stores/menuCommands";
@@ -72,10 +80,96 @@ function open(item: BranchItem) {
 }
 
 function menu(item: BranchItem) {
-  selected.value = item.fullName;
-  if (!activity.busy) {
-    void showBranchItemMenu(props.repoId, item, callbacks);
+  if (activity.busy) {
+    return;
   }
+  // Right-click on one of several picked local branches: act on all (step 36).
+  if (item.kind === "branch" && picked.value.has(item.fullName) && picked.value.size > 1) {
+    void pickedMenu();
+    return;
+  }
+  selected.value = item.fullName;
+  void showBranchItemMenu(props.repoId, item, callbacks);
+}
+
+// ---- several local branches (step 36) ----
+// ⌘-click adds / removes one, ⇧-click picks a range, like the repository list.
+
+const picked = ref(new Set<string>());
+let anchor: string | null = null;
+
+function clickLocal(event: MouseEvent, branch: LocalBranch) {
+  if (event.metaKey || event.ctrlKey) {
+    const next = new Set(picked.value);
+    if (!next.delete(branch.fullName)) {
+      next.add(branch.fullName);
+    }
+    picked.value = next;
+    anchor = branch.fullName;
+  } else if (event.shiftKey) {
+    const order = (shown.value?.local ?? []).map((b) => b.fullName);
+    picked.value = new Set(rangeBetween(order, anchor ?? selected.value, branch.fullName));
+  } else {
+    picked.value = new Set([branch.fullName]);
+    anchor = branch.fullName;
+  }
+  selected.value = branch.fullName;
+}
+
+function clickRemote(fullName: string) {
+  picked.value = new Set();
+  selected.value = fullName;
+}
+
+/** The picked local branches, as listed (the current one can't be deleted: left out). */
+const pickedBranches = computed(() =>
+  (shown.value?.local ?? []).filter((b) => picked.value.has(b.fullName) && !b.current),
+);
+
+const goneBranches = computed(() => (branches.value?.local ?? []).filter((b) => b.upstreamGone && !b.current));
+
+async function pickedMenu() {
+  const targets = pickedBranches.value;
+  const menu = await Menu.new({
+    items: [
+      { text: `${picked.value.size} Branches`, enabled: false },
+      { item: "Separator" },
+      {
+        text: targets.length === picked.value.size ? `Delete ${targets.length} Branches…` : `Delete ${targets.length} Branches (not the current one)…`,
+        enabled: targets.length > 0,
+        action: () => void deletePicked(),
+      },
+    ],
+  });
+  await menu.popup();
+}
+
+async function deletePicked() {
+  await confirmDeleteLocals(props.repoId, pickedBranches.value, callbacks);
+  picked.value = new Set();
+}
+
+/** Right-click on "Local Branches": pick every branch deleted on the server. */
+async function localGroupMenu() {
+  const gone = goneBranches.value;
+  const menu = await Menu.new({
+    items: [
+      {
+        text: gone.length > 0 ? `Select ${gone.length} Branches Deleted on Server` : "No Branches Deleted on Server",
+        enabled: gone.length > 0,
+        action: () => {
+          picked.value = new Set(gone.map((b) => b.fullName));
+          selected.value = gone[0]?.fullName ?? null;
+        },
+      },
+      {
+        text: "Delete Branches Deleted on Server…",
+        enabled: gone.length > 0,
+        action: () => void confirmDeleteLocals(props.repoId, gone, callbacks),
+      },
+    ],
+  });
+  await menu.popup();
 }
 
 // ---- adding a remote, changing its URL (step 26) ----
@@ -214,10 +308,10 @@ function toggle(key: string) {
   }
 }
 
-// "↑1 ↓2", "gone", or "" (in sync / no upstream).
+// "↑1 ↓2", "deleted on server", or "" (in sync / no upstream).
 function trackText(branch: LocalBranch): string {
   if (branch.upstreamGone) {
-    return "gone";
+    return "deleted on server";
   }
   return [branch.ahead > 0 ? `↑${branch.ahead}` : "", branch.behind > 0 ? `↓${branch.behind}` : ""].filter(Boolean).join(" ");
 }
@@ -254,7 +348,7 @@ function localTitle(branch: LocalBranch): string {
     <div v-if="shown" class="panel-body">
       <ul class="tree">
         <li>
-          <div class="group" @click="toggle('local')">
+          <div class="group" @click="toggle('local')" @contextmenu.prevent="localGroupMenu">
             <span class="chevron">{{ collapsed.has("local") ? "▸" : "▾" }}</span>
             Local Branches
             <span class="count">{{ shown.local.length }}</span>
@@ -264,15 +358,23 @@ function localTitle(branch: LocalBranch): string {
               v-for="branch in shown.local"
               :key="branch.fullName"
               class="branch"
-              :class="{ current: branch.current, selected: selected === branch.fullName }"
+              :class="{
+                current: branch.current,
+                selected: selected === branch.fullName,
+                picked: selected !== branch.fullName && picked.has(branch.fullName),
+              }"
               :title="localTitle(branch)"
-              @click="selected = branch.fullName"
+              @click="clickLocal($event, branch)"
               @dblclick="open(localItem(branch))"
               @contextmenu.prevent="menu(localItem(branch))"
             >
               <span class="mark">{{ branch.current ? "✓" : "" }}</span>
               <span class="name">{{ branch.name }}</span>
-              <span class="track" :class="{ gone: branch.upstreamGone }">{{ trackText(branch) }}</span>
+              <!-- Deleted on the server (step 36): a red badge, hard to miss. -->
+              <span v-if="branch.upstreamGone" class="gone-badge">
+                <AppIcon name="serverGone" />deleted on server
+              </span>
+              <span v-else class="track">{{ trackText(branch) }}</span>
             </li>
             <li v-if="shown.local.length === 0" class="muted branch">No local branches yet.</li>
           </ul>
@@ -305,7 +407,7 @@ function localTitle(branch: LocalBranch): string {
                   class="branch nested"
                   :class="{ selected: selected === branch.fullName }"
                   :title="`${remote.name}/${branch.name}`"
-                  @click="selected = branch.fullName"
+                  @click="clickRemote(branch.fullName)"
                   @dblclick="open(remoteItem(remote.name, branch.name, branch.fullName))"
                   @contextmenu.prevent="menu(remoteItem(remote.name, branch.name, branch.fullName))"
                 >
@@ -462,6 +564,11 @@ ul {
   background: rgba(127, 127, 127, 0.12);
 }
 
+/* Also picked with ⌘-click / ⇧-click (step 36). */
+.branch.picked {
+  background: var(--accent-soft);
+}
+
 .branch.selected {
   background: var(--accent);
   color: #fff;
@@ -494,8 +601,26 @@ ul {
   font-size: 11px;
 }
 
-.track.gone {
-  color: var(--warning);
+.gone-badge {
+  display: inline-flex;
+  align-items: center;
+  flex-shrink: 0;
+  margin-left: auto;
+  padding: 0 6px 0 4px;
+  border-radius: 8px;
+  background: var(--danger-bg);
+  color: var(--danger);
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 16px;
+  white-space: nowrap;
+}
+
+.gone-badge .app-icon {
+  width: 13px;
+  height: 13px;
+  margin-right: 3px;
+  vertical-align: 0;
 }
 
 .muted {

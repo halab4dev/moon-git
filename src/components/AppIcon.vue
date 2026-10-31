@@ -20,7 +20,8 @@ export type IconName =
   | "folderOpen"
   | "repo"
   | "commit"
-  | "cancel";
+  | "cancel"
+  | "serverGone";
 
 defineProps<{
   name: IconName;
@@ -115,6 +116,9 @@ const ICONS: Record<IconName, Icon> = {
   // Stop a running fetch / pull / push: a red disc with a white ✕, like
   // Stage (+) and Unstage (−).
   cancel: { color: "#d1242f", shapes: [solid(CIRCLE), white("M8.8 8.8l6.4 6.4"), white("M15.2 8.8l-6.4 6.4")] },
+  // A local branch whose branch on the server was deleted (step 36): a red
+  // cloud, crossed out.
+  serverGone: { color: "#d1242f", shapes: [fill(CLOUD + "z"), line(CLOUD), line("M4 3l16 18")] },
   // Sidebar. A group: a two-tone yellow folder, open while expanded.
   folder: {
     color: "#f0a202",

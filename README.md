@@ -30,6 +30,7 @@ MoonGit is a thin GUI over the **git command line** installed on your machine. I
 
 ### Sync
 - **Fetch** (all remotes), **pull** and **push**, with live progress and a Cancel button.
+- Fetch removes the copies of branches deleted on the server; local branches are kept and marked **deleted on server**, and can be deleted several at once.
 - Ahead / behind counts for the current branch.
 - When a branch has diverged, pull asks whether to rebase or merge.
 - **Force push** from the ▾ next to Push. It shows the commits the server branch would lose and asks first. It always uses `--force-with-lease` against what you last fetched: if someone pushed since, it is refused and nothing is overwritten. The normal Push never forces.

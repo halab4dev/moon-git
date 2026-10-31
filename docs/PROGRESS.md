@@ -2,7 +2,7 @@
 
 Last updated: 2026-10-27
 
-**Current state:** Phase 3 is done, plus steps 25–30 added on request. Steps 31a (menu bar) and 31b (Branch → Checkout… dialog) are done. Step 32 (welcome picture) is done. Step 33 (dark mode) is done. Accounts resumed (2026-10-28): step 12 (MoonGit as git's credential helper) is done; 13a (saved accounts: accounts.json + keyring) is done; 13b (Sign in dialog) and 13c (MoonGit → Accounts…) are done (not yet tried against a real HTTPS server). Step 34 (drag repositories into / out of groups) is done. Step 14 (commit identity per repository and per group) is done. Step 15 (SSH key and HTTPS login, per repository and per group) is done: every item of the CLAUDE.md roadmap is now done. Steps 35a (drag whole groups) and 35b (select several repositories: drag, Move To, Commit Identity, Login, Remove) are done.
+**Current state:** Phase 3 is done, plus steps 25–30 added on request. Steps 31a (menu bar) and 31b (Branch → Checkout… dialog) are done. Step 32 (welcome picture) is done. Step 33 (dark mode) is done. Accounts resumed (2026-10-28): step 12 (MoonGit as git's credential helper) is done; 13a (saved accounts: accounts.json + keyring) is done; 13b (Sign in dialog) and 13c (MoonGit → Accounts…) are done (not yet tried against a real HTTPS server). Step 34 (drag repositories into / out of groups) is done. Step 14 (commit identity per repository and per group) is done. Step 15 (SSH key and HTTPS login, per repository and per group) is done: every item of the CLAUDE.md roadmap is now done. Steps 35a (drag whole groups) and 35b (select several repositories: drag, Move To, Commit Identity, Login, Remove) are done. Step 36 (fetch --prune, delete several local branches) is done.
 
 Legend: ✅ done · 🟡 in progress / waiting for confirmation · ⏸ on hold · ⬜ not started
 
@@ -79,6 +79,7 @@ Detailed notes for each step (in Vietnamese): [docs/learning/](learning/README.m
 | 34 | Drag a repository onto a group (into it), onto another repository (its group) or onto empty space (top level); a closed group opens when hovered; HTML5 drag and drop, no library; needs `dragDropEnabled: false` on the main window (Tauri's file drop swallowed the `drop` event on macOS too) | ✅ frontend + one window option |
 | 35a | Drag a whole group into another group or out to the top level; not into itself or its own subgroups, not next to a group of the same name | ✅ | 241 Rust tests |
 | 35b | Select several repositories (⌘-click, ⇧-click): drag them together; context menu Move To / Commit Identity… / Login… / Remove from List (35c merged in) | ✅ | 241 Rust + 42 Vitest |
+| 36 | Fetch with `--prune` (copies of branches deleted on the server go; local branches never); local branches whose upstream is gone show "deleted on server"; pick several local branches (⌘ / ⇧-click) and delete them, or all the ones deleted on server, asking again for unmerged ones | ✅ | 243 Rust tests |
 
 ---
 
@@ -99,7 +100,7 @@ Detailed notes for each step (in Vietnamese): [docs/learning/](learning/README.m
 - Status refreshes when the window gets the focus + a Refresh button (no file watcher yet).
 - Stage/unstage always uses `--literal-pathspecs`; conflicted files couldn't be staged until the conflict step.
 - `vite.config.ts` transpiles JS down to `safari15` / `chrome105` (the macOS 12 webview = system WebKit ≈ Safari 15.6, even if the Safari app is newer). Checked with the system's `jsc`.
-- Fetch = `git fetch --all --progress`, without `--prune` (pruning branches deleted on the server will be a separate option later).
+- Fetch = `git fetch --all --prune --progress` (step 36, your choice): remote-tracking copies of branches deleted on the server are removed; local branches are never deleted automatically, they are marked "deleted on server".
 - Pull: asks Rebase/Merge every time the branch has diverged (your choice), preselected from git config; when only behind, fast-forwards without asking. Done with fetch + a local merge/rebase against `@{upstream}`, not `git pull`.
 - The Push button never forces. Force push (step 27) is a separate menu action, always confirmed with the list of commits the server loses, and always `--force-with-lease=<remote ref>:<id from the last fetch>` (never plain `--force`, never the bare `--force-with-lease`).
 - History: `git log --date-order` from `--branches --remotes --tags HEAD` (not `--all`, to keep stashes out), pages of 500 commits via `--skip`; hand-written virtualized list (no extra library).
@@ -137,5 +138,5 @@ Detailed notes for each step (in Vietnamese): [docs/learning/](learning/README.m
 - [x] Steps 3–11 confirmed and committed.
 - [x] Steps 16a–19b confirmed and committed.
 - [x] Steps 20a–24b confirmed and committed (22c was committed on 2026-10-24, when moving on to 22d). Phase 3 done.
-- [x] Steps 25–35b and 12–15 confirmed and committed. CLAUDE.md roadmap complete (2026-11-01). README and MIT license added.
+- [x] Steps 25–36 and 12–15 confirmed and committed. CLAUDE.md roadmap complete (2026-11-01). README and MIT license added.
 - [ ] Try steps 13b / 13c against a real HTTPS server when one is available (tables in `learning/13b-…`, `13c-…`).

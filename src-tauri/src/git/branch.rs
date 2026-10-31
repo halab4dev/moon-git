@@ -13,7 +13,7 @@ use crate::git::push::list_remotes;
 use crate::git::refs::list_refs;
 use crate::git::runner::run_git;
 use crate::git::show::check_commit_id;
-use crate::models::{RefInfo, RefKind};
+use crate::models::{DeletedBranches, RefInfo, RefKind};
 
 /// Checks out a local branch, or, for a remote branch ("refs/remotes/origin/x"),
 /// a local branch "x" that tracks it (created if needed).
@@ -183,6 +183,26 @@ pub fn delete_local(repo: &Path, full_name: &str, force: bool) -> Result<(), App
         }
     })?;
     Ok(())
+}
+
+/// Deletes several local branches (step 36). Each one on its own: one that
+/// fails doesn't stop the others. Unmerged ones (without `force`) are only
+/// reported, so the user can be asked again for them.
+pub fn delete_locals(repo: &Path, full_names: &[String], force: bool) -> DeletedBranches {
+    let mut result = DeletedBranches::default();
+    for full_name in full_names {
+        match delete_local(repo, full_name, force) {
+            Ok(()) => result.deleted.push(full_name.clone()),
+            Err(err) if err.kind == ErrorKind::NotMerged => {
+                result.not_merged.push(full_name.clone())
+            }
+            Err(err) => {
+                let name = full_name.strip_prefix("refs/heads/").unwrap_or(full_name);
+                result.failed.push(format!("{name}: {}", err.message));
+            }
+        }
+    }
+    result
 }
 
 /// Deletes a branch on the server: `full_name` is its remote-tracking ref
@@ -618,5 +638,39 @@ mod tests {
         // A start point must be a commit id or an existing ref.
         assert!(create(work.path(), "x", Some("--orphan"), false).is_err());
         assert!(create(work.path(), "x", Some("refs/heads/nope"), false).is_err());
+    }
+
+    #[test]
+    fn deletes_several_branches_and_reports_unmerged_ones() {
+        let (_server, work) = server_and_clone();
+        let root = work.path();
+        git(root, &["branch", "merged-a"]);
+        git(root, &["branch", "merged-b"]);
+        // A branch with a commit found nowhere else.
+        git(root, &["switch", "--quiet", "--create", "unmerged"]);
+        commit_file(root, "only-here.txt");
+        git(root, &["switch", "--quiet", "main"]);
+
+        let names: Vec<String> = ["merged-a", "merged-b", "unmerged", "main", "missing"]
+            .iter()
+            .map(|n| format!("refs/heads/{n}"))
+            .collect();
+        let result = delete_locals(root, &names, false);
+        assert_eq!(
+            result.deleted,
+            ["refs/heads/merged-a", "refs/heads/merged-b"]
+        );
+        assert_eq!(result.not_merged, ["refs/heads/unmerged"]);
+        // The current branch and an unknown one: reported, not deleted.
+        assert_eq!(result.failed.len(), 2, "{:?}", result.failed);
+        assert!(
+            result.failed[0].starts_with("main: "),
+            "{:?}",
+            result.failed
+        );
+
+        // Asked again, forced: the unmerged one goes too.
+        let again = delete_locals(root, &["refs/heads/unmerged".to_string()], true);
+        assert_eq!(again.deleted, ["refs/heads/unmerged"]);
     }
 }

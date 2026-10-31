@@ -53,3 +53,19 @@ export function addRemote(repoId: string, name: string, url: string): Promise<vo
 export function setRemoteUrl(repoId: string, name: string, url: string): Promise<void> {
   return invoke<void>("set_remote_url", { repoId, name, url });
 }
+
+/** What deleting several local branches did (step 36). */
+export interface DeleteBranchesResult {
+  /** Full names that were deleted. */
+  deleted: string[];
+  /** Not deleted: commits found in no other branch. Ask, then call again with `force`. */
+  notMerged: string[];
+  /** "name: reason" for the others. */
+  failed: string[];
+  status: RepoStatus;
+}
+
+/** Several local branches ("refs/heads/x"); one that fails doesn't stop the others. */
+export function deleteBranches(repoId: string, fullNames: string[], force: boolean): Promise<DeleteBranchesResult> {
+  return invoke<DeleteBranchesResult>("delete_branches", { repoId, fullNames, force });
+}

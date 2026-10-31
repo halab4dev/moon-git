@@ -95,6 +95,7 @@ pub fn run() {
             commands::branch::create_branch,
             commands::branch::rename_branch,
             commands::branch::delete_branch,
+            commands::branch::delete_branches,
             commands::branch::delete_remote_branch,
             commands::branch::set_branch_upstream,
             commands::branch::list_branches,

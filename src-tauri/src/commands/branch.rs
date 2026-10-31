@@ -4,7 +4,7 @@ use super::{emit_progress, run_blocking};
 use crate::error::AppError;
 use crate::git;
 use crate::git::operations::Operations;
-use crate::models::{BranchList, RepoStatus};
+use crate::models::{BranchList, DeleteBranchesResult, RepoStatus};
 use crate::storage::repos::RepoStore;
 
 // All return the new status (the branch shown in the header may have changed).
@@ -141,4 +141,21 @@ pub async fn set_remote_url(
 ) -> Result<(), AppError> {
     let repo = store.repo_path(&repo_id)?;
     run_blocking(move || git::remote::set_url(&repo, &name, &url)).await
+}
+
+/// Several local branches at once (step 36): see git::branch::delete_locals.
+#[tauri::command]
+pub async fn delete_branches(
+    repo_id: String,
+    full_names: Vec<String>,
+    force: bool,
+    store: State<'_, RepoStore>,
+) -> Result<DeleteBranchesResult, AppError> {
+    let repo = store.repo_path(&repo_id)?;
+    run_blocking(move || {
+        let branches = git::branch::delete_locals(&repo, &full_names, force);
+        let status = git::status::read_status(&repo)?;
+        Ok(DeleteBranchesResult { branches, status })
+    })
+    .await
 }
